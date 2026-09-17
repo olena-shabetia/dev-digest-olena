@@ -32,3 +32,19 @@ export async function actOnFinding(
       throw new AppError('invalid_action', `Action '${action}' is not available in the starter`, 400);
   }
 }
+
+/**
+ * Dismiss several findings at once (triage a whole review pass in one click).
+ */
+export async function bulkDismissFindings(
+  repo: ReviewRepository,
+  workspaceId: string,
+  findingIds: string[],
+): Promise<{ dismissed: string[] }> {
+  const dismissed: string[] = [];
+  for (const id of findingIds) {
+    const row = await repo.setFindingDismissed(id, new Date());
+    if (row) dismissed.push(id);
+  }
+  return { dismissed };
+}

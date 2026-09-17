@@ -5,7 +5,7 @@ import type { AgentRow } from '../../db/rows.js';
 import { ReviewRepository } from './repository.js';
 import { type ReviewDto, type ReviewDtoFinding } from './helpers.js';
 import { ReviewRunExecutor, type Logger } from './run-executor.js';
-import { actOnFinding as actOnFindingImpl } from './findings.js';
+import { actOnFinding as actOnFindingImpl, bulkDismissFindings as bulkDismissFindingsImpl } from './findings.js';
 import { reviewToDto } from './helpers.js';
 
 // Re-export DTO types + converters for backward-compatible imports from
@@ -151,6 +151,13 @@ export class ReviewService {
     action: FindingActionKind,
   ): Promise<{ finding: ReviewDtoFinding }> {
     return actOnFindingImpl(this.repo, workspaceId, findingId, action);
+  }
+
+  async bulkDismissFindings(
+    workspaceId: string,
+    findingIds: string[],
+  ): Promise<{ dismissed: string[] }> {
+    return bulkDismissFindingsImpl(this.repo, workspaceId, findingIds);
   }
 
   // ===========================================================================
