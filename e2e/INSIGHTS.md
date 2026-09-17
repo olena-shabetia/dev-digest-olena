@@ -1,22 +1,34 @@
 # INSIGHTS — e2e
 
-Append-only log of problems already hit. Newest first. One entry per problem:
-symptom → cause → fix → rule.
-
-When an entry hardens into a standing rule, promote one line into `CLAUDE.md`
-and shorten the entry here to a pointer.
+Append-only, newest entry first per section. See the `engineering-insights`
+skill for the read/write/promotion contract.
 
 ---
 
-_No entries yet._
+## What Works
 
-Template for the first one:
+_None yet._
 
-```markdown
-## YYYY-MM-DD — one-line title
+## What Doesn't Work
 
-**Symptom:** what you actually saw (error text, failing flow, wrong screenshot).
-**Cause:** why it happened.
-**Fix:** what resolved it, and what you verified afterwards.
-**Rule:** how to avoid hitting it again.
-```
+_None yet._
+
+## Codebase Patterns
+
+_None yet._
+
+## Tool & Library Notes
+
+_None yet._
+
+## Recurring Errors & Fixes
+
+_None yet._
+
+## Session Notes
+
+_None yet._
+
+## Open Questions
+
+_None yet._

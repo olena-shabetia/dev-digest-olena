@@ -1,14 +1,25 @@
 # INSIGHTS — reviewer-core
 
-Append-only log of problems already hit. Newest first. One entry per problem:
-symptom → cause → fix → rule.
-
-When an entry hardens into a standing rule, promote one line into `CLAUDE.md`
-and shorten the entry here to a pointer.
+Append-only, newest entry first per section. See the `engineering-insights`
+skill for the read/write/promotion contract.
 
 ---
 
-## 2026-09-17 — this package installs with npm, not pnpm
+## What Works
+
+_None yet._
+
+## What Doesn't Work
+
+_None yet._
+
+## Codebase Patterns
+
+_None yet._
+
+## Tool & Library Notes
+
+### 2026-09-17 — this package installs with npm, not pnpm
 
 **Symptom:** per the note in `scripts/dev.sh`, a missing
 `reviewer-core/node_modules` makes the API crash at boot with
@@ -25,3 +36,15 @@ when `node_modules` is absent, so it usually only bites on a manual install.
 
 **Rule:** never "unify" this package onto pnpm without first proving the API
 still boots. The split is deliberate, not an oversight.
+
+## Recurring Errors & Fixes
+
+_None yet._
+
+## Session Notes
+
+_None yet._
+
+## Open Questions
+
+_None yet._

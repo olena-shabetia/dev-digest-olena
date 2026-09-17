@@ -1,19 +1,29 @@
 # INSIGHTS — repository-wide
 
-Append-only log of problems already hit. Newest first. One entry per problem:
-symptom → cause → fix → rule.
+Append-only, newest entry first per section. See the `engineering-insights`
+skill for the read/write/promotion contract.
 
 Scope: things that cross package boundaries. Package-local entries belong in
 `server/INSIGHTS.md`, `client/INSIGHTS.md`, `reviewer-core/INSIGHTS.md`,
-`e2e/INSIGHTS.md`.
-
-Do NOT let this file grow into documentation. When an entry hardens into a
-standing rule, promote one line into the relevant `CLAUDE.md` and shorten the
-entry here to a pointer.
+`e2e/INSIGHTS.md`. Do NOT let this file grow into documentation.
 
 ---
 
-## 2026-09-17 — pnpm 12 silently blocks build scripts and writes a bad stub
+## What Works
+
+_None yet._
+
+## What Doesn't Work
+
+_None yet._
+
+## Codebase Patterns
+
+_None yet._
+
+## Tool & Library Notes
+
+### 2026-09-17 — pnpm 12 silently blocks build scripts and writes a bad stub
 
 **Symptom:** `pnpm install` ends with `ERR_PNPM_IGNORED_BUILDS` listing
 `esbuild`, `sharp`, `ssh2`, `cpu-features`, `protobufjs`. Untracked
@@ -30,3 +40,15 @@ for production image optimization. Verified: API and web both boot and serve 200
 
 **Rule:** do not blanket-approve build scripts to make a warning go away. Check
 whether the binary is actually reachable at runtime first.
+
+## Recurring Errors & Fixes
+
+_None yet._
+
+## Session Notes
+
+_None yet._
+
+## Open Questions
+
+_None yet._

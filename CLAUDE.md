@@ -2,10 +2,22 @@
 
 Local-first AI pull-request reviewer. Lessons L01–L08 add features back.
 
-## Before answering
+## Session protocol
 
-Search the relevant package's `docs/`, `specs/`, and `INSIGHTS.md` for what's
-asked FIRST — they may already answer it — then read code.
+This file holds stable configuration. `INSIGHTS.md` holds evolving knowledge
+discovered during sessions. Both are binding.
+
+**Before any work:** read the `INSIGHTS.md` of every module the task touches
+(routing table in the `engineering-insights` skill). Briefly summarize what you
+loaded from it — the entries that bear on the task, or that none do — so it is
+visible that it was processed. Treat them as high-confidence guidance unless told
+otherwise. Then search that package's `docs/` and `specs/` — they may already
+answer the question — and only then read code.
+
+**Before finishing:** run the `engineering-insights` skill. Do not skip it. It
+proposes entries for approval rather than writing on its own, and if nothing this
+session met its bar it writes nothing — a valid result, not a reason to skip the
+step.
 
 ## Map
 
