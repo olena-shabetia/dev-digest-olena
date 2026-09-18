@@ -15,6 +15,7 @@ import {
   Settings,
   Repo,
   PrDetail,
+  PrMeta,
 } from '@devdigest/shared';
 
 /**
@@ -157,7 +158,7 @@ describe('AI contracts parse fixtures', () => {
   it('RunTrace (data2.jsx TRACE single-document)', () => {
     const trace = RunTrace.parse({
       config: { agent: 'Security Reviewer', version: 'v7', model: 'gpt-4.1', pr: 482, source: 'local' },
-      stats: { duration_ms: 8200, tokens_in: 14820, tokens_out: 1240, findings: 3, grounding: '3/3 passed' },
+      stats: { duration_ms: 8200, tokens_in: 14820, tokens_out: 1240, cost_usd: 0.06, findings: 3, grounding: '3/3 passed' },
       prompt_assembly: { system: 's', user: 'u' },
       tool_calls: [{ tool: 'read_file', args: "'src/config.ts'", meta: '1,240 bytes', ms: 120 }],
       raw_output: '{}',
@@ -206,5 +207,44 @@ describe('platform DTOs', () => {
         commits: [],
       }),
     ).not.toThrow();
+  });
+
+  it('PrMeta accepts a full findings rollup, and still parses a row that omits it', () => {
+    const base = {
+      number: 482,
+      title: 't',
+      author: 'a',
+      branch: 'b',
+      base: 'main',
+      head_sha: 'sha',
+      additions: 1,
+      deletions: 0,
+      files_count: 1,
+      status: 'open' as const,
+    };
+    expect(() =>
+      PrMeta.parse({
+        ...base,
+        findings: {
+          critical: 1,
+          warning: 1,
+          suggestion: 0,
+          total: 2,
+          preview: [
+            {
+              severity: 'CRITICAL',
+              category: 'security',
+              title: 'Hardcoded secret',
+              file: 'src/config.ts',
+              start_line: 12,
+              end_line: 12,
+              confidence: 0.98,
+              description: 'A secret is committed.',
+            },
+          ],
+        },
+      }),
+    ).not.toThrow();
+    expect(() => PrMeta.parse(base)).not.toThrow();
   });
 });

@@ -2,6 +2,7 @@
 
 import React, { useCallback } from "react";
 import { Icon, Badge, Button, SectionLabel, EmptyState } from "@devdigest/ui";
+import { severityBuckets, type SeverityBucket } from "@/lib/severity";
 import { RunStatus } from "../RunStatus";
 import { RunHistory } from "../RunHistory/RunHistory";
 import { ReviewRunAccordion } from "../ReviewRunAccordion";
@@ -71,6 +72,27 @@ export function FindingsTab({
     setTarget((p) => ({ runId, n: (p?.n ?? 0) + 1 }));
   }, []);
 
+  // Per-run severity chips for the Timeline tiles — a pure grouping of
+  // findings already in `runs` (from usePrReviews), joined by run_id. No new
+  // fetch, no LLM call, and it reuses the same tally the run-card pills use.
+  const severityByRun = React.useMemo(() => {
+    const m = new Map<string, SeverityBucket[]>();
+    for (const review of runs) {
+      if (review.run_id) m.set(review.run_id, severityBuckets(review.findings));
+    }
+    return m;
+  }, [runs]);
+
+  // The findings themselves, for the Timeline tile's hover popover — same
+  // already-fetched data as severityByRun, just unreduced.
+  const findingsByRun = React.useMemo(() => {
+    const m = new Map<string, FindingRecord[]>();
+    for (const review of runs) {
+      if (review.run_id) m.set(review.run_id, review.findings);
+    }
+    return m;
+  }, [runs]);
+
   return (
     <section>
       {liveRunIds.length > 0 && (
@@ -131,6 +153,10 @@ export function FindingsTab({
           <RunHistory
             runs={prRuns ?? []}
             commits={prCommits}
+            severityByRun={severityByRun}
+            findingsByRun={findingsByRun}
+            repoFullName={repoFullName}
+            headSha={headSha}
             onOpenTrace={handleOpenTrace}
             onGoToReview={handleGoToReview}
             onDelete={handleDelete}

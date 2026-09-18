@@ -131,6 +131,53 @@ d('Testcontainers: DB-backed routes via app.inject', () => {
     await app.close();
   });
 
+  it('GET /repos/:id/pulls sums agent_runs.cost_usd per PR (COST column) — null when no run has a known cost', async () => {
+    const config = loadConfig({ ...process.env, NODE_ENV: 'test' } as NodeJS.ProcessEnv);
+    const app = await buildApp({
+      config,
+      db: pg.handle.db,
+      overrides: { git: new MockGitClient(), github: new MockGitHubClient() },
+    });
+    const { workspaceId } = await seed(pg.handle.db);
+    const [repo] = await pg.handle.db
+      .select()
+      .from(t.repos)
+      .where(eq(t.repos.fullName, 'acme/payments-api'));
+
+    // Seeded PR #482 carries three demo runs (L01 seed) summing to $0.0036.
+    const pulls = (
+      await app.inject({ method: 'GET', url: `/repos/${repo!.id}/pulls` })
+    ).json();
+    const pr482 = pulls.find((p: { number: number }) => p.number === 482);
+    expect(pr482.cost_usd).toBeCloseTo(0.0036, 4);
+
+    // A PR with zero runs sums to NULL, not $0 — never render "unknown" as "free".
+    const [pr] = await pg.handle.db
+      .insert(t.pullRequests)
+      .values({
+        workspaceId,
+        repoId: repo!.id,
+        number: 999,
+        title: 'No runs yet',
+        author: 'nobody',
+        branch: 'x',
+        base: 'main',
+        headSha: 'deadbeef',
+        additions: 0,
+        deletions: 0,
+        filesCount: 0,
+        status: 'needs_review',
+      })
+      .returning();
+    const pullsAgain = (
+      await app.inject({ method: 'GET', url: `/repos/${repo!.id}/pulls` })
+    ).json();
+    const pr999 = pullsAgain.find((p: { number: number }) => p.number === pr!.number);
+    expect(pr999.cost_usd).toBeNull();
+
+    await app.close();
+  });
+
   it('POST /repos/:id/poll syncs PR list and does NOT trigger a review', async () => {
     const config = loadConfig({ ...process.env, NODE_ENV: 'test' } as NodeJS.ProcessEnv);
     const app = await buildApp({

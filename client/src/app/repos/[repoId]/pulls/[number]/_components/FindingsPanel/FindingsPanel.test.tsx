@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach, vi } from "vitest";
-import { render, screen, cleanup } from "@testing-library/react";
+import { render, screen, cleanup, fireEvent } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import type { FindingRecord } from "@devdigest/shared";
 import messages from "../../../../../../../../messages/en/prReview.json";
@@ -12,8 +12,8 @@ import { FindingsPanel } from "./FindingsPanel";
 
 afterEach(cleanup);
 
-const FINDINGS: FindingRecord[] = [
-  {
+function finding(overrides: Partial<FindingRecord>): FindingRecord {
+  return {
     id: "f1",
     severity: "CRITICAL",
     category: "security",
@@ -30,7 +30,16 @@ const FINDINGS: FindingRecord[] = [
     review_id: "r1",
     accepted_at: null,
     dismissed_at: null,
-  },
+    ...overrides,
+  };
+}
+
+const FINDINGS: FindingRecord[] = [finding({})];
+
+const MIXED: FindingRecord[] = [
+  finding({ id: "f1", severity: "CRITICAL", title: "Hardcoded secret", confidence: 0.95 }),
+  finding({ id: "f2", severity: "WARNING", title: "N+1 query", confidence: 0.86 }),
+  finding({ id: "f3", severity: "SUGGESTION", title: "Magic number", confidence: 0.4 }),
 ];
 
 function renderWithIntl(ui: React.ReactElement) {
@@ -51,5 +60,51 @@ describe("FindingsPanel (smoke)", () => {
   it("shows the empty state when nothing matches", () => {
     renderWithIntl(<FindingsPanel findings={[]} prId="pr1" />);
     expect(screen.getByText("No findings match")).toBeInTheDocument();
+  });
+});
+
+describe("FindingsPanel severity pills", () => {
+  it("shows a pill only for severities actually present", () => {
+    renderWithIntl(<FindingsPanel findings={MIXED} prId="pr1" />);
+    expect(screen.getByRole("button", { name: /critical/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /warning/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /suggestion/i })).toBeInTheDocument();
+  });
+
+  it("pill count equals the number of finding cards rendered", () => {
+    const { container } = renderWithIntl(<FindingsPanel findings={MIXED} prId="pr1" />);
+    // one card per finding shown, all three severities present
+    expect(container.querySelectorAll("[data-finding-id]")).toHaveLength(3);
+  });
+
+  it("clicking a pill filters the list to that severity; clicking again clears it", () => {
+    renderWithIntl(<FindingsPanel findings={MIXED} prId="pr1" />);
+    fireEvent.click(screen.getByRole("button", { name: /critical/i }));
+    expect(screen.getByText("Hardcoded secret")).toBeInTheDocument();
+    expect(screen.queryByText("N+1 query")).not.toBeInTheDocument();
+    expect(screen.queryByText("Magic number")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /critical/i }));
+    expect(screen.getByText("Hardcoded secret")).toBeInTheDocument();
+    expect(screen.getByText("N+1 query")).toBeInTheDocument();
+    expect(screen.getByText("Magic number")).toBeInTheDocument();
+  });
+
+  it("hiding low-confidence findings shrinks (or removes) the matching pill", () => {
+    renderWithIntl(<FindingsPanel findings={MIXED} prId="pr1" />);
+    fireEvent.click(screen.getByRole("switch"));
+    // SUGGESTION (confidence 0.4) drops below the threshold and disappears entirely
+    expect(screen.queryByRole("button", { name: /suggestion/i })).not.toBeInTheDocument();
+  });
+
+  it("falls back to the full list, not an empty one, when the active severity vanishes", () => {
+    renderWithIntl(<FindingsPanel findings={MIXED} prId="pr1" />);
+    fireEvent.click(screen.getByRole("button", { name: /suggestion/i }));
+    expect(screen.getByText("Magic number")).toBeInTheDocument();
+    // now hide low confidence — the SUGGESTION finding (0.4) drops out
+    fireEvent.click(screen.getByRole("switch"));
+    expect(screen.queryByText("No findings match")).not.toBeInTheDocument();
+    expect(screen.getByText("Hardcoded secret")).toBeInTheDocument();
+    expect(screen.getByText("N+1 query")).toBeInTheDocument();
   });
 });
