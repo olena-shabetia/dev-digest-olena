@@ -19,14 +19,20 @@ shape before opening it.
    SCORE, showing only severities actually present. Clicking a pill narrows
    the finding cards below to that severity; clicking it again clears the
    filter and restores the full list.
-2. **PR detail → Agent runs → Timeline** — the same pills, read-only (no
-   click), on each run's tile, so a run's shape is visible before expanding it.
+2. **PR detail → Agent runs → Timeline** — the same pills, still not
+   filterable by click, on each run's tile, so a run's shape is visible before
+   expanding it. Hovering (or focusing) them opens the same findings popover
+   as the PR list (see below) — added after the initial ship, on request, so
+   the Timeline gets the same "N FINDINGS IN THIS RUN" detail-on-hover the
+   list already had.
 3. **PR list** — a `FINDINGS` column with severity icons for the PR's latest
-   review. Hovering (or focusing, for keyboard users) reveals a read-only
-   popover titled "N FINDINGS IN THIS RUN" previewing up to 5 findings
-   (severity, title, category, file:line, confidence, a short description) —
-   text only, no Accept/Dismiss buttons. Those buttons exist only on the PR
-   detail page's Review-runs accordion (`FindingCard`).
+   review. Hovering (or focusing, for keyboard users) reveals a popover titled
+   "N FINDINGS IN THIS RUN" previewing **every** finding (severity, title,
+   category, file:line, confidence, a short description) — no "+N more"
+   truncation; the list scrolls past 4 rows instead. `file:line` links to
+   that line on GitHub when the repo/commit are known — but still **no
+   Accept/Dismiss buttons**. Those buttons exist only on the PR detail page's
+   Review-runs accordion (`FindingCard`).
 
 Explicitly **out of scope**: renaming "Dismiss" to "Reject" (the API action,
 `dismissed_at` column, and keyboard shortcut `d` all already say dismiss —

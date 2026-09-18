@@ -3,7 +3,7 @@ import {
   VIEWPORT_MARGIN,
   POPOVER_HEADER_HEIGHT,
   POPOVER_ROW_HEIGHT,
-  POPOVER_FOOTER_HEIGHT,
+  POPOVER_LIST_MAX_HEIGHT,
 } from "./constants";
 
 export interface Placement {
@@ -12,13 +12,12 @@ export interface Placement {
 }
 
 /** Estimated popover height for `previewCount` rows — deterministic, no DOM
- *  measurement, so placement stays a pure function testable without layout. */
-export function estimateHeight(previewCount: number, hasMore: boolean): number {
-  return (
-    POPOVER_HEADER_HEIGHT +
-    previewCount * POPOVER_ROW_HEIGHT +
-    (hasMore ? POPOVER_FOOTER_HEIGHT : 0)
-  );
+ *  measurement, so placement stays a pure function testable without layout.
+ *  The row list itself is clamped to `POPOVER_LIST_MAX_HEIGHT` (it scrolls
+ *  past that), so the estimate — and therefore the above/below flip
+ *  decision — never grows unbounded with a long finding list. */
+export function estimateHeight(previewCount: number): number {
+  return POPOVER_HEADER_HEIGHT + Math.min(previewCount * POPOVER_ROW_HEIGHT, POPOVER_LIST_MAX_HEIGHT);
 }
 
 /**

@@ -1,8 +1,8 @@
 /* FindingsCell — the PR list's FINDINGS column: severity icons for the PR's
-   latest review, with a read-only hover/focus popover titled
-   "N FINDINGS IN THIS RUN". Portaled to document.body because the table row
-   (`s.tableCard`, overflow: hidden) would otherwise clip it — see
-   client/specs/L02-findings-by-severity.ui.md. */
+   latest review, with a hover/focus popover titled "N FINDINGS IN THIS RUN"
+   (scrollable, with a file:line link to GitHub). Portaled to document.body
+   because the table row (`s.tableCard`, overflow: hidden) would otherwise
+   clip it — see client/specs/L02-findings-by-severity.ui.md. */
 "use client";
 
 import React from "react";
@@ -14,14 +14,13 @@ import { severityBuckets } from "@/lib/severity";
 import { FindingsPopover, useFindingsHoverPopover } from "@/components/findings-popover";
 import { s } from "./styles";
 
-export function FindingsCell({ pr }: { pr: PrMeta }) {
+export function FindingsCell({ pr, repoFullName }: { pr: PrMeta; repoFullName?: string | null }) {
   const t = useTranslations("prReview");
   const findings = pr.findings ?? null;
   const popoverId = `findings-popover-${pr.id ?? pr.number}`;
 
-  const { triggerRef, open, placement, scheduleOpen, close } = useFindingsHoverPopover(
+  const { triggerRef, popoverRef, open, placement, scheduleOpen, scheduleClose, close } = useFindingsHoverPopover(
     findings?.preview.length ?? 0,
-    findings ? findings.total > findings.preview.length : false,
   );
 
   if (!findings) {
@@ -55,7 +54,7 @@ export function FindingsCell({ pr }: { pr: PrMeta }) {
       aria-label={ariaLabel}
       onClick={(e) => e.stopPropagation()}
       onMouseEnter={scheduleOpen}
-      onMouseLeave={close}
+      onMouseLeave={scheduleClose}
       onFocus={scheduleOpen}
       onBlur={close}
       onKeyDown={(e) => {
@@ -67,10 +66,16 @@ export function FindingsCell({ pr }: { pr: PrMeta }) {
         placement &&
         createPortal(
           <FindingsPopover
+            ref={popoverRef}
             id={popoverId}
             total={findings.total}
             preview={findings.preview}
             style={placement}
+            repoFullName={repoFullName}
+            headSha={pr.head_sha}
+            onMouseEnter={scheduleOpen}
+            onMouseLeave={scheduleClose}
+            onClose={close}
           />,
           document.body,
         )}

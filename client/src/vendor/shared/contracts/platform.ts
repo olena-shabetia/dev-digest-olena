@@ -178,8 +178,8 @@ export const PrFindingsRollup = z.object({
   // Every finding of that review, including severities outside the three
   // buckets above — what the popover title counts.
   total: z.number().int(),
-  // Bounded preview (see FINDINGS_PREVIEW_LIMIT), CRITICAL → WARNING →
-  // SUGGESTION then file:line.
+  // Every finding of that review (the client popover scrolls rather than
+  // truncating), ordered CRITICAL → WARNING → SUGGESTION then file:line.
   preview: z.array(PrFindingPreview),
 });
 export type PrFindingsRollup = z.infer<typeof PrFindingsRollup>;

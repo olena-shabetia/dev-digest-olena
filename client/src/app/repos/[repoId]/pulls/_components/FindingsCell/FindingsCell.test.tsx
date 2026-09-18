@@ -38,7 +38,7 @@ describe("FindingsCell", () => {
   it("never-reviewed PR renders '—' with no popover trigger", () => {
     renderCell(pr({ findings: null }));
     expect(screen.getByText("—")).toBeInTheDocument();
-    expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("findings-popover")).not.toBeInTheDocument();
   });
 
   it("reviewed-and-clean PR renders 0, distinct from never-reviewed", () => {
@@ -79,13 +79,91 @@ describe("FindingsCell", () => {
     renderCell(pr({ findings }));
     fireEvent.mouseEnter(screen.getByRole("group"));
     act(() => { vi.advanceTimersByTime(HOVER_OPEN_MS); });
-    expect(screen.getByRole("tooltip")).toBeInTheDocument();
+    expect(screen.getByTestId("findings-popover")).toBeInTheDocument();
     expect(screen.getByText("2 findings in this run")).toBeInTheDocument();
     expect(screen.getByText("Hardcoded secret")).toBeInTheDocument();
     vi.useRealTimers();
   });
 
-  it("the popover is read-only — no buttons or links anywhere inside it", () => {
+  it("with repoFullName known, file:line becomes a link to GitHub at that line", () => {
+    vi.useFakeTimers();
+    render(
+      <NextIntlClientProvider locale="en" messages={{ prReview: messages }}>
+        <FindingsCell
+          pr={pr({
+            head_sha: "abc123",
+            findings: {
+              critical: 1,
+              warning: 0,
+              suggestion: 0,
+              total: 1,
+              preview: [
+                {
+                  severity: "CRITICAL" as const,
+                  category: "security" as const,
+                  title: "Hardcoded secret",
+                  file: "src/config.ts",
+                  start_line: 12,
+                  end_line: 14,
+                  confidence: 0.98,
+                  description: "A secret is committed.",
+                },
+              ],
+            },
+          })}
+          repoFullName="acme/payments-api"
+        />
+      </NextIntlClientProvider>,
+    );
+    fireEvent.mouseEnter(screen.getByRole("group"));
+    act(() => { vi.advanceTimersByTime(HOVER_OPEN_MS); });
+    const link = screen.getByRole("link", { name: /src\/config\.ts/ });
+    expect(link).toHaveAttribute(
+      "href",
+      "https://github.com/acme/payments-api/blob/abc123/src/config.ts#L12-L14",
+    );
+    vi.useRealTimers();
+  });
+
+  it("moving the pointer from the trigger onto the popover keeps it open", () => {
+    vi.useFakeTimers();
+    renderCell(
+      pr({
+        findings: {
+          critical: 1,
+          warning: 0,
+          suggestion: 0,
+          total: 1,
+          preview: [
+            {
+              severity: "CRITICAL" as const,
+              category: "security" as const,
+              title: "Hardcoded secret",
+              file: "src/config.ts",
+              start_line: 12,
+              end_line: 12,
+              confidence: 0.98,
+              description: "A secret is committed.",
+            },
+          ],
+        },
+      }),
+    );
+    const trigger = screen.getByRole("group");
+    fireEvent.mouseEnter(trigger);
+    act(() => { vi.advanceTimersByTime(HOVER_OPEN_MS); });
+    const popover = screen.getByTestId("findings-popover");
+    fireEvent.mouseLeave(trigger);
+    fireEvent.mouseEnter(popover);
+    act(() => { vi.advanceTimersByTime(5_000); });
+    expect(screen.getByTestId("findings-popover")).toBeInTheDocument();
+    fireEvent.mouseLeave(popover);
+    act(() => { vi.advanceTimersByTime(5_000); });
+    expect(screen.queryByTestId("findings-popover")).not.toBeInTheDocument();
+    vi.useRealTimers();
+  });
+
+  it("scrolling inside the popover's own finding list does not close it", () => {
     vi.useFakeTimers();
     renderCell(
       pr({
@@ -111,15 +189,51 @@ describe("FindingsCell", () => {
     );
     fireEvent.mouseEnter(screen.getByRole("group"));
     act(() => { vi.advanceTimersByTime(HOVER_OPEN_MS); });
-    const popover = screen.getByRole("tooltip");
+    const popover = screen.getByTestId("findings-popover");
+    fireEvent.scroll(popover, { target: { scrollTop: 40 } });
+    expect(screen.getByTestId("findings-popover")).toBeInTheDocument();
+    // A real page/container scroll (not inside the popover) still closes it —
+    // the portaled, fixed-position popover doesn't track that kind of scroll.
+    fireEvent.scroll(window);
+    expect(screen.queryByTestId("findings-popover")).not.toBeInTheDocument();
+    vi.useRealTimers();
+  });
+
+  it("the popover has no interactive content when the repo isn't known — no buttons or links", () => {
+    vi.useFakeTimers();
+    renderCell(
+      pr({
+        findings: {
+          critical: 1,
+          warning: 0,
+          suggestion: 0,
+          total: 1,
+          preview: [
+            {
+              severity: "CRITICAL" as const,
+              category: "security" as const,
+              title: "Hardcoded secret",
+              file: "src/config.ts",
+              start_line: 12,
+              end_line: 12,
+              confidence: 0.98,
+              description: "A secret is committed.",
+            },
+          ],
+        },
+      }),
+    );
+    fireEvent.mouseEnter(screen.getByRole("group"));
+    act(() => { vi.advanceTimersByTime(HOVER_OPEN_MS); });
+    const popover = screen.getByTestId("findings-popover");
     expect(within(popover).queryAllByRole("button")).toHaveLength(0);
     expect(within(popover).queryAllByRole("link")).toHaveLength(0);
     vi.useRealTimers();
   });
 
-  it("shows a '+N more' footer when the preview is truncated", () => {
+  it("shows every finding, not a truncated '+N more' subset — the list scrolls instead", () => {
     vi.useFakeTimers();
-    const preview = Array.from({ length: 5 }, (_, i) => ({
+    const preview = Array.from({ length: 8 }, (_, i) => ({
       severity: "SUGGESTION" as const,
       category: "style" as const,
       title: `finding ${i}`,
@@ -132,7 +246,9 @@ describe("FindingsCell", () => {
     renderCell(pr({ findings: { critical: 0, warning: 0, suggestion: 8, total: 8, preview } }));
     fireEvent.mouseEnter(screen.getByRole("group"));
     act(() => { vi.advanceTimersByTime(HOVER_OPEN_MS); });
-    expect(screen.getByText("+3 more")).toBeInTheDocument();
+    expect(screen.queryByText(/more/)).not.toBeInTheDocument();
+    expect(screen.getByText("finding 0")).toBeInTheDocument();
+    expect(screen.getByText("finding 7")).toBeInTheDocument();
     vi.useRealTimers();
   });
 

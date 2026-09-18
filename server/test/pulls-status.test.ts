@@ -11,7 +11,6 @@ import {
   rollupSeverities,
   toFindingsRollup,
   plainTextPreview,
-  FINDINGS_PREVIEW_LIMIT,
   STALE_DAYS,
   type FindingRollupRow,
 } from '../src/modules/pulls/status.js';
@@ -113,13 +112,13 @@ describe('toFindingsRollup', () => {
     expect(rollup.critical).toBe(1);
   });
 
-  it('caps the preview at the limit while counts still reflect every row', () => {
-    const rows = Array.from({ length: FINDINGS_PREVIEW_LIMIT + 3 }, (_, i) =>
+  it('does not truncate the preview — the popover scrolls instead', () => {
+    const rows = Array.from({ length: 12 }, (_, i) =>
       row({ severity: 'WARNING', file: `src/f${i}.ts` }),
     );
     const rollup = toFindingsRollup(rows);
     expect(rollup.warning).toBe(rows.length);
-    expect(rollup.preview).toHaveLength(FINDINGS_PREVIEW_LIMIT);
+    expect(rollup.preview).toHaveLength(rows.length);
   });
 
   it('orders the preview CRITICAL → WARNING → SUGGESTION, then file, then start line', () => {

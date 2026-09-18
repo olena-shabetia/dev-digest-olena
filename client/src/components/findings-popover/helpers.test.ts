@@ -4,11 +4,11 @@ import { VIEWPORT_MARGIN, POPOVER_WIDTH } from "./constants";
 
 describe("estimateHeight", () => {
   it("grows with the number of preview rows", () => {
-    expect(estimateHeight(1, false)).toBeLessThan(estimateHeight(3, false));
+    expect(estimateHeight(1)).toBeLessThan(estimateHeight(3));
   });
 
-  it("adds room for the '+N more' footer only when there is more", () => {
-    expect(estimateHeight(2, true)).toBeGreaterThan(estimateHeight(2, false));
+  it("clamps once the row count exceeds the visible-rows cap (the list scrolls past that)", () => {
+    expect(estimateHeight(4)).toBe(estimateHeight(40));
   });
 });
 

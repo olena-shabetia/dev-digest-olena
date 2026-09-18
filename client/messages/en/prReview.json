@@ -118,8 +118,7 @@
       "notReviewed": "Not reviewed yet",
       "cellAria": "{count} findings in the latest review: {critical} critical, {warning} warning, {suggestion} suggestion",
       "title": "{count, plural, one {# finding in this run} other {# findings in this run}}",
-      "confidence": "{pct}% conf",
-      "more": "+{count} more"
+      "confidence": "{pct}% conf"
     }
   },
   "timeline": {

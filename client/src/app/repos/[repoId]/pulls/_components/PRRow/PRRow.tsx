@@ -12,7 +12,16 @@ import { relativeTime, sizeOf } from "../../helpers";
 import { s } from "../../styles";
 import { FindingsCell } from "../FindingsCell";
 
-export function PRRow({ pr, repoId }: { pr: PrMeta; repoId: string }) {
+export function PRRow({
+  pr,
+  repoId,
+  repoFullName,
+}: {
+  pr: PrMeta;
+  repoId: string;
+  /** owner/repo, for the FINDINGS popover's file:line → GitHub link. */
+  repoFullName?: string | null;
+}) {
   const t = useTranslations("prReview");
   const router = useRouter();
   const [h, setH] = React.useState(false);
@@ -56,7 +65,7 @@ export function PRRow({ pr, repoId }: { pr: PrMeta; repoId: string }) {
         )}
       </div>
       <div style={s.findingsCell}>
-        <FindingsCell pr={pr} />
+        <FindingsCell pr={pr} repoFullName={repoFullName} />
       </div>
       <div style={s.costCell}>
         <RunCostBadge costUsd={pr.cost_usd} />

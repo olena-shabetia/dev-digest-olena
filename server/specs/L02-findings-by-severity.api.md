@@ -66,14 +66,17 @@ gate protecting cross-workspace `findings` access.
 
 ## Preview policy
 
-Capped at 5 (`FINDINGS_PREVIEW_LIMIT`, `pulls/status.ts`), ordered
-CRITICAL → WARNING → SUGGESTION, then `file`, then `start_line` — deterministic
-across identical requests, so the popover never reshuffles on a re-render.
-`total` counts every finding of the review (including any severity outside
-the three known buckets); `preview` is the bounded, ordered slice.
-`rationale` is flattened to plain text and truncated to 160 chars
-(`plainTextPreview`) — the popover is a text-only preview, not the full
-finding.
+`preview` carries EVERY finding of the review, not a capped slice — an
+earlier revision capped it at 5 (`FINDINGS_PREVIEW_LIMIT`) with a "+N more"
+footer in the client, but the client popover now scrolls instead, so
+truncating the payload would just make findings unreachable rather than
+saving anything. `total === preview.length` always, by construction.
+
+Ordered CRITICAL → WARNING → SUGGESTION, then `file`, then `start_line` —
+deterministic across identical requests, so the popover never reshuffles on a
+re-render. `rationale` is still flattened to plain text and truncated to 160
+chars per finding (`plainTextPreview`) — each preview row is a text-only
+summary, not the full finding.
 
 ## Pure transform vs. SQL
 

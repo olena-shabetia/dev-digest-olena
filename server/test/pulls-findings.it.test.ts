@@ -61,7 +61,8 @@ d('GET /repos/:id/pulls — findings rollup', () => {
       total: 3,
     });
     const findings = pr482.findings as { preview: Array<{ severity: string }> };
-    expect(findings.preview.length).toBeLessThanOrEqual(5);
+    // No cap — the popover scrolls instead of truncating with "+N more".
+    expect(findings.preview.length).toBe(3);
     expect(findings.preview[0]!.severity).toBe('CRITICAL');
   });
 

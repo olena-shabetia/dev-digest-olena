@@ -155,6 +155,8 @@ export function FindingsTab({
             commits={prCommits}
             severityByRun={severityByRun}
             findingsByRun={findingsByRun}
+            repoFullName={repoFullName}
+            headSha={headSha}
             onOpenTrace={handleOpenTrace}
             onGoToReview={handleGoToReview}
             onDelete={handleDelete}

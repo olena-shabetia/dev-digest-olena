@@ -11,14 +11,10 @@ import { SeverityFilterBar } from "@/components/severity-filter-bar";
 import { FindingsPopover, useFindingsHoverPopover } from "@/components/findings-popover";
 import type { RunSummary, PrCommit, FindingRecord, PrFindingPreview } from "@devdigest/shared";
 
-/** Timeline hover popover shows at most this many findings, mirroring the
- *  PR-list rollup's cap (server/src/modules/pulls/status.ts) — a run's
- *  findings are already in memory, but an unbounded popover doesn't help. */
-const TIMELINE_PREVIEW_LIMIT = 5;
-
 /** FindingRecord → PrFindingPreview: same shape the shared FindingsPopover
- *  renders for the PR list, built here from data already in the browser
- *  (no fetch). Ordered CRITICAL → WARNING → SUGGESTION → file:line, capped. */
+ *  renders for the PR list, built here from data already in the browser (no
+ *  fetch). Every finding is included — the popover scrolls rather than
+ *  truncating — ordered CRITICAL → WARNING → SUGGESTION → file:line. */
 function toPreview(findings: FindingRecord[]): PrFindingPreview[] {
   return [...findings]
     .sort((a, b) => {
@@ -27,7 +23,6 @@ function toPreview(findings: FindingRecord[]): PrFindingPreview[] {
       if (a.file !== b.file) return a.file < b.file ? -1 : 1;
       return a.start_line - b.start_line;
     })
-    .slice(0, TIMELINE_PREVIEW_LIMIT)
     .map((f) => ({
       severity: f.severity,
       category: f.category,
@@ -40,16 +35,26 @@ function toPreview(findings: FindingRecord[]): PrFindingPreview[] {
     }));
 }
 
-/** Timeline tile's severity chips, wrapped in the same read-only hover
- *  popover as the PR-list FINDINGS column — same trigger mechanics, same
- *  "N FINDINGS IN THIS RUN" content, just sourced from this run's own
- *  findings instead of the list's per-PR rollup. */
-function TimelineFindings({ buckets, findings }: { buckets: SeverityBucket[]; findings: FindingRecord[] }) {
+/** Timeline tile's severity chips, wrapped in the same hover popover as the
+ *  PR-list FINDINGS column — same trigger mechanics, same "N FINDINGS IN
+ *  THIS RUN" content (scrollable, with a file:line link to GitHub), just
+ *  sourced from this run's own findings instead of the list's per-PR
+ *  rollup. */
+function TimelineFindings({
+  buckets,
+  findings,
+  repoFullName,
+  headSha,
+}: {
+  buckets: SeverityBucket[];
+  findings: FindingRecord[];
+  repoFullName?: string | null;
+  headSha?: string | null;
+}) {
   const popoverId = React.useId();
   const preview = React.useMemo(() => toPreview(findings), [findings]);
-  const { triggerRef, open, placement, scheduleOpen, close } = useFindingsHoverPopover(
+  const { triggerRef, popoverRef, open, placement, scheduleOpen, scheduleClose, close } = useFindingsHoverPopover(
     preview.length,
-    findings.length > preview.length,
   );
   return (
     <div
@@ -58,7 +63,7 @@ function TimelineFindings({ buckets, findings }: { buckets: SeverityBucket[]; fi
       tabIndex={0}
       aria-describedby={open ? popoverId : undefined}
       onMouseEnter={scheduleOpen}
-      onMouseLeave={close}
+      onMouseLeave={scheduleClose}
       onFocus={scheduleOpen}
       onBlur={close}
       onKeyDown={(e) => {
@@ -69,7 +74,18 @@ function TimelineFindings({ buckets, findings }: { buckets: SeverityBucket[]; fi
       {open &&
         placement &&
         createPortal(
-          <FindingsPopover id={popoverId} total={findings.length} preview={preview} style={placement} />,
+          <FindingsPopover
+            ref={popoverRef}
+            id={popoverId}
+            total={findings.length}
+            preview={preview}
+            style={placement}
+            repoFullName={repoFullName}
+            headSha={headSha}
+            onMouseEnter={scheduleOpen}
+            onMouseLeave={scheduleClose}
+            onClose={close}
+          />,
           document.body,
         )}
     </div>
@@ -160,6 +176,8 @@ export function RunHistory({
   commits = [],
   severityByRun,
   findingsByRun,
+  repoFullName,
+  headSha,
   onOpenTrace,
   onGoToReview,
   onDelete,
@@ -172,6 +190,10 @@ export function RunHistory({
   /** Per-run findings (run_id → records), same source as severityByRun —
    *  feeds the tile's hover popover. Omit to render chips without a popover. */
   findingsByRun?: ReadonlyMap<string, FindingRecord[]>;
+  /** owner/repo + the PR's head sha — used to deep-link a finding's file:line
+   *  to GitHub in the popover, same as FindingCard. */
+  repoFullName?: string | null;
+  headSha?: string | null;
   /** Open the trace + log drawer for a run (the logs icon). */
   onOpenTrace: (runId: string) => void;
   /** Jump to this run's inline review accordion below (clicking the agent name). */
@@ -281,7 +303,12 @@ export function RunHistory({
                     }
                     const findings = findingsByRun?.get(r.run_id);
                     return findings && findings.length > 0 ? (
-                      <TimelineFindings buckets={buckets} findings={findings} />
+                      <TimelineFindings
+                        buckets={buckets}
+                        findings={findings}
+                        repoFullName={repoFullName}
+                        headSha={headSha}
+                      />
                     ) : (
                       <SeverityFilterBar buckets={buckets} compact />
                     );

@@ -15,6 +15,31 @@ _None yet._
 
 ## Codebase Patterns
 
+### 2026-09-18 — promote a component to `client/src/components/` on its second consumer, not before
+
+**Context:** the findings hover popover (trigger timers/focus/Escape/scroll-close
+mechanics + the read-only preview panel) was built for the PR-list
+`FindingsCell` only. When the run Timeline tiles needed the identical
+"N FINDINGS IN THIS RUN" popover, the code was moved out to
+`client/src/components/findings-popover/` (`FindingsPopover.tsx`,
+`useFindingsHoverPopover.ts`, `helpers.ts`) rather than duplicated into
+`RunHistory.tsx`.
+
+**Decision:** promote a page-local component to the shared `client/src/components/`
+layer exactly when a second page needs it — not speculatively when writing the
+first consumer. `run-cost-badge` (L01) and `severity-filter-bar` (L02) were
+promoted for the same reason, at the same trigger point.
+
+**Why:** promoting on the first write means guessing at a shared shape before
+a second real caller exists to validate it; duplicating past the second
+caller means the two copies silently drift (see the `SEV_COLOR` entry below
+for what that drift looks like once it happens).
+
+**Rule:** when a `_components/<Name>/` folder's contents are about to be
+needed by a second route, move it to `client/src/components/<name>/` in the
+same change that adds the second usage — don't duplicate "for now" and don't
+pre-promote "in case."
+
 ### 2026-09-18 — a filter's count badge must be derived at the same pipeline stage the filter itself reads from
 
 **Context:** the run-card severity pills (`FindingsPanel.tsx`) must satisfy
@@ -82,7 +107,28 @@ a string — don't expect `{var}` alone to do it.
 
 ## Recurring Errors & Fixes
 
-_None yet._
+### 2026-09-18 — a hand-rolled severity color map drifted from the canonical `SEV` tokens
+
+**Symptom:** the trace/log drawer's findings section (`FindingsSection.tsx`,
+inside `RunTraceDrawer`) rendered severity as a plain `Badge` with no icon,
+`bg="transparent"`, and its own local `SEV_COLOR` map that mapped `SUGGESTION`
+to `var(--accent)` — visibly inconsistent with every other severity chip in
+the app (icon + tinted background), and factually wrong for that one severity.
+Reported by the user as "the finding icons' styles differ" after comparing two
+screenshots.
+
+**Cause:** severity is rendered in at least four places (`FindingCard`, the
+PR-list `FindingsCell`, `SeverityFilterBar`'s Timeline/list chips, and this
+trace-drawer section), and this one was written before — or without noticing
+— the vendored `SEV` tokens (`client/src/vendor/ui/primitives/tokens.ts`) and
+`SeverityBadge` (`Badge.tsx`) existed as the canonical source.
+
+**Fix:** replaced the local map + bare `Badge` with `SeverityBadge` from
+`@devdigest/ui`, same as `FindingCard` and `FindingsPopover` already use.
+
+**Rule:** before adding any severity-colored UI, grep for `SEV\[` /
+`SeverityBadge` first. A new `Record<Severity, string>` color map anywhere
+outside `tokens.ts` is the bug, not a legitimate one-off style.
 
 ## Session Notes
 

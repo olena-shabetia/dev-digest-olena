@@ -30,8 +30,6 @@ export function rollupSeverities(rows: { severity: string }[]): SeverityCounts {
   return c;
 }
 
-/** How many findings the PR-list FINDINGS popover previews, at most. */
-export const FINDINGS_PREVIEW_LIMIT = 5;
 /** How long a preview's plain-text description is allowed to be. */
 export const PREVIEW_DESCRIPTION_MAX = 160;
 
@@ -62,16 +60,14 @@ export function plainTextPreview(text: string, max = PREVIEW_DESCRIPTION_MAX): s
 }
 
 /**
- * Counts + a bounded, deterministically ordered preview for one review's
- * findings — the payload behind `PrMeta.findings` on the PR list. `total`
- * counts every row (including severities outside the three buckets); the
- * preview is capped at `limit`, ordered CRITICAL → WARNING → SUGGESTION, then
- * file, then start line, so it never reshuffles between identical requests.
+ * Counts + a deterministically ordered preview of EVERY one of one review's
+ * findings — the payload behind `PrMeta.findings` on the PR list. The
+ * popover scrolls, so there's no reason to truncate the list itself (only
+ * each description is length-capped, via `plainTextPreview`). Ordered
+ * CRITICAL → WARNING → SUGGESTION, then file, then start line, so it never
+ * reshuffles between identical requests.
  */
-export function toFindingsRollup(
-  rows: FindingRollupRow[],
-  limit = FINDINGS_PREVIEW_LIMIT,
-): PrFindingsRollup {
+export function toFindingsRollup(rows: FindingRollupRow[]): PrFindingsRollup {
   const counts = rollupSeverities(rows);
   const preview = [...rows]
     .sort((a, b) => {
@@ -81,7 +77,6 @@ export function toFindingsRollup(
       if (file !== 0) return file;
       return a.startLine - b.startLine;
     })
-    .slice(0, limit)
     .map((r) => ({
       severity: r.severity as PrFindingsRollup['preview'][number]['severity'],
       category: r.category as PrFindingsRollup['preview'][number]['category'],

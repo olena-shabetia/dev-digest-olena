@@ -41,6 +41,7 @@ function renderRuns(
   runs: RunSummary[],
   severityByRun?: Map<string, SeverityBucket[]>,
   findingsByRun?: Map<string, FindingRecord[]>,
+  repo?: { repoFullName?: string | null; headSha?: string | null },
 ) {
   return render(
     <NextIntlClientProvider locale="en" messages={{ prReview: messages }}>
@@ -49,6 +50,8 @@ function renderRuns(
         onOpenTrace={() => {}}
         severityByRun={severityByRun}
         findingsByRun={findingsByRun}
+        repoFullName={repo?.repoFullName}
+        headSha={repo?.headSha}
       />
     </NextIntlClientProvider>,
   );
@@ -156,13 +159,13 @@ describe("RunHistory — Timeline findings popover", () => {
     act(() => {
       vi.advanceTimersByTime(HOVER_OPEN_MS);
     });
-    expect(screen.getByRole("tooltip")).toBeInTheDocument();
+    expect(screen.getByTestId("findings-popover")).toBeInTheDocument();
     expect(screen.getByText("1 finding in this run")).toBeInTheDocument();
     expect(screen.getByText("Hardcoded secret")).toBeInTheDocument();
     vi.useRealTimers();
   });
 
-  it("the Timeline popover is read-only — no buttons or links inside it", () => {
+  it("the Timeline popover has no buttons, and no link when the repo isn't known", () => {
     vi.useFakeTimers();
     const severityByRun = new Map<string, SeverityBucket[]>([
       ["run-1", [{ severity: "CRITICAL", count: 1 }]],
@@ -173,9 +176,52 @@ describe("RunHistory — Timeline findings popover", () => {
     act(() => {
       vi.advanceTimersByTime(HOVER_OPEN_MS);
     });
-    const popover = screen.getByRole("tooltip");
+    const popover = screen.getByTestId("findings-popover");
     expect(within(popover).queryAllByRole("button")).toHaveLength(0);
     expect(within(popover).queryAllByRole("link")).toHaveLength(0);
+    vi.useRealTimers();
+  });
+
+  it("with repoFullName + headSha known, the Timeline popover's file:line links to GitHub", () => {
+    vi.useFakeTimers();
+    const severityByRun = new Map<string, SeverityBucket[]>([
+      ["run-1", [{ severity: "CRITICAL", count: 1 }]],
+    ]);
+    const findingsByRun = new Map<string, FindingRecord[]>([
+      ["run-1", [finding({ file: "src/a.ts", start_line: 5, end_line: 5 })]],
+    ]);
+    renderRuns([run({ status: "done", findings_count: 1 })], severityByRun, findingsByRun, {
+      repoFullName: "acme/payments-api",
+      headSha: "def456",
+    });
+    fireEvent.mouseEnter(screen.getByRole("group"));
+    act(() => {
+      vi.advanceTimersByTime(HOVER_OPEN_MS);
+    });
+    const link = screen.getByRole("link", { name: /src\/a\.ts/ });
+    expect(link).toHaveAttribute("href", "https://github.com/acme/payments-api/blob/def456/src/a.ts#L5");
+    vi.useRealTimers();
+  });
+
+  it("moving the pointer onto the popover keeps it open past the close delay", () => {
+    vi.useFakeTimers();
+    const severityByRun = new Map<string, SeverityBucket[]>([
+      ["run-1", [{ severity: "CRITICAL", count: 1 }]],
+    ]);
+    const findingsByRun = new Map<string, FindingRecord[]>([["run-1", [finding({})]]]);
+    renderRuns([run({ status: "done", findings_count: 1 })], severityByRun, findingsByRun);
+    const trigger = screen.getByRole("group");
+    fireEvent.mouseEnter(trigger);
+    act(() => {
+      vi.advanceTimersByTime(HOVER_OPEN_MS);
+    });
+    const popover = screen.getByTestId("findings-popover");
+    fireEvent.mouseLeave(trigger);
+    fireEvent.mouseEnter(popover);
+    act(() => {
+      vi.advanceTimersByTime(5_000);
+    });
+    expect(screen.getByTestId("findings-popover")).toBeInTheDocument();
     vi.useRealTimers();
   });
 
@@ -184,7 +230,7 @@ describe("RunHistory — Timeline findings popover", () => {
       ["run-1", [{ severity: "CRITICAL", count: 1 }]],
     ]);
     renderRuns([run({ status: "done", findings_count: 1 })], severityByRun);
-    expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("findings-popover")).not.toBeInTheDocument();
     expect(screen.queryByRole("group")).not.toBeInTheDocument();
   });
 });
