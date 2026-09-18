@@ -32,6 +32,28 @@ invisible to tooling.
 
 ## Codebase Patterns
 
+### 2026-09-18 — `pulls/routes.ts` had aggregate SQL business logic inline in the route handler
+
+**Symptom:** the PR-list route (`GET /repos/:id/pulls`) built a latest-review
+score lookup — a full `SELECT` + `orderBy` + JS grouping — directly inside the
+Fastify handler in `server/src/modules/pulls/routes.ts`, with no
+`repository.ts` in that module at all.
+
+**Cause:** the `pulls` module was never split into the
+`routes → service → repository` layering `server/CLAUDE.md` mandates
+elsewhere ("routes.ts = HTTP + Zod validation, zero business logic"); it grew
+as routes.ts-only and nobody extracted the query when it was added.
+
+**Fix:** when L01 (run cost badge) needed a second aggregate (`SUM` of
+`agent_runs.cost_usd` per PR) alongside the existing score lookup, both moved
+into a new `server/src/modules/pulls/repository.ts::reviewAggregatesByPr`
+rather than adding a second inline query next to the first.
+
+**Rule:** before adding a new query to a route handler, check whether the
+route already has an inline query it never should have had — extracting both
+at once is cheaper than compounding the violation. This module in particular
+may still have others; sweep it before adding to it.
+
 ### 2026-09-17 — reviewing a PR uses OpenRouter, not OpenAI/Anthropic, by default
 
 **Symptom:** you set `OPENAI_API_KEY` or `ANTHROPIC_API_KEY`, run a review on a

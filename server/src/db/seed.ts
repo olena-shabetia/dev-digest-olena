@@ -212,12 +212,81 @@ export async function seed(db: Db): Promise<{ workspaceId: string; userId: strin
       createdBy: userId,
     },
   ];
+  const agentIdByName = new Map<string, string>();
   for (const a of seedAgents) {
     const [existing] = await db
       .select()
       .from(t.agents)
       .where(and(eq(t.agents.workspaceId, workspaceId), eq(t.agents.name, a.name)));
-    if (!existing) await db.insert(t.agents).values(a);
+    if (existing) {
+      agentIdByName.set(a.name, existing.id);
+    } else {
+      const [inserted] = await db.insert(t.agents).values(a).returning();
+      agentIdByName.set(a.name, inserted!.id);
+    }
+  }
+
+  // ---- demo agent runs (L01 — run cost badge) ----
+  // A few completed runs against PR #482 so the COST column, the run
+  // timeline, and the trace drawer's COST tile all show real numbers out of
+  // the box, without requiring a live LLM key. Guarded on "no runs yet for
+  // this PR" for idempotency (agent_runs has no natural unique key to upsert
+  // on).
+  const existingRuns = await db
+    .select({ id: t.agentRuns.id })
+    .from(t.agentRuns)
+    .where(eq(t.agentRuns.prId, pr!.id));
+  if (existingRuns.length === 0) {
+    await db.insert(t.agentRuns).values([
+      {
+        workspaceId,
+        agentId: agentIdByName.get('Security Reviewer') ?? null,
+        prId: pr!.id,
+        provider: DEFAULT_PROVIDER,
+        model: DEFAULT_MODEL,
+        status: 'done',
+        durationMs: 8200,
+        tokensIn: 9119,
+        tokensOut: 1180,
+        costUsd: 0.0013,
+        findingsCount: 2,
+        grounding: '3/3 passed',
+        score: 61,
+        blockers: 1,
+      },
+      {
+        workspaceId,
+        agentId: agentIdByName.get('Performance Reviewer') ?? null,
+        prId: pr!.id,
+        provider: DEFAULT_PROVIDER,
+        model: DEFAULT_MODEL,
+        status: 'done',
+        durationMs: 6400,
+        tokensIn: 12011,
+        tokensOut: 980,
+        costUsd: 0.0014,
+        findingsCount: 1,
+        grounding: '2/2 passed',
+        score: 78,
+        blockers: 0,
+      },
+      {
+        workspaceId,
+        agentId: agentIdByName.get('General Reviewer') ?? null,
+        prId: pr!.id,
+        provider: DEFAULT_PROVIDER,
+        model: DEFAULT_MODEL,
+        status: 'done',
+        durationMs: 5100,
+        tokensIn: 7420,
+        tokensOut: 860,
+        costUsd: 0.0009,
+        findingsCount: 0,
+        grounding: '2/2 passed',
+        score: 92,
+        blockers: 0,
+      },
+    ]);
   }
 
   return { workspaceId, userId };

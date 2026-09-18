@@ -3,6 +3,8 @@
 import React from "react";
 import { useTranslations } from "next-intl";
 import { Badge, Icon, CircularScore, type IconName } from "@devdigest/ui";
+import { RunCostBadge } from "@/components/run-cost-badge";
+import { formatTokenCount } from "@/lib/format";
 import type { RunSummary, PrCommit } from "@devdigest/shared";
 
 /**
@@ -197,6 +199,15 @@ export function RunHistory({
             </div>
             <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 2, fontSize: 11, color: "var(--text-muted)", flexShrink: 0 }}>
               {r.ran_at && <span>{new Date(r.ran_at).toLocaleTimeString()}</span>}
+              {settled && r.tokens_in != null && (
+                <RunCostBadge
+                  costUsd={r.cost_usd}
+                  tokensLabel={t("timeline.tokens", {
+                    count: formatTokenCount(r.tokens_in + (r.tokens_out ?? 0)),
+                  })}
+                  style={{ fontSize: 11 }}
+                />
+              )}
             </div>
             <button
               type="button"
