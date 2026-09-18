@@ -37,7 +37,25 @@ otherwise the gap widens silently.
 
 ## Tool & Library Notes
 
-_None yet._
+### 2026-09-18 — `next-intl`'s `{count}` interpolation does not add thousands separators
+
+**Symptom:** a message like `"tokens": "{count} tok"` rendered via
+`t("timeline.tokens", { count: 9119 })` outputs `9119 tok`, not `9,119 tok`,
+even though the design calls for a grouped number.
+
+**Cause:** plain ICU interpolation (`{count}`) just calls the value's
+`toString()`. Locale-aware number formatting only kicks in for the explicit
+`{count, number}` skeleton — a bare variable placeholder never formats,
+regardless of the value's type.
+
+**Fix:** pre-format the number in code (e.g. `n.toLocaleString("en-US")`) and
+pass the already-formatted *string* as the interpolation value, rather than
+relying on the message key to format a raw number. Done for the run-timeline
+token count in `RunHistory.tsx` (`formatTokenCount` in `lib/format.ts`).
+
+**Rule:** when a message key interpolates a number that needs locale
+formatting (thousands separators, decimals, etc.), format it in code and pass
+a string — don't expect `{var}` alone to do it.
 
 ## Recurring Errors & Fixes
 
