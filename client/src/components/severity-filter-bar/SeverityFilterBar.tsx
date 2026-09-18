@@ -34,7 +34,7 @@ export function SeverityFilterBar({
   const interactive = !!onSelect;
 
   return (
-    <div style={s.bar} role={interactive ? "group" : undefined} aria-label={interactive ? t("severityFilter.groupLabel") : undefined}>
+    <div style={s.bar(compact)} role={interactive ? "group" : undefined} aria-label={interactive ? t("severityFilter.groupLabel") : undefined}>
       {buckets.map(({ severity, count }) => {
         const meta = SEV[severity as UiSeverity];
         const I = Icon[meta.icon];
@@ -51,7 +51,11 @@ export function SeverityFilterBar({
         );
         const dimmed = interactive && selected != null && !active;
         if (!interactive) {
-          return (
+          return compact ? (
+            <span key={severity} style={s.compactItem(meta.c)}>
+              {content}
+            </span>
+          ) : (
             <span key={severity} style={s.pill(meta.c, meta.bg, false, dimmed, false)}>
               {content}
             </span>

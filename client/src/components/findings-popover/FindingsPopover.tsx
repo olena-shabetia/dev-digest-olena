@@ -1,8 +1,8 @@
-/* FindingsPopover — read-only preview of the PR's latest-review findings,
-   shown on hover/focus over the FINDINGS column icons (see FindingsCell).
-   Text only: severity icon, title, category, file:line, confidence, a short
-   description. No buttons, no links — accept/dismiss lives only on the PR
-   detail page's Review-runs accordion (FindingCard). */
+/* FindingsPopover — read-only preview of a review's findings, shown on
+   hover/focus over severity icons (PR-list FINDINGS column, Agent-runs
+   Timeline tiles). Text only: severity icon, title, category, file:line,
+   confidence, a short description. No buttons, no links — accept/dismiss
+   lives only on the PR detail page's Review-runs accordion (FindingCard). */
 "use client";
 
 import React from "react";

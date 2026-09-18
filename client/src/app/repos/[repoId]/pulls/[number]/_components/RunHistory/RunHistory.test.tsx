@@ -4,11 +4,12 @@
  * a settled run is colored/labelled by its denormalized blocker/finding counts,
  * and shows the review score ring.
  */
-import { describe, it, expect, afterEach } from "vitest";
-import { render, screen, cleanup } from "@testing-library/react";
+import { describe, it, expect, afterEach, vi } from "vitest";
+import { render, screen, cleanup, fireEvent, within, act } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
-import type { RunSummary } from "@devdigest/shared";
+import type { RunSummary, FindingRecord } from "@devdigest/shared";
 import type { SeverityBucket } from "@/lib/severity";
+import { HOVER_OPEN_MS } from "@/components/findings-popover";
 import messages from "../../../../../../../../messages/en/prReview.json";
 import { RunHistory } from "./RunHistory";
 
@@ -36,12 +37,41 @@ function run(o: Partial<RunSummary>): RunSummary {
   };
 }
 
-function renderRuns(runs: RunSummary[], severityByRun?: Map<string, SeverityBucket[]>) {
+function renderRuns(
+  runs: RunSummary[],
+  severityByRun?: Map<string, SeverityBucket[]>,
+  findingsByRun?: Map<string, FindingRecord[]>,
+) {
   return render(
     <NextIntlClientProvider locale="en" messages={{ prReview: messages }}>
-      <RunHistory runs={runs} onOpenTrace={() => {}} severityByRun={severityByRun} />
+      <RunHistory
+        runs={runs}
+        onOpenTrace={() => {}}
+        severityByRun={severityByRun}
+        findingsByRun={findingsByRun}
+      />
     </NextIntlClientProvider>,
   );
+}
+
+function finding(o: Partial<FindingRecord>): FindingRecord {
+  return {
+    id: "f1",
+    severity: "CRITICAL",
+    category: "security",
+    title: "t",
+    file: "src/a.ts",
+    start_line: 1,
+    end_line: 1,
+    rationale: "r",
+    suggestion: null,
+    confidence: 0.9,
+    kind: null,
+    review_id: "rev1",
+    accepted_at: null,
+    dismissed_at: null,
+    ...o,
+  } as FindingRecord;
 }
 
 describe("RunHistory — outcome badge", () => {
@@ -109,5 +139,52 @@ describe("RunHistory — per-run severity chips", () => {
   it("a run absent from the map falls back to the plain findings/blockers text", () => {
     renderRuns([run({ status: "done", findings_count: 3, blockers: 0 })], new Map());
     expect(screen.getByText(/3 finding/)).toBeInTheDocument();
+  });
+});
+
+describe("RunHistory — Timeline findings popover", () => {
+  it("hovering a run's severity chips opens the same 'N FINDINGS IN THIS RUN' popover as the PR list", () => {
+    vi.useFakeTimers();
+    const severityByRun = new Map<string, SeverityBucket[]>([
+      ["run-1", [{ severity: "CRITICAL", count: 1 }]],
+    ]);
+    const findingsByRun = new Map<string, FindingRecord[]>([
+      ["run-1", [finding({ title: "Hardcoded secret" })]],
+    ]);
+    renderRuns([run({ status: "done", findings_count: 1 })], severityByRun, findingsByRun);
+    fireEvent.mouseEnter(screen.getByRole("group"));
+    act(() => {
+      vi.advanceTimersByTime(HOVER_OPEN_MS);
+    });
+    expect(screen.getByRole("tooltip")).toBeInTheDocument();
+    expect(screen.getByText("1 finding in this run")).toBeInTheDocument();
+    expect(screen.getByText("Hardcoded secret")).toBeInTheDocument();
+    vi.useRealTimers();
+  });
+
+  it("the Timeline popover is read-only — no buttons or links inside it", () => {
+    vi.useFakeTimers();
+    const severityByRun = new Map<string, SeverityBucket[]>([
+      ["run-1", [{ severity: "CRITICAL", count: 1 }]],
+    ]);
+    const findingsByRun = new Map<string, FindingRecord[]>([["run-1", [finding({})]]]);
+    renderRuns([run({ status: "done", findings_count: 1 })], severityByRun, findingsByRun);
+    fireEvent.mouseEnter(screen.getByRole("group"));
+    act(() => {
+      vi.advanceTimersByTime(HOVER_OPEN_MS);
+    });
+    const popover = screen.getByRole("tooltip");
+    expect(within(popover).queryAllByRole("button")).toHaveLength(0);
+    expect(within(popover).queryAllByRole("link")).toHaveLength(0);
+    vi.useRealTimers();
+  });
+
+  it("without findingsByrun, the chips render with no popover (unchanged behavior)", () => {
+    const severityByRun = new Map<string, SeverityBucket[]>([
+      ["run-1", [{ severity: "CRITICAL", count: 1 }]],
+    ]);
+    renderRuns([run({ status: "done", findings_count: 1 })], severityByRun);
+    expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+    expect(screen.queryByRole("group")).not.toBeInTheDocument();
   });
 });

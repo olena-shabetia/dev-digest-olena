@@ -4,7 +4,7 @@ import { NextIntlClientProvider } from "next-intl";
 import type { PrMeta } from "@devdigest/shared";
 import messages from "../../../../../../../messages/en/prReview.json";
 import { FindingsCell } from "./FindingsCell";
-import { HOVER_OPEN_MS } from "./constants";
+import { HOVER_OPEN_MS } from "@/components/findings-popover";
 
 afterEach(cleanup);
 

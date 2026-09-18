@@ -83,6 +83,16 @@ export function FindingsTab({
     return m;
   }, [runs]);
 
+  // The findings themselves, for the Timeline tile's hover popover — same
+  // already-fetched data as severityByRun, just unreduced.
+  const findingsByRun = React.useMemo(() => {
+    const m = new Map<string, FindingRecord[]>();
+    for (const review of runs) {
+      if (review.run_id) m.set(review.run_id, review.findings);
+    }
+    return m;
+  }, [runs]);
+
   return (
     <section>
       {liveRunIds.length > 0 && (
@@ -144,6 +154,7 @@ export function FindingsTab({
             runs={prRuns ?? []}
             commits={prCommits}
             severityByRun={severityByRun}
+            findingsByRun={findingsByRun}
             onOpenTrace={handleOpenTrace}
             onGoToReview={handleGoToReview}
             onDelete={handleDelete}
