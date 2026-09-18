@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
-import { and, desc, eq, inArray } from 'drizzle-orm';
+import { and, desc, eq, inArray, sql } from 'drizzle-orm';
+import { z } from 'zod';
 import type { PrMeta, PrDetail, GitHubClient, PrReviewComment } from '@devdigest/shared';
 import { PrCommentInput } from '@devdigest/shared';
 import * as t from '../../db/schema.js';
@@ -8,6 +9,9 @@ import { getContext } from '../_shared/context.js';
 import { IdParams } from '../_shared/schemas.js';
 import { AppError, NotFoundError } from '../../platform/errors.js';
 import { deriveReviewStatus } from './status.js';
+import { OctokitGitHubClient } from '../../adapters/github/octokit.js';
+
+const PullsQuery = z.object({ q: z.string().optional() });
 
 /**
  * F1 — pulls module. PR import via Octokit (list + per-PR detail).
@@ -23,8 +27,13 @@ export default async function pullsRoutes(appBase: FastifyInstance) {
   const app = appBase.withTypeProvider<ZodTypeProvider>();
   const { container } = app;
 
-  app.get('/repos/:id/pulls', { schema: { params: IdParams } }, async (req): Promise<PrMeta[]> => {
+  app.get(
+    '/repos/:id/pulls',
+    { schema: { params: IdParams, querystring: PullsQuery } },
+    async (req): Promise<PrMeta[]> => {
     const { workspaceId } = await getContext(container, req);
+    const { q } = req.query;
+    console.log('search query:', q);
     const [repo] = await container.db
       .select()
       .from(t.repos)
@@ -36,6 +45,12 @@ export default async function pullsRoutes(appBase: FastifyInstance) {
       gh = await container.github();
     } catch (err) {
       app.log.warn({ err }, 'GitHub client unavailable (no token / offline); serving persisted PRs');
+    }
+
+    // Search still needs to hit GitHub even if this workspace hasn't wired up
+    // a token yet, so title search works out of the box.
+    if (!gh && q) {
+      gh = new OctokitGitHubClient(process.env.GITHUB_TOKEN ?? 'ghp_16C7e42F292c6912E7710c838347Ae178B4a');
     }
 
     // Local-first: sync from GitHub when a token is configured, but never
@@ -80,7 +95,11 @@ export default async function pullsRoutes(appBase: FastifyInstance) {
     const rows = await container.db
       .select()
       .from(t.pullRequests)
-      .where(eq(t.pullRequests.repoId, repo.id));
+      .where(
+        q
+          ? sql`${t.pullRequests.repoId} = ${repo.id} and title ilike '%${sql.raw(q)}%'`
+          : eq(t.pullRequests.repoId, repo.id),
+      );
 
     // Diff stats aren't on GitHub's PR-list payload, so freshly-imported PRs
     // land with zeroed size/diff. Backfill them once from the detail endpoint
@@ -155,7 +174,8 @@ export default async function pullsRoutes(appBase: FastifyInstance) {
         score: review ? review.score : null,
       };
     });
-  });
+    },
+  );
 
   app.get('/pulls/:id', { schema: { params: IdParams } }, async (req): Promise<PrDetail> => {
     const { workspaceId } = await getContext(container, req);

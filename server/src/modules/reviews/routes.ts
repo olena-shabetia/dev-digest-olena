@@ -139,6 +139,14 @@ export default async function reviewsRoutes(appBase: FastifyInstance) {
     return { ok: true };
   });
 
+  // ---- Bulk-dismiss findings (triage a whole review pass in one click) ----
+  app.post('/findings/bulk-dismiss', async (req) => {
+    const { workspaceId } = await getContext(container, req);
+    const { finding_ids } = req.body as { finding_ids: string[] };
+    console.log('bulk-dismiss', finding_ids);
+    return service.bulkDismissFindings(workspaceId, finding_ids);
+  });
+
   // ---- Finding actions (accept / dismiss) ---------------------------------
   for (const action of FINDING_ACTIONS) {
     app.post(`/findings/:id/${action}`, { schema: { params: IdParams } }, async (req) => {
