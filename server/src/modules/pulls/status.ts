@@ -1,4 +1,4 @@
-import type { PrStatus } from '@devdigest/shared';
+import type { PrStatus, PrFindingsRollup } from '@devdigest/shared';
 
 /**
  * PR-list rollup helpers (pure — no DB / `this`, so they unit-test cleanly).
@@ -28,6 +28,71 @@ export function rollupSeverities(rows: { severity: string }[]): SeverityCounts {
     else if (r.severity === 'SUGGESTION') c.suggestion += 1;
   }
   return c;
+}
+
+/** How many findings the PR-list FINDINGS popover previews, at most. */
+export const FINDINGS_PREVIEW_LIMIT = 5;
+/** How long a preview's plain-text description is allowed to be. */
+export const PREVIEW_DESCRIPTION_MAX = 160;
+
+/** Sort weight per severity for the preview ordering (lower = first). */
+const SEVERITY_RANK: Record<string, number> = { CRITICAL: 0, WARNING: 1, SUGGESTION: 2 };
+
+export interface FindingRollupRow {
+  severity: string;
+  category: string;
+  title: string;
+  file: string;
+  startLine: number;
+  endLine: number;
+  confidence: number;
+  rationale: string;
+}
+
+/** Collapse markdown-ish rationale into a single-line, truncated plain-text
+ *  preview: strips code fences/backticks, collapses whitespace, and appends
+ *  "…" only when actually truncated. */
+export function plainTextPreview(text: string, max = PREVIEW_DESCRIPTION_MAX): string {
+  const flat = text
+    .replace(/```[\s\S]*?```/g, ' ')
+    .replace(/`/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return flat.length > max ? `${flat.slice(0, max).trimEnd()}…` : flat;
+}
+
+/**
+ * Counts + a bounded, deterministically ordered preview for one review's
+ * findings — the payload behind `PrMeta.findings` on the PR list. `total`
+ * counts every row (including severities outside the three buckets); the
+ * preview is capped at `limit`, ordered CRITICAL → WARNING → SUGGESTION, then
+ * file, then start line, so it never reshuffles between identical requests.
+ */
+export function toFindingsRollup(
+  rows: FindingRollupRow[],
+  limit = FINDINGS_PREVIEW_LIMIT,
+): PrFindingsRollup {
+  const counts = rollupSeverities(rows);
+  const preview = [...rows]
+    .sort((a, b) => {
+      const rank = (SEVERITY_RANK[a.severity] ?? 9) - (SEVERITY_RANK[b.severity] ?? 9);
+      if (rank !== 0) return rank;
+      const file = a.file.localeCompare(b.file);
+      if (file !== 0) return file;
+      return a.startLine - b.startLine;
+    })
+    .slice(0, limit)
+    .map((r) => ({
+      severity: r.severity as PrFindingsRollup['preview'][number]['severity'],
+      category: r.category as PrFindingsRollup['preview'][number]['category'],
+      title: r.title,
+      file: r.file,
+      start_line: r.startLine,
+      end_line: r.endLine,
+      confidence: r.confidence,
+      description: plainTextPreview(r.rationale),
+    }));
+  return { ...counts, total: rows.length, preview };
 }
 
 /**

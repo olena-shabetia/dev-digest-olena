@@ -34,10 +34,11 @@ invisible to tooling.
 
 ### 2026-09-18 — `pulls/routes.ts` had aggregate SQL business logic inline in the route handler
 
-**Symptom:** the PR-list route (`GET /repos/:id/pulls`) built a latest-review
-score lookup — a full `SELECT` + `orderBy` + JS grouping — directly inside the
-Fastify handler in `server/src/modules/pulls/routes.ts`, with no
-`repository.ts` in that module at all.
+**Symptom:** the PR-list route (`GET /repos/:id/pulls`,
+`server/src/modules/pulls/routes.ts:31`) built a latest-review score lookup —
+a full `SELECT` + `orderBy` + JS grouping — directly inside the Fastify
+handler (was around `routes.ts:133-149` pre-fix), with no `repository.ts` in
+that module at all.
 
 **Cause:** the `pulls` module was never split into the
 `routes → service → repository` layering `server/CLAUDE.md` mandates
@@ -46,8 +47,9 @@ as routes.ts-only and nobody extracted the query when it was added.
 
 **Fix:** when L01 (run cost badge) needed a second aggregate (`SUM` of
 `agent_runs.cost_usd` per PR) alongside the existing score lookup, both moved
-into a new `server/src/modules/pulls/repository.ts::reviewAggregatesByPr`
-rather than adding a second inline query next to the first.
+into `server/src/modules/pulls/repository.ts:19` (`reviewAggregatesByPr`),
+called from `routes.ts:138`, rather than adding a second inline query next to
+the first.
 
 **Rule:** before adding a new query to a route handler, check whether the
 route already has an inline query it never should have had — extracting both
@@ -75,6 +77,45 @@ provider the target agent is actually set to.
 _None yet._
 
 ## Recurring Errors & Fixes
+
+### 2026-09-18 — `LocalNoAuthProvider` caches workspace/user, so a DB reset needs a process restart
+
+**Symptom:** after `TRUNCATE`-ing demo tables and re-running `pnpm db:seed`
+against a live dev DB, `GET /repos` returns `[]` even though the seed script
+logged success and the rows exist in Postgres.
+
+**Cause:** `adapters/auth/local.ts`'s `LocalNoAuthProvider` memoizes
+`currentWorkspace()`/`currentUser()` on first call (`cachedWorkspace`,
+`cachedUser`), so a long-running API process keeps serving the pre-truncate
+workspace id, which no longer matches any row after the reseed creates a new
+one.
+
+**Fix:** restart the API process (`pnpm dev` / `tsx watch src/server.ts`)
+after any manual DB reset — a fresh process re-resolves the cache from the
+live default-workspace row on its next request.
+
+**Rule:** never diagnose "the reseed didn't take effect" by re-checking the
+DB alone — check whether the API process predates the reset first.
+
+### 2026-09-18 — seed's `reviews.run_id` was never linked to its `agent_runs` row
+
+**Symptom:** a feature that joins a persisted review to the run that produced
+it (via `reviews.run_id → agent_runs.id`) works against real data but finds
+nothing against the seed.
+
+**Cause:** `server/src/db/seed.ts` inserts the sample review for PR #482
+before inserting the demo `agent_runs`, and never sets `reviews.run_id`
+afterward — the column exists precisely to link them, but the seed left it
+`null`.
+
+**Fix:** capture the `agent_runs.insert(...).returning()` result and
+`UPDATE reviews SET run_id = <security run id>` right after, so the seeded
+review is linked the same way a real run-then-persist-review flow would leave
+it.
+
+**Rule:** when a feature depends on a FK the seed leaves null, fix the seed
+alongside the feature — don't assume seed data exercises every join real data
+does.
 
 ### 2026-09-17 — a stored secret silently overrides `.env`
 

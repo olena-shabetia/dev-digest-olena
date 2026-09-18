@@ -8,6 +8,7 @@ import { describe, it, expect, afterEach } from "vitest";
 import { render, screen, cleanup } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import type { RunSummary } from "@devdigest/shared";
+import type { SeverityBucket } from "@/lib/severity";
 import messages from "../../../../../../../../messages/en/prReview.json";
 import { RunHistory } from "./RunHistory";
 
@@ -35,10 +36,10 @@ function run(o: Partial<RunSummary>): RunSummary {
   };
 }
 
-function renderRuns(runs: RunSummary[]) {
+function renderRuns(runs: RunSummary[], severityByRun?: Map<string, SeverityBucket[]>) {
   return render(
     <NextIntlClientProvider locale="en" messages={{ prReview: messages }}>
-      <RunHistory runs={runs} onOpenTrace={() => {}} />
+      <RunHistory runs={runs} onOpenTrace={() => {}} severityByRun={severityByRun} />
     </NextIntlClientProvider>,
   );
 }
@@ -84,5 +85,29 @@ describe("RunHistory — outcome badge", () => {
   it("an unknown cost renders '—', never '$0.00'", () => {
     renderRuns([run({ status: "done", tokens_in: 500, tokens_out: 50, cost_usd: null })]);
     expect(screen.getByText("550 tok · —")).toBeInTheDocument();
+  });
+});
+
+describe("RunHistory — per-run severity chips", () => {
+  it("renders a chip per severity present for that run", () => {
+    const severityByRun = new Map<string, SeverityBucket[]>([
+      ["run-1", [{ severity: "CRITICAL", count: 1 }, { severity: "WARNING", count: 2 }]],
+    ]);
+    renderRuns([run({ status: "done", findings_count: 3 })], severityByRun);
+    expect(screen.getAllByText("1")).not.toHaveLength(0);
+    expect(screen.getAllByText("2")).not.toHaveLength(0);
+  });
+
+  it("chips are read-only — not clickable — in the Timeline", () => {
+    const severityByRun = new Map<string, SeverityBucket[]>([
+      ["run-1", [{ severity: "CRITICAL", count: 1 }]],
+    ]);
+    renderRuns([run({ status: "done", findings_count: 1 })], severityByRun);
+    expect(screen.queryAllByRole("button", { name: /critical/i })).toHaveLength(0);
+  });
+
+  it("a run absent from the map falls back to the plain findings/blockers text", () => {
+    renderRuns([run({ status: "done", findings_count: 3, blockers: 0 })], new Map());
+    expect(screen.getByText(/3 finding/)).toBeInTheDocument();
   });
 });

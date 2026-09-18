@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { Provider } from './knowledge.js';
+import { Severity, FindingCategory } from './findings.js';
 
 /**
  * Platform / scaffolding DTOs owned by F1:
@@ -154,6 +155,35 @@ export type Repo = z.infer<typeof Repo>;
 export const PrStatus = z.enum(['needs_review', 'reviewed', 'stale', 'open', 'closed', 'merged']);
 export type PrStatus = z.infer<typeof PrStatus>;
 
+/** One finding of the PR's latest review, trimmed for the PR-list hover
+ *  popover ("N FINDINGS IN THIS RUN") — text-only preview, no action fields. */
+export const PrFindingPreview = z.object({
+  severity: Severity,
+  category: FindingCategory,
+  title: z.string(),
+  file: z.string(),
+  start_line: z.number().int(),
+  end_line: z.number().int(),
+  confidence: z.number().min(0).max(1),
+  // Single-line, truncated plain text — display only, not the full rationale.
+  description: z.string(),
+});
+export type PrFindingPreview = z.infer<typeof PrFindingPreview>;
+
+/** Per-severity rollup of the PR's LATEST review, for the PR list. */
+export const PrFindingsRollup = z.object({
+  critical: z.number().int(),
+  warning: z.number().int(),
+  suggestion: z.number().int(),
+  // Every finding of that review, including severities outside the three
+  // buckets above — what the popover title counts.
+  total: z.number().int(),
+  // Bounded preview (see FINDINGS_PREVIEW_LIMIT), CRITICAL → WARNING →
+  // SUGGESTION then file:line.
+  preview: z.array(PrFindingPreview),
+});
+export type PrFindingsRollup = z.infer<typeof PrFindingsRollup>;
+
 export const PrMeta = z.object({
   id: z.string().nullish(),
   number: z.number().int(),
@@ -173,6 +203,10 @@ export const PrMeta = z.object({
   // Sum of every run's cost for this PR (list endpoint only); null when no
   // run has a known cost yet — never $0.
   cost_usd: z.number().nullish(),
+  // Per-severity rollup of the latest review (list endpoint only); null when
+  // the PR has never been reviewed — render "—", never all-zeros. All-zero
+  // counts mean "reviewed and clean" — a distinct, real state.
+  findings: PrFindingsRollup.nullish(),
 });
 export type PrMeta = z.infer<typeof PrMeta>;
 

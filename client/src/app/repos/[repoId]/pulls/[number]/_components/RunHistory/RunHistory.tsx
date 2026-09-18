@@ -5,6 +5,8 @@ import { useTranslations } from "next-intl";
 import { Badge, Icon, CircularScore, type IconName } from "@devdigest/ui";
 import { RunCostBadge } from "@/components/run-cost-badge";
 import { formatTokenCount } from "@/lib/format";
+import type { SeverityBucket } from "@/lib/severity";
+import { SeverityFilterBar } from "@/components/severity-filter-bar";
 import type { RunSummary, PrCommit } from "@devdigest/shared";
 
 /**
@@ -89,12 +91,16 @@ function tsOf(s: string | null | undefined): number {
 export function RunHistory({
   runs,
   commits = [],
+  severityByRun,
   onOpenTrace,
   onGoToReview,
   onDelete,
 }: {
   runs: RunSummary[];
   commits?: PrCommit[];
+  /** Per-run severity tally (run_id → buckets), from the reviews already
+   *  fetched for this PR. Rendered read-only — no onSelect, so no click. */
+  severityByRun?: ReadonlyMap<string, SeverityBucket[]>;
   /** Open the trace + log drawer for a run (the logs icon). */
   onOpenTrace: (runId: string) => void;
   /** Jump to this run's inline review accordion below (clicking the agent name). */
@@ -191,9 +197,18 @@ export function RunHistory({
                 </div>
               )}
               {settled && (
-                <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
-                  {t("runStatus.findings", { count: r.findings_count ?? 0 })}
-                  {(r.blockers ?? 0) > 0 ? t("runStatus.blockers", { count: r.blockers ?? 0 }) : ""}
+                <div style={{ fontSize: 12, color: "var(--text-muted)", display: "flex", alignItems: "center", gap: 8 }}>
+                  {(() => {
+                    const buckets = severityByRun?.get(r.run_id);
+                    return buckets && buckets.length > 0 ? (
+                      <SeverityFilterBar buckets={buckets} compact />
+                    ) : (
+                      <span>
+                        {t("runStatus.findings", { count: r.findings_count ?? 0 })}
+                        {(r.blockers ?? 0) > 0 ? t("runStatus.blockers", { count: r.blockers ?? 0 }) : ""}
+                      </span>
+                    );
+                  })()}
                 </div>
               )}
             </div>

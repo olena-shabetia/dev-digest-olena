@@ -112,9 +112,8 @@ export default async function pullsRoutes(appBase: FastifyInstance) {
       }
     }
 
-    // Per-PR review aggregates for the list's score ring + COST column.
-    // (The per-severity FINDINGS breakdown is intentionally not surfaced on
-    // the list — findings live on the PR detail page.)
+    // Per-PR review aggregates for the list's score ring, COST column, and
+    // FINDINGS severity breakdown (the latter feeds the list's hover popover).
     const prIds = rows.map((r) => r.id);
     const aggregatesByPr = await reviewAggregatesByPr(container.db, workspaceId, prIds);
 
@@ -143,6 +142,7 @@ export default async function pullsRoutes(appBase: FastifyInstance) {
         updated_at: r.updatedAt?.toISOString() ?? null,
         score: agg?.score ?? null,
         cost_usd: agg?.costUsd ?? null,
+        findings: agg?.findings ?? null,
       };
     });
   });

@@ -1,0 +1,18 @@
+{
+  "name": "Review-run severity pills filter the findings list",
+  "description": "L02 (findings-by-severity). On PR #482's Agent runs tab, the Review runs accordion is open by default and shows a 'CRITICAL' severity pill (the seeded review has 1 CRITICAL / 1 WARNING / 1 SUGGESTION finding). Clicking it narrows the finding cards to the Stripe-secret CRITICAL finding only; clicking it again restores the full list, including the WARNING (N+1 query) finding. Counting/filtering is pure client-side grouping of already-fetched findings — no model call. The PR-list FINDINGS-column hover popover is covered by client component tests (FindingsCell.test.tsx), not here — agent-browser's deterministic command set has no hover primitive to drive it.",
+  "steps": [
+    { "cmd": ["open", "{BASE}/"], "label": "load the app root" },
+    { "cmd": ["wait", "--url", "/pulls"], "label": "land on the PR list" },
+    { "cmd": ["find", "text", "Add rate limiting to public API endpoints", "click"], "label": "open the PR row" },
+    { "cmd": ["wait", "--url", "/pulls/482"], "label": "navigate to the PR detail route" },
+    { "cmd": ["wait", "--load", "networkidle"], "label": "PR detail data settles" },
+    { "cmd": ["find", "role", "button", "click", "--name", "Agent runs"], "label": "switch to the Agent runs tab" },
+    { "cmd": ["wait", "--url", "tab=findings"], "label": "findings tab is active in the URL" },
+    { "cmd": ["wait", "--text", "N+1 query in user list endpoint"], "label": "the WARNING finding is visible before filtering" },
+    { "cmd": ["find", "text", "Critical", "click"], "label": "click the CRITICAL severity pill" },
+    { "cmd": ["wait", "--text", "Hardcoded Stripe secret key in commit"], "label": "the CRITICAL finding stays visible" },
+    { "cmd": ["find", "text", "Critical", "click"], "label": "click the pill again to clear the filter" },
+    { "cmd": ["wait", "--text", "N+1 query in user list endpoint"], "label": "the WARNING finding is visible again" }
+  ]
+}

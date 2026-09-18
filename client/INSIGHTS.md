@@ -15,6 +15,27 @@ _None yet._
 
 ## Codebase Patterns
 
+### 2026-09-18 — a filter's count badge must be derived at the same pipeline stage the filter itself reads from
+
+**Context:** the run-card severity pills (`FindingsPanel.tsx`) must satisfy
+"the pill's number always equals the number of finding cards its own click
+leaves visible," while the panel already had an independent "Hide low
+confidence" filter (`hideLow`).
+
+**Decision:** counts are computed *after* the confidence filter and *before*
+the severity filter — `findings → confidenceFiltered(hideLow) → [count here]
+→ bySeverity(active) → rendered cards` (`FindingsPanel.tsx:37-42`) — not from
+the raw `findings` prop.
+
+**Why:** counting from the raw array lets a pill show a stale N while
+`hideLow` silently removes matching cards underneath it — including the
+"pill says 3, list renders empty" case when every finding of that severity is
+below the confidence threshold.
+
+**Rule:** in any multi-filter UI with a count badge, derive the count at the
+exact composition point where the badge's own click would apply the next
+filter — never from an earlier or later stage of the pipeline.
+
 ### 2026-09-17 — `src/vendor/shared` has drifted from the server copy
 
 **Symptom:** a contract that exists on the server is missing or narrower here.
@@ -51,7 +72,9 @@ regardless of the value's type.
 **Fix:** pre-format the number in code (e.g. `n.toLocaleString("en-US")`) and
 pass the already-formatted *string* as the interpolation value, rather than
 relying on the message key to format a raw number. Done for the run-timeline
-token count in `RunHistory.tsx` (`formatTokenCount` in `lib/format.ts`).
+token count: `formatTokenCount` at `client/src/lib/format.ts:37`, called from
+`RunHistory.tsx:206` before it's passed into `t("timeline.tokens", {count})`
+at `RunHistory.tsx:205`.
 
 **Rule:** when a message key interpolates a number that needs locale
 formatting (thousands separators, decimals, etc.), format it in code and pass
