@@ -43,6 +43,9 @@ adapters/      → the outside world, BEHIND interfaces from @devdigest/shared
 
 - Route map / API diagram → `README.md`
 - Touching the indexer → `src/modules/repo-intel/README.md`
+- Touching the DI container or an adapter → `docs/architecture.md`
+- Touching the review-run flow (trigger → persistence → run lifecycle) →
+  `specs/review-flow.md`
 - Test strategy across the repo → `../TESTING.md`
 - Editing a seeded reviewer prompt → `../docs/agent-prompts/README.md`
   (the DB row wins at runtime; `src/db/seed-prompts.ts` only affects fresh seeds)

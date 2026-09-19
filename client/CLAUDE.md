@@ -29,6 +29,10 @@ only when it carries real content; never scaffold empty ones. Pages stay thin:
 ## Read when
 
 - Route map, and which endpoints a page pulls → `README.md`
+- Server vs Client Component boundaries, where data fetching happens →
+  `docs/ui-architecture.md`
+- The full route table and what each page's data contract is →
+  `specs/pages.md`
 - Test strategy across the repo → `../TESTING.md`
 - Implementing a lesson feature → `specs/<lesson>-<slug>.md` (write it first)
 - A symptom feels familiar → `INSIGHTS.md`

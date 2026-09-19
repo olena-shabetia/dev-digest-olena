@@ -32,6 +32,10 @@ The pure review engine. Pipeline diagram lives in `README.md`.
 ## Read when
 
 - Full review pipeline → `README.md`
+- Pipeline stages in detail (mode selection, assembly, LLM call, reduce,
+  grounding, scoring) with file:line references → `docs/pipeline.md`
+- The prompt-wrapping and grounding-gate CONTRACT (what must stay true) →
+  `specs/prompt-and-grounding.md`
 - Reviewer prompt wording and severity conventions →
   `../docs/agent-prompts/README.md`
 - Adding a prompt section or changing assembly order → `specs/<slug>.md`
