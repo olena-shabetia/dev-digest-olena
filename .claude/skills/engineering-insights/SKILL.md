@@ -14,7 +14,7 @@ description: >-
 
 Reads and appends to the touched module's `INSIGHTS.md` (format:
 [reference/file-format.md](reference/file-format.md)). Read the target file
-before working (root `CLAUDE.md` Session protocol), run this skill before
+before working (root `AGENTS.md` Session protocol), run this skill before
 finishing.
 
 ## Routing — which file to write to
@@ -28,7 +28,7 @@ finishing.
 | Crosses packages, or `scripts/`, `docs/`, `.github/` | root `INSIGHTS.md` |
 
 Touched two modules with one finding each → write one entry to each file, never
-a merged entry. Never write to `server/clones/**` (see root `CLAUDE.md` → Do
+a merged entry. Never write to `server/clones/**` (see root `AGENTS.md` → Do
 not touch).
 
 ## The substance gate — check this first
@@ -41,7 +41,7 @@ a valid, common outcome — say so and stop before drafting anything.
    default.
 2. **A failure was traced to a root cause** — not just made to go away.
 3. **A decision was made with a stated reason** (chose X over Y, because Z).
-4. **A convention was discovered** that no `CLAUDE.md`, `README.md`, or
+4. **A convention was discovered** that no `AGENTS.md`, `README.md`, or
    `TESTING.md` already states.
 
 ## Workflow
@@ -80,7 +80,7 @@ history.
 ## Promotion rule
 
 When an entry hardens into a standing rule, promote one line into the relevant
-`CLAUDE.md` and shorten the entry here to a pointer.
+`AGENTS.md` and shorten the entry here to a pointer.
 
 ## Reference
 

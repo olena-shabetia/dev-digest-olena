@@ -200,7 +200,7 @@ repo isn't known" rather than "no links, ever."
 
 ### Why it's not a generic vendor primitive
 
-`*/src/vendor/**` is do-not-touch (root `CLAUDE.md`), and this component is
+`*/src/vendor/**` is do-not-touch (root `AGENTS.md`), and this component is
 domain-specific (renders `PrFindingPreview`s, not arbitrary content) — a
 generic `Popover` abstracted from findings would be premature. It lives under
 `client/src/components/` rather than a vendor primitive precisely because it's

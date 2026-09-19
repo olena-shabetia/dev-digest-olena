@@ -2,7 +2,7 @@
 
 What the 8 flows in `specs/` actually cover, and where the gaps are. This is
 prose about coverage — the flows themselves (the executable spec) live in
-`specs/*.flow.json`, per the note in `../CLAUDE.md`.
+`specs/*.flow.json`, per the note in `../AGENTS.md`.
 
 ## What's covered today
 
@@ -25,7 +25,7 @@ no flow depends on model output, so none require an API key.
 
 - **Nothing here exercises a live review run.** Running a review calls an LLM
   (`reviewer-core` → OpenRouter), which is explicitly excluded by the "no LLM"
-  invariant in `../CLAUDE.md`. Coverage of the review pipeline itself
+  invariant in `../AGENTS.md`. Coverage of the review pipeline itself
   (prompt assembly, grounding, scoring) belongs to `reviewer-core`'s own test
   suite, not here.
 - **No write paths**: adding a repository, importing PRs, creating/editing an
@@ -43,9 +43,9 @@ no flow depends on model output, so none require an API key.
 ## Adding new coverage
 
 - New flow files are numbered in run order (`NN-name.flow.json`) — see the
-  naming convention in `../CLAUDE.md`.
+  naming convention in `../AGENTS.md`.
 - A new flow must stay read-only against the existing seed unless the seed
   itself is extended — see the "flows hardcode seeded fixture values" note in
-  `../CLAUDE.md` before changing anything in `server/src/db/seed.ts`.
+  `../AGENTS.md` before changing anything in `server/src/db/seed.ts`.
 - Prefer extending `lib/assert.ts` over inlining a new kind of check into a
   flow's `assert.stdoutIncludes`.

@@ -41,7 +41,7 @@ handler (was around `routes.ts:133-149` pre-fix), with no `repository.ts` in
 that module at all.
 
 **Cause:** the `pulls` module was never split into the
-`routes → service → repository` layering `server/CLAUDE.md` mandates
+`routes → service → repository` layering `server/AGENTS.md` mandates
 elsewhere ("routes.ts = HTTP + Zod validation, zero business logic"); it grew
 as routes.ts-only and nobody extracted the query when it was added.
 
@@ -140,7 +140,7 @@ the first thing to check, not `.env`.
 fails with Postgres error `relation "..." does not exist`.
 
 **Cause:** the server deliberately does not run migrations on boot (see
-`CLAUDE.md`), so a freshly created database has no schema until migrations are
+`AGENTS.md`), so a freshly created database has no schema until migrations are
 applied explicitly.
 
 **Fix:** `cd server && pnpm db:migrate`.

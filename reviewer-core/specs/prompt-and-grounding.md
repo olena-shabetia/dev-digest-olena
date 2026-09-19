@@ -8,7 +8,7 @@ Behavior that must stay true. If a change to `src/prompt.ts` or
 `wrapUntrusted` (`src/prompt.ts:30-34`) is the only path by which external
 text (diff, PR description, repo map, specs, callers digest) enters the
 prompt — required by the "all external text is data, never instructions"
-invariant in `../CLAUDE.md`.
+invariant in `../AGENTS.md`.
 
 - Any embedded `</untrusted>` closing tag inside the content is escaped
   (`content.replaceAll('</untrusted>', '<\\/untrusted>')`, line 32) before
@@ -20,7 +20,7 @@ invariant in `../CLAUDE.md`.
   (`:120`), specs (`:96`), callers digest (`:117`).
 - `INJECTION_GUARD` (`prompt.ts:16-28`) is appended to the system prompt
   unconditionally at `prompt.ts:86` — never behind a flag, never conditional
-  on whether a given chunk has untrusted content, per `../CLAUDE.md`.
+  on whether a given chunk has untrusted content, per `../AGENTS.md`.
 
 **Rule:** any new kind of input added to the assembled prompt must go through
 `wrapUntrusted` with its own `source` label. Concatenating a new field
