@@ -23,3 +23,6 @@ test-results/
 
 # emdash worktree config (local)
 .emdash.json
+
+# Claude Code plan-mode scratch files — session-local, not durable docs
+plans/

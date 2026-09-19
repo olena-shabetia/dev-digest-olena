@@ -5,11 +5,13 @@
 import React from "react";
 import { useTranslations } from "next-intl";
 import { Toggle, EmptyState } from "@devdigest/ui";
-import type { FindingRecord } from "@devdigest/shared";
+import type { FindingRecord, Severity } from "@devdigest/shared";
+import { severityBuckets } from "@/lib/severity";
 import { FindingCard } from "../FindingCard";
+import { SeverityFilterBar } from "@/components/severity-filter-bar";
 import { useFindingAction } from "../../../../../../../lib/hooks/reviews";
 import { KEY_TO_ACTION } from "./constants";
-import { visibleFindings } from "./helpers";
+import { confidenceFiltered, visibleFindings } from "./helpers";
 import { s } from "./styles";
 
 export function FindingsPanel({
@@ -26,9 +28,22 @@ export function FindingsPanel({
   const t = useTranslations("prReview");
   const action = useFindingAction();
   const [hideLow, setHideLow] = React.useState(false);
+  const [severity, setSeverity] = React.useState<Severity | null>(null);
   const [focusIdx, setFocusIdx] = React.useState(0);
 
-  const shown = React.useMemo(() => visibleFindings(findings, hideLow), [findings, hideLow]);
+  // Counts are derived AFTER the confidence filter and BEFORE the severity
+  // filter, so a pill's number always equals the number of cards its own
+  // click would leave visible — see specs/L02-findings-by-severity.md.
+  const byConfidence = React.useMemo(() => confidenceFiltered(findings, hideLow), [findings, hideLow]);
+  const buckets = React.useMemo(() => severityBuckets(byConfidence), [byConfidence]);
+  // Self-heal: if hideLow (or a dismiss/delete) makes the active severity
+  // disappear, fall back to the full list rather than stranding an empty one.
+  const active = buckets.some((b) => b.severity === severity) ? severity : null;
+  const shown = React.useMemo(() => visibleFindings(byConfidence, active), [byConfidence, active]);
+
+  React.useEffect(() => {
+    setFocusIdx(0);
+  }, [active, hideLow]);
 
   // j/k navigation + a/d shortcuts on the focused finding (keyboard).
   React.useEffect(() => {
@@ -48,6 +63,11 @@ export function FindingsPanel({
   return (
     <div>
       <div style={s.toolbar}>
+        <SeverityFilterBar
+          buckets={buckets}
+          selected={active}
+          onSelect={(sev) => setSeverity((prev) => (prev === sev ? null : sev))}
+        />
         <div style={s.toggleGroup}>
           {t("panel.hideLowConfidence")}
           <Toggle on={hideLow} onChange={setHideLow} size={16} />

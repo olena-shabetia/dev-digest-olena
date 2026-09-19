@@ -56,6 +56,14 @@ export default function PRDetailPage() {
   const invalidateRunHistory = () => {
     if (prId) qc.invalidateQueries({ queryKey: ["pr-runs", prId] });
   };
+  // The PR list's score/cost/findings columns are computed from THIS PR's
+  // latest review + runs — a run settling here makes that list stale too.
+  // Without this, the list only catches up on its own 60s refetchInterval or
+  // the next window-focus refetch, so a run finished here can look like it
+  // never happened until you leave and come back.
+  const invalidatePulls = () => {
+    qc.invalidateQueries({ queryKey: ["pulls", repoId] });
+  };
 
   const tab = search.get("tab") ?? "overview";
   const traceRunId = search.get("trace");
@@ -151,11 +159,12 @@ export default function PRDetailPage() {
             onOpenTrace={(id) => setParam("trace", id)}
             onDelete={(id) => {
               if (window.confirm("Delete this run from history? (its logs are removed too)"))
-                deleteRun.mutate(id);
+                deleteRun.mutate(id, { onSuccess: invalidatePulls });
             }}
             onRunDone={() => {
               invalidateActiveRuns();
               invalidateRunHistory();
+              invalidatePulls();
               refetchReviews();
             }}
           />

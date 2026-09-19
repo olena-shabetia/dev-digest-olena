@@ -92,6 +92,11 @@ export async function seed(db: Db): Promise<{ workspaceId: string; userId: strin
   const repoId = repo!.id;
 
   // ---- PR #482 (rate limiting) ----
+  // Keeps a reference to the freshly-created review (undefined on a re-seed of
+  // an existing DB) so it can be linked to the Security Reviewer's agent_run
+  // below — that link is what makes the Timeline's per-run severity chips
+  // (see specs/L02-findings-by-severity.md) show anything on seed data.
+  let review: typeof t.reviews.$inferSelect | undefined;
   let [pr] = await db
     .select()
     .from(t.pullRequests)
@@ -133,7 +138,7 @@ export async function seed(db: Db): Promise<{ workspaceId: string; userId: strin
     });
 
     // a sample review + findings so the PR shows results before the first run
-    const [review] = await db
+    [review] = await db
       .insert(t.reviews)
       .values({
         workspaceId,
@@ -171,6 +176,18 @@ export async function seed(db: Db): Promise<{ workspaceId: string; userId: strin
         rationale: 'Loop issues one query per user → N+1.',
         suggestion: 'Use a single IN query and group in memory.',
         confidence: 0.86,
+      },
+      {
+        reviewId: review!.id,
+        file: 'src/middleware/ratelimit.ts',
+        startLine: 28,
+        endLine: 28,
+        severity: 'SUGGESTION',
+        category: 'style',
+        title: 'Extract magic number 3600',
+        rationale: 'The literal 3600 means "seconds in an hour" without explanation.',
+        suggestion: 'Extract to a named constant, e.g. `WINDOW_SECONDS = 3600`.',
+        confidence: 0.62,
       },
     ]);
   }
@@ -212,12 +229,158 @@ export async function seed(db: Db): Promise<{ workspaceId: string; userId: strin
       createdBy: userId,
     },
   ];
+  const agentIdByName = new Map<string, string>();
   for (const a of seedAgents) {
     const [existing] = await db
       .select()
       .from(t.agents)
       .where(and(eq(t.agents.workspaceId, workspaceId), eq(t.agents.name, a.name)));
-    if (!existing) await db.insert(t.agents).values(a);
+    if (existing) {
+      agentIdByName.set(a.name, existing.id);
+    } else {
+      const [inserted] = await db.insert(t.agents).values(a).returning();
+      agentIdByName.set(a.name, inserted!.id);
+    }
+  }
+
+  // ---- demo agent runs (L01 — run cost badge) ----
+  // A few completed runs against PR #482 so the COST column, the run
+  // timeline, and the trace drawer's COST tile all show real numbers out of
+  // the box, without requiring a live LLM key. Guarded on "no runs yet for
+  // this PR" for idempotency (agent_runs has no natural unique key to upsert
+  // on).
+  const existingRuns = await db
+    .select({ id: t.agentRuns.id })
+    .from(t.agentRuns)
+    .where(eq(t.agentRuns.prId, pr!.id));
+  if (existingRuns.length === 0) {
+    const [securityRun] = await db.insert(t.agentRuns).values([
+      {
+        workspaceId,
+        agentId: agentIdByName.get('Security Reviewer') ?? null,
+        prId: pr!.id,
+        provider: DEFAULT_PROVIDER,
+        model: DEFAULT_MODEL,
+        status: 'done',
+        durationMs: 8200,
+        tokensIn: 9119,
+        tokensOut: 1180,
+        costUsd: 0.0013,
+        // 3 findings total across the review (Stripe secret + N+1 query +
+        // magic number); this run's own findings_count reflects that review.
+        findingsCount: 3,
+        grounding: '3/3 passed',
+        score: 61,
+        blockers: 1,
+      },
+      {
+        workspaceId,
+        agentId: agentIdByName.get('Performance Reviewer') ?? null,
+        prId: pr!.id,
+        provider: DEFAULT_PROVIDER,
+        model: DEFAULT_MODEL,
+        status: 'done',
+        durationMs: 6400,
+        tokensIn: 12011,
+        tokensOut: 980,
+        costUsd: 0.0014,
+        findingsCount: 1,
+        grounding: '2/2 passed',
+        score: 78,
+        blockers: 0,
+      },
+      {
+        workspaceId,
+        agentId: agentIdByName.get('General Reviewer') ?? null,
+        prId: pr!.id,
+        provider: DEFAULT_PROVIDER,
+        model: DEFAULT_MODEL,
+        status: 'done',
+        durationMs: 5100,
+        tokensIn: 7420,
+        tokensOut: 860,
+        costUsd: 0.0009,
+        findingsCount: 0,
+        grounding: '2/2 passed',
+        score: 92,
+        blockers: 0,
+      },
+    ]).returning();
+
+    // Link the sample review to the run that produced it — without this,
+    // ReviewRecord.run_id is null and the Timeline can't show that run's
+    // severity chips (they're joined by run_id; see FindingsTab.tsx).
+    if (review && securityRun) {
+      await db.update(t.reviews).set({ runId: securityRun.id }).where(eq(t.reviews.id, review.id));
+    }
+  }
+
+  // ---- PR #479 (UUID primary keys) — a second reviewed PR so the list page
+  // (findings-by-severity, L02) has more than one row with a FINDINGS
+  // popover to hover. ----
+  let [pr479] = await db
+    .select()
+    .from(t.pullRequests)
+    .where(and(eq(t.pullRequests.repoId, repoId), eq(t.pullRequests.number, 479)));
+  if (!pr479) {
+    [pr479] = await db
+      .insert(t.pullRequests)
+      .values({
+        workspaceId,
+        repoId,
+        number: 479,
+        title: 'Migrate sessions table to UUID primary keys',
+        author: 'deepak.r',
+        branch: 'chore/sessions-uuid-pk',
+        base: 'main',
+        headSha: 'f00dcafe1234',
+        additions: 512,
+        deletions: 88,
+        filesCount: 6,
+        status: 'needs_review',
+        body: 'Swap the sessions table over to UUID primary keys ahead of the multi-region rollout.',
+      })
+      .returning();
+
+    const [review479] = await db
+      .insert(t.reviews)
+      .values({
+        workspaceId,
+        prId: pr479!.id,
+        kind: 'review',
+        verdict: 'request_changes',
+        summary: 'Migration looks sound, but the backfill lacks a rollback plan and one query still assumes integer ids.',
+        score: 44,
+        model: 'seed',
+      })
+      .returning();
+
+    await db.insert(t.findings).values([
+      {
+        reviewId: review479!.id,
+        file: 'src/db/migrations/0011_sessions_uuid.sql',
+        startLine: 1,
+        endLine: 40,
+        severity: 'CRITICAL',
+        category: 'bug',
+        title: 'No rollback path if the backfill fails midway',
+        rationale: 'The migration has no down-migration and no idempotency guard, so a failed backfill leaves the table half-converted.',
+        suggestion: 'Wrap the backfill in a transaction, or add a resumable checkpoint column.',
+        confidence: 0.91,
+      },
+      {
+        reviewId: review479!.id,
+        file: 'src/api/sessions.ts',
+        startLine: 22,
+        endLine: 27,
+        severity: 'SUGGESTION',
+        category: 'style',
+        title: 'Rename `id` param to `sessionId` for clarity',
+        rationale: 'The bare `id` name reads ambiguously now that both the old integer id and the new UUID coexist during migration.',
+        suggestion: 'Rename to `sessionId` and update call sites.',
+        confidence: 0.58,
+      },
+    ]);
   }
 
   return { workspaceId, userId };

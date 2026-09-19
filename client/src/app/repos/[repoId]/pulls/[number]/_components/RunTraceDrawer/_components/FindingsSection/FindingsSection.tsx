@@ -4,16 +4,10 @@
 
 import React from "react";
 import { useTranslations } from "next-intl";
-import { Badge } from "@devdigest/ui";
+import { Badge, SeverityBadge, type Severity } from "@devdigest/ui";
 import type { FindingRecord } from "@devdigest/shared";
 import { s } from "../../styles";
 import { TraceSection } from "../TraceSection";
-
-const SEV_COLOR: Record<string, string> = {
-  CRITICAL: "var(--crit)",
-  WARNING: "var(--warn)",
-  SUGGESTION: "var(--accent)",
-};
 
 export function FindingsSection({ findings }: { findings: FindingRecord[] }) {
   const t = useTranslations("runs");
@@ -38,9 +32,7 @@ export function FindingsSection({ findings }: { findings: FindingRecord[] }) {
               }}
             >
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                <Badge color={SEV_COLOR[f.severity] ?? "var(--text-muted)"} bg="transparent">
-                  {f.severity}
-                </Badge>
+                <SeverityBadge severity={f.severity as Severity} />
                 <span style={{ fontSize: 13, fontWeight: 600 }}>{f.title}</span>
               </div>
               <div className="mono" style={{ fontSize: 11.5, color: "var(--text-muted)", marginBottom: 6 }}>
