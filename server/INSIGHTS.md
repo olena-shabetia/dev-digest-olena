@@ -32,6 +32,28 @@ invisible to tooling.
 
 ## Codebase Patterns
 
+### 2026-09-21 — run events (SSE stream) are never persisted — no `run_events` table exists
+
+**Symptom:** a whole-repo DB-index audit (`plans/sparkling-wiggling-allen.md`,
+Wave 3) assumed a `run_events` table needing an index on `(run_id, seq)` for
+the SSE stream — there is no such table anywhere in `db/schema/*.ts`.
+
+**Cause:** a run's live log/events are held entirely in memory via `RunBus`
+(publish/subscribe keyed by `runId`, `platform/` — see `reviews/routes.ts`'s
+`GET /runs/:id/events`, which replays from that in-memory buffer, not a DB
+read). Only the FINISHED run's single-document trace (`run_traces.trace`,
+one row per run) and the `agent_runs` row itself are persisted — nothing
+SSE-shaped is.
+
+**Fix:** none needed — this was a false assumption in the audit, not a gap in
+the schema. The Wave 3 index work skipped this row rather than fabricating an
+index for a table that doesn't exist.
+
+**Rule:** before indexing (or otherwise assuming the existence of) a table
+named for a runtime concept like "events" or "stream", check
+`db/schema/*.ts` first — some of this repo's real-time surfaces (SSE runs)
+are intentionally in-memory-only and were never meant to be persisted.
+
 ### 2026-09-21 — `vendor/shared/index.ts`'s barrel silently drops a duplicate `export *` symbol
 
 **Symptom:** `contracts/productionize.ts:189` re-exports `Severity`, which
