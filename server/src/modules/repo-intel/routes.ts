@@ -12,12 +12,13 @@
  */
 import type { FastifyInstance } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
-import type { RepoIndexState } from '@devdigest/shared';
+import { RepoIndexState } from '@devdigest/shared';
 import { getContext } from '../_shared/context.js';
 import { IdParams } from '../_shared/schemas.js';
 import { RepoIntelService } from './service.js';
 import { RESYNC_JOB_KIND } from './constants.js';
 import { toIndexStateDto } from './helpers.js';
+import { ResyncAccepted } from './schemas.js';
 
 export default async function repoIntelRoutes(appBase: FastifyInstance) {
   const app = appBase.withTypeProvider<ZodTypeProvider>();
@@ -32,7 +33,7 @@ export default async function repoIntelRoutes(appBase: FastifyInstance) {
 
   app.get(
     '/repos/:id/index-state',
-    { schema: { params: IdParams } },
+    { schema: { params: IdParams, response: { 200: RepoIndexState } } },
     async (req): Promise<RepoIndexState> => {
       // Resolve tenancy so the request is workspace-scoped even though the
       // facade itself is tenant-agnostic (consistent with blast routes).
@@ -44,8 +45,8 @@ export default async function repoIntelRoutes(appBase: FastifyInstance) {
 
   app.post(
     '/repos/:id/resync',
-    { schema: { params: IdParams } },
-    async (req, reply) => {
+    { schema: { params: IdParams, response: { 202: ResyncAccepted } } },
+    async (req, reply): Promise<ResyncAccepted> => {
       const { workspaceId } = await getContext(container, req);
       // 202 even when enqueue fails (no handler / DB hiccup) so the UI can
       // still poll /index-state without an inline error path. The actual
