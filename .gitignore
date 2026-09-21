@@ -16,7 +16,10 @@ coverage/
 .turbo/
 .pnpm-store/
 *.log
-.devdigest/cache/
+# the whole tree, not just cache/ — .devdigest/review/last-report.json must
+# stay untracked too, or writing it would change the fingerprint it just
+# recorded (see .claude/skills/pr-self-review/reference/report-format.md)
+.devdigest/
 clones/
 
 # pnpm 10+ ERR_PNPM_IGNORED_BUILDS stub — see root INSIGHTS.md (2026-09-17).

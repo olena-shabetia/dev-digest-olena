@@ -19,6 +19,11 @@ proposes entries for approval rather than writing on its own, and if nothing thi
 session met its bar it writes nothing — a valid result, not a reason to skip the
 step.
 
+**Before opening a PR:** run the `pr-self-review` skill. A `PreToolUse` hook
+already blocks `git push` on a CRITICAL finding, but run it explicitly rather
+than relying on the hook to catch it — it's cheaper to fix before a push is
+attempted than after one is denied.
+
 ## Map
 
 Four independent packages, **not** a pnpm workspace: each has its own lockfile,
