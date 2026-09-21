@@ -82,6 +82,16 @@ export class ReviewRepository {
     return runRepo.listRunsForPull(this.db, workspaceId, prId);
   }
 
+  /** Most recent runs for an agent (any status), newest first, capped at
+   *  `limit` — the agent Stats tab's run-history table (`GET /agents/:id/runs`,
+   *  L02). Exposed here (rather than a direct cross-module import) so the
+   *  agents module reaches it via `container.reviewRepo`, same as every other
+   *  cross-module repository access (`platform/container.ts`'s comment on
+   *  `agentsRepo`/`reviewRepo`). */
+  listRunsForAgent(workspaceId: string, agentId: string, limit: number): Promise<RunSummary[]> {
+    return runRepo.listRunsForAgent(this.db, workspaceId, agentId, limit);
+  }
+
   /** Delete one agent run (+ its trace via FK cascade). Workspace-scoped. */
   deleteAgentRun(workspaceId: string, runId: string): Promise<boolean> {
     return runRepo.deleteAgentRun(this.db, workspaceId, runId);

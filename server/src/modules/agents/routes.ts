@@ -4,11 +4,13 @@ import { z } from 'zod';
 import {
   Agent,
   AgentSkillLink,
+  AgentStats,
   AgentVersion,
   CiFailOn,
   ModelInfo,
   Provider,
   ReviewStrategy,
+  RunSummary,
 } from '@devdigest/shared';
 import { getContext } from '../_shared/context.js';
 import { IdParams } from '../_shared/schemas.js';
@@ -38,6 +40,8 @@ const VersionParams = z.object({
  *   POST   /agents/:id/skills       → set/reorder linked skills OR link one
  *   GET    /agents/:id/models       → dynamic model list for the agent's provider
  *   GET    /providers/:id/models    → dynamic model list for a provider (editor)
+ *   GET    /agents/:id/stats        → quality/cost aggregates (Stats tab, L02)
+ *   GET    /agents/:id/runs         → recent run history (Stats tab, L02)
  */
 
 const CreateAgentBody = z.object({
@@ -64,6 +68,11 @@ const UpdateAgentBody = z.object({
   ci_fail_on: CiFailOn.optional(),
   repo_intel: z.boolean().optional(),
   enabled: z.boolean().optional(),
+});
+
+/** `?limit=` on `GET /agents/:id/runs` — capped, defaults to 20 in the service. */
+const RunsQuery = z.object({
+  limit: z.coerce.number().int().positive().max(100).optional(),
 });
 
 /** Either set the whole ordered set (`skill_ids`) or link one (`skill_id`). */
@@ -217,6 +226,34 @@ export default async function agentsRoutes(appBase: FastifyInstance) {
     async (req) => {
       await getContext(app.container, req);
       return service.listModels(req.params.id);
+    },
+  );
+
+  app.get(
+    '/agents/:id/stats',
+    { schema: { params: IdParams, response: { 200: AgentStats } } },
+    async (req) => {
+      const { workspaceId } = await getContext(app.container, req);
+      const stats = await service.stats(workspaceId, req.params.id);
+      if (!stats) throw new NotFoundError('Agent not found');
+      return stats;
+    },
+  );
+
+  app.get(
+    '/agents/:id/runs',
+    {
+      schema: {
+        params: IdParams,
+        querystring: RunsQuery,
+        response: { 200: z.array(RunSummary) },
+      },
+    },
+    async (req) => {
+      const { workspaceId } = await getContext(app.container, req);
+      const runs = await service.runs(workspaceId, req.params.id, req.query.limit);
+      if (!runs) throw new NotFoundError('Agent not found');
+      return runs;
     },
   );
 }

@@ -63,6 +63,7 @@
     "modelSearch": "Search models…",
     "systemPrompt": "System prompt",
     "systemPromptHint": "Loaded as the static system message. Enabled skills are appended below it.",
+    "systemPromptTokens": "{count} / {budget} tokens",
     "outputSchema": "Output schema",
     "outputSchemaOption": "Standard findings JSON",
     "strategy": "Review strategy",
@@ -91,9 +92,40 @@
     "title": "Skills",
     "enabledCount": "{linked} of {total} enabled",
     "filterPlaceholder": "Filter skills…",
-    "orderHint": "Order matters — earlier skills appear earlier in the assembled prompt. Toggle to attach."
+    "orderHint": "Order matters — earlier skills appear earlier in the assembled prompt. Toggle to attach.",
+    "noResults": "No skills match your filter."
   },
   "mount": {
     "body": "Mount point for {owner}. The Agent Editor shell + tab routing are wired by A2 — {owner} renders this tab."
+  },
+  "stats": {
+    "loadError": "Could not load stats for this agent.",
+    "tiles": {
+      "totalRuns": "Total runs (30d)",
+      "avgCost": "Avg cost / run",
+      "avgDuration": "Avg duration",
+      "acceptRate": "Accept rate"
+    },
+    "trend": {
+      "title": "Runs trend"
+    },
+    "severity": {
+      "title": "Findings by severity"
+    },
+    "category": {
+      "title": "Findings by category",
+      "empty": "No findings yet."
+    },
+    "runs": {
+      "title": "Run history",
+      "empty": "No runs yet.",
+      "columns": {
+        "time": "Time",
+        "pr": "PR",
+        "tokens": "Tokens",
+        "cost": "Cost",
+        "findings": "Findings"
+      }
+    }
   }
 }

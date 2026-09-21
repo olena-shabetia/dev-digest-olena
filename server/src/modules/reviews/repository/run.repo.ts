@@ -43,15 +43,56 @@ export async function listRunsForPull(
   prId: string,
 ): Promise<RunSummary[]> {
   const rows = await db
-    .select({ run: t.agentRuns, agentName: t.agents.name })
+    .select({ run: t.agentRuns, agentName: t.agents.name, prNumber: t.pullRequests.number })
     .from(t.agentRuns)
     .leftJoin(t.agents, eq(t.agents.id, t.agentRuns.agentId))
+    .leftJoin(t.pullRequests, eq(t.pullRequests.id, t.agentRuns.prId))
     .where(and(eq(t.agentRuns.workspaceId, workspaceId), eq(t.agentRuns.prId, prId)))
     .orderBy(desc(t.agentRuns.ranAt));
-  return rows.map(({ run, agentName }) => ({
+  return rows.map(({ run, agentName, prNumber }) => ({
     run_id: run.id,
     agent_id: run.agentId,
     agent_name: agentName ?? null,
+    pr_number: prNumber ?? null,
+    provider: run.provider,
+    model: run.model,
+    status: run.status,
+    error: run.error,
+    duration_ms: run.durationMs,
+    tokens_in: run.tokensIn,
+    tokens_out: run.tokensOut,
+    cost_usd: run.costUsd,
+    findings_count: run.findingsCount,
+    grounding: run.grounding,
+    ran_at: run.ranAt ? run.ranAt.toISOString() : null,
+    score: run.score,
+    blockers: run.blockers,
+  }));
+}
+
+/** Most recent runs for an agent (any status), newest first, capped at `limit`
+ *  — the agent-level run-history table (`GET /agents/:id/runs`, L02). Same
+ *  join shape as `listRunsForPull`, filtered on workspace_id + agent_id
+ *  instead of pr_id. */
+export async function listRunsForAgent(
+  db: Db,
+  workspaceId: string,
+  agentId: string,
+  limit: number,
+): Promise<RunSummary[]> {
+  const rows = await db
+    .select({ run: t.agentRuns, agentName: t.agents.name, prNumber: t.pullRequests.number })
+    .from(t.agentRuns)
+    .leftJoin(t.agents, eq(t.agents.id, t.agentRuns.agentId))
+    .leftJoin(t.pullRequests, eq(t.pullRequests.id, t.agentRuns.prId))
+    .where(and(eq(t.agentRuns.workspaceId, workspaceId), eq(t.agentRuns.agentId, agentId)))
+    .orderBy(desc(t.agentRuns.ranAt))
+    .limit(limit);
+  return rows.map(({ run, agentName, prNumber }) => ({
+    run_id: run.id,
+    agent_id: run.agentId,
+    agent_name: agentName ?? null,
+    pr_number: prNumber ?? null,
     provider: run.provider,
     model: run.model,
     status: run.status,

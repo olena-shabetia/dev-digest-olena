@@ -2,14 +2,19 @@ import type { Container } from '../../platform/container.js';
 import type {
   Agent,
   AgentSkillLink,
+  AgentStats,
   AgentVersion,
   CiFailOn,
   ModelInfo,
   Provider,
   ReviewStrategy,
+  RunSummary,
 } from '@devdigest/shared';
 import { AgentsRepository } from './repository.js';
 import { toAgentDto, toAgentVersionDto } from './helpers.js';
+
+/** Default number of runs returned by `GET /agents/:id/runs` when `?limit=` is omitted. */
+const DEFAULT_RUNS_LIMIT = 20;
 
 /**
  * A2 — agents service. Business logic for the Agents tab + Agent Editor.
@@ -182,5 +187,38 @@ export class AgentsService {
     } catch {
       return [];
     }
+  }
+
+  /**
+   * Per-agent quality/cost aggregates for the Stats tab (`GET /agents/:id/stats`,
+   * L02 — see `AgentsRepository.agentStats` for the 30-day-vs-all-time split).
+   * Workspace-scoped: returns undefined when the agent isn't in this workspace
+   * (route maps that to 404).
+   */
+  async stats(workspaceId: string, agentId: string): Promise<AgentStats | undefined> {
+    const agent = await this.repo.getById(workspaceId, agentId);
+    if (!agent) return undefined;
+    return this.repo.agentStats(workspaceId, agentId, agent.name);
+  }
+
+  /**
+   * Most recent runs for an agent (any status), newest first, capped at
+   * `limit` — the Stats tab's run-history table (`GET /agents/:id/runs`, L02).
+   * Workspace-scoped the same way as `stats`.
+   */
+  async runs(
+    workspaceId: string,
+    agentId: string,
+    limit: number = DEFAULT_RUNS_LIMIT,
+  ): Promise<RunSummary[] | undefined> {
+    const agent = await this.repo.getById(workspaceId, agentId);
+    if (!agent) return undefined;
+    // agent_runs + pull_requests are owned by the reviews module, so this
+    // reaches them via `container.reviewRepo` (the established cross-module
+    // path, see `platform/container.ts`) rather than importing across
+    // `src/modules/*` — a plain cross-module import from
+    // `agents/repository.ts` would trip dependency-cruiser's
+    // `no-cross-module-imports` rule.
+    return this.container.reviewRepo.listRunsForAgent(workspaceId, agentId, limit);
   }
 }

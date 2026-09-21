@@ -140,6 +140,53 @@ export const CommunitySkill = z.object({
 });
 export type CommunitySkill = z.infer<typeof CommunitySkill>;
 
+/**
+ * Parsed-but-not-saved result of `POST /skills/import/preview` (a single
+ * `.md`/`.markdown` file, or the picked core of a `.zip`). Nothing is written
+ * to the DB until the client confirms with a normal `POST /skills`.
+ * `ignored_entries`/`executable_entries` are archive entries that were listed
+ * but never read, written, or executed — the on-camera proof of the trust
+ * story (see specs/L02-skills.md).
+ */
+export const SkillImportPreview = z.object({
+  name: z.string(),
+  description: z.string(),
+  type: SkillType,
+  body: z.string(),
+  source_filename: z.string(),
+  ignored_entries: z.array(z.string()),
+  executable_entries: z.array(z.string()),
+});
+export type SkillImportPreview = z.infer<typeof SkillImportPreview>;
+
+/**
+ * One immutable snapshot of a skill's body (`skill_versions`, GET
+ * /skills/:id/versions, newest first). Simpler than `AgentVersion` — a skill
+ * version stores only a body, never a JSON config blob, so there's no
+ * malformed-snapshot `.safeParse` concern the way `AgentVersionConfig` has.
+ */
+export const SkillVersion = z.object({
+  skill_id: z.string(),
+  version: z.number().int(),
+  body: z.string(),
+  /** Optional human note captured at save time, e.g. "Tightened scope rule". */
+  change_note: z.string().nullable(),
+  created_at: z.string(),
+});
+export type SkillVersion = z.infer<typeof SkillVersion>;
+
+/**
+ * GET /skills/:id/stats. Deliberately small: only "which agents use this
+ * skill" is backed by real data today (a plain `agent_skills` join). Pull
+ * frequency / accept rate / findings-by-category need a per-run
+ * skill-attribution table that doesn't exist yet — see specs/L02-skills.md.
+ */
+export const SkillStats = z.object({
+  skill_id: z.string(),
+  agents_using: z.array(z.object({ id: z.string(), name: z.string() })),
+});
+export type SkillStats = z.infer<typeof SkillStats>;
+
 // ---- Conventions ----
 export const ConventionCandidate = z.object({
   id: z.string(),

@@ -12,6 +12,72 @@
   src: local("Inter");
 }
 
+/* `.dd-md` — the styling hook the vendored `Markdown` primitive
+   (`vendor/ui/primitives/Markdown.tsx`) wraps its output in. Tailwind's
+   preflight resets strip default heading/list styling, and the primitive only
+   overrides `p`/`strong`/`code`/`a`, so headings and lists rendered nothing
+   but plain, unstyled text (e.g. the skill Preview tab) until this block gave
+   `react-markdown`'s real `<h1>`-`<h6>`/`<ul>`/`<ol>`/`<li>` output back its
+   visual hierarchy. Scoped by class rather than editing the vendored
+   component. */
+.dd-md h1,
+.dd-md h2,
+.dd-md h3,
+.dd-md h4,
+.dd-md h5,
+.dd-md h6 {
+  color: var(--text-primary);
+  font-weight: 700;
+  line-height: 1.3;
+  margin: 20px 0 10px;
+}
+.dd-md h1:first-child,
+.dd-md h2:first-child,
+.dd-md h3:first-child {
+  margin-top: 0;
+}
+.dd-md h1 {
+  font-size: 1.5em;
+}
+.dd-md h2 {
+  font-size: 1.25em;
+}
+.dd-md h3,
+.dd-md h4,
+.dd-md h5,
+.dd-md h6 {
+  font-size: 1.05em;
+}
+.dd-md ul,
+.dd-md ol {
+  margin: 0 0 10px;
+  padding-left: 1.4em;
+}
+.dd-md ul {
+  list-style: disc;
+}
+.dd-md ol {
+  list-style: decimal;
+}
+.dd-md li {
+  margin: 2px 0;
+}
+.dd-md li > ul,
+.dd-md li > ol {
+  margin: 2px 0;
+}
+.dd-md blockquote {
+  margin: 0 0 10px;
+  padding: 4px 12px;
+  border-left: 3px solid var(--border-strong);
+  color: var(--text-secondary);
+}
+.dd-md hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 16px 0;
+}
+
 @keyframes ddToastIn {
   from {
     opacity: 0;

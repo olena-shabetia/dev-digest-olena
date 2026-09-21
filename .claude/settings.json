@@ -47,7 +47,9 @@
       "Bash(bash scripts/pr-self-review-gates.sh*)",
       "Bash(chmod +x *)",
       "Bash(bash -n *)",
-      "Bash(jq *)"
+      "Bash(jq *)",
+      "Bash(agent-browser *)",
+      "Bash(sleep *)"
     ]
   },
   "hooks": {

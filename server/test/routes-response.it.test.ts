@@ -148,6 +148,7 @@ d('response shapes — routes with no prior test coverage', () => {
         'run_id',
         'agent_id',
         'agent_name',
+        'pr_number',
         'provider',
         'model',
         'status',

@@ -30,6 +30,43 @@
       "body": "It may have been deleted."
     }
   },
+  "editor": {
+    "tabs": {
+      "config": "Config",
+      "preview": "Preview",
+      "evals": "Evals",
+      "stats": "Stats",
+      "versions": "Versions"
+    }
+  },
+  "create": {
+    "title": "Create skill",
+    "subtitle": "A skill is a named, reusable markdown block you can attach to any agent.",
+    "cancel": "Cancel",
+    "create": "Create skill",
+    "creating": "Creating…",
+    "defaultName": "New Skill",
+    "fields": {
+      "name": "Name",
+      "namePlaceholder": "pr-quality-rubric",
+      "type": "Type"
+    }
+  },
+  "config": {
+    "title": "Configuration",
+    "name": "Name",
+    "description": "Description",
+    "descriptionHint": "Write it as an instruction to the reviewer, e.g. \"Flag tests that assert only the happy path.\" This line is what an agent sees first.",
+    "type": "Type",
+    "body": "Skill body (Markdown)",
+    "changeNote": "What changed? (optional)",
+    "changeNotePlaceholder": "Tightened the scope rule…",
+    "changeNoteHint": "Only saved if the body above actually changes — a note has no version to attach to otherwise. See it on the Versions tab after saving.",
+    "changeNoteDisabledHint": "Edit the body above to enable a change note — nothing to attach it to yet.",
+    "save": "Save",
+    "saving": "Saving…",
+    "saved": "Saved (v{version})"
+  },
   "drawer": {
     "title": "Add a skill",
     "subtitle": "Import from a file, a URL, or search vetted community skills",
@@ -49,7 +86,16 @@
     "bodyPlaceholder": "# Rule\nDescribe the rule…",
     "importing": "Importing…",
     "import": "Import skill",
-    "success": "Imported \"{name}\" (stored as untrusted data)."
+    "success": "Imported \"{name}\" (stored as untrusted data).",
+    "chooseFile": "Choose a .md, .markdown or .zip file",
+    "previewTitle": "Preview",
+    "previewName": "Name",
+    "previewDescription": "Description",
+    "noDescription": "No description",
+    "previewType": "Type",
+    "previewBody": "Body",
+    "ignoredEntries": "{count} other file(s) in this archive were ignored (never read): {names}",
+    "executableIgnored": "{count} executable file(s) in this archive were ignored and never run: {names}"
   },
   "url": {
     "label": "Skill URL",
@@ -96,6 +142,26 @@
     "untrustedNotice": "This skill came from an untrusted source. Its body is stored as data (delimiter-wrapped) and must be vetted before it is enabled for an agent.",
     "bodyLabel": "Skill body (Markdown)",
     "bodyHint": "Saving a changed body creates a new immutable version.",
-    "version": "v{version}"
+    "version": "v{version}",
+    "caption": "Rendered as the reviewing agent receives it."
+  },
+  "stats": {
+    "usedBy": "Used by {count} agents",
+    "agentsUsing": "Agents using this skill",
+    "open": "Open",
+    "empty": "Not used by any agent yet."
+  },
+  "versions": {
+    "title": "Versions",
+    "current": "Current",
+    "restore": "Restore",
+    "restoring": "Restoring…",
+    "diff": "Diff",
+    "diffTitle": "Compare versions",
+    "compareWith": "Compare with",
+    "close": "Close",
+    "empty": "No versions yet.",
+    "added": "+{count}",
+    "removed": "-{count}"
   }
 }

@@ -52,6 +52,9 @@ export const agentRuns = pgTable(
     // both are FK columns, and Postgres does not index FK columns
     // automatically (only PK/UNIQUE get one for free).
     wsPrStatusIdx: index('agent_runs_ws_pr_status_idx').on(t.workspaceId, t.prId, t.status),
+    // Agent Stats tab (L02, GET /agents/:id/stats and /agents/:id/runs) queries
+    // workspace_id + agent_id, ordered by ran_at — agent_id had no index either.
+    wsAgentIdx: index('agent_runs_ws_agent_idx').on(t.workspaceId, t.agentId, t.ranAt),
   }),
 );
 

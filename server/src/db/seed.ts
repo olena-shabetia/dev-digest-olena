@@ -7,10 +7,74 @@ import {
   SECURITY_REVIEWER_PROMPT,
   PERFORMANCE_REVIEWER_PROMPT,
 } from './seed-prompts.js';
+import {
+  UNCOVERED_BRANCHES_SKILL,
+  CORNER_CASES_SKILL,
+  MOCK_OVERUSE_SKILL,
+} from './seed-skills.js';
 
 /** Default provider/model for the built-in reviewer agents. */
 const DEFAULT_PROVIDER = 'openrouter' as const;
 const DEFAULT_MODEL = 'deepseek/deepseek-v4-flash';
+
+/**
+ * Test Quality Reviewer's system prompt (L02). Mirrors the style of the other
+ * built-in prompts in `seed-prompts.ts`, but is short enough to keep inline
+ * here rather than adding a fourth export there — it leans on its 3 seeded
+ * skills (`uncovered-branches`, `corner-cases`, `mock-overuse`) for the bulk
+ * of its instructions, appended below this prompt as `## Skills / rules`.
+ */
+const TEST_QUALITY_REVIEWER_PROMPT = `# Role
+You are a senior engineer reviewing a pull-request diff specifically for TEST
+QUALITY, not application logic. You receive the full PR diff in one pass.
+Your job is to judge whether the tests included in (or missing from) this
+diff would actually catch a regression — not whether the tests merely exist
+and pass.
+
+# What to look for
+- Uncovered branches, error paths, and early returns introduced or modified
+  by this diff with no test exercising them.
+- Missing coverage for corner cases: empty input, boundary values, overflow,
+  null/undefined, and locale-sensitive behavior.
+- Tests that assert on mock call arguments/counts instead of on real
+  behavior or output, and tests so over-mocked that they can't fail when the
+  real logic breaks.
+- Flaky patterns: reliance on real timers/dates/network without control,
+  order-dependent tests, shared mutable state between tests, unseeded
+  randomness.
+
+The specifics of each check are governed by this agent's attached skills —
+apply them as written, in the order given.
+
+# How to analyze
+- Read the diff's test files alongside the production code they cover. For
+  each changed branch or edge case in the production code, look for a test
+  that would fail if that logic broke.
+- Only flag test gaps introduced or worsened by THIS diff. Do not demand
+  retroactive coverage for pre-existing untested code the diff does not
+  touch.
+
+# Severity — use exactly these three levels
+- **CRITICAL** — a CRITICAL-impact code path (data loss, security, payment,
+  irreversible side effect) shipped with zero test coverage for its failure
+  mode. This is the ONLY level that blocks merge.
+- **WARNING** — a real coverage gap or a mock/flakiness problem that would
+  let a real regression slip through, but on a lower-stakes path.
+- **SUGGESTION** — a minor test-quality improvement.
+
+# Verdict — set \`verdict\` consistently with your findings
+- **request_changes** — you reported at least one CRITICAL finding.
+- **comment** — you reported only WARNING / SUGGESTION findings.
+- **approve** — the diff's tests would catch a regression in every path they
+  touch: return an EMPTY findings list.
+
+The verdict is a pure function of your findings. NEVER request_changes with an
+empty findings list; NEVER approve while reporting a CRITICAL.
+
+# Findings discipline
+- Report only DISTINCT issues, one per gap. Every finding must cite an exact
+  file:line in the diff (the untested production code, or the offending
+  test). Zero findings is a valid and good answer.`;
 
 /**
  * Seed the starter's demo data. Idempotent: re-running upserts the default
@@ -18,11 +82,15 @@ const DEFAULT_MODEL = 'deepseek/deepseek-v4-flash';
  *
  * Seeds: default workspace + system user + membership, default settings,
  * demo repo (acme/payments-api), PR #482 with files/commits, a sample review
- * with a few findings, and the three built-in agents (General + Security +
- * Performance), all on the default openrouter/deepseek-v4-flash provider+model.
+ * with a few findings, the four built-in agents (General + Security +
+ * Performance + Test Quality), all on the default openrouter/deepseek-v4-flash
+ * provider+model, and 3 of the 4 planned skills (`uncovered-branches`,
+ * `corner-cases`, `mock-overuse`) linked to the Test Quality Reviewer in
+ * order. `api-contract-gate` is deliberately not seeded — it's imported live
+ * through the UI as a demo of the import flow (see specs/L02-skills.md).
  *
- * Course lessons populate the other tables (skills, conventions, memory, eval,
- * …) once their features are built — they start empty here.
+ * Course lessons populate the other tables (conventions, memory, eval, …)
+ * once their features are built — they start empty here.
  */
 
 export const DEFAULT_WORKSPACE_NAME = 'default';
@@ -228,6 +296,17 @@ export async function seed(db: Db): Promise<{ workspaceId: string; userId: strin
       version: 1,
       createdBy: userId,
     },
+    {
+      workspaceId,
+      name: 'Test Quality Reviewer',
+      description: 'Checks test quality: uncovered branches, missing corner cases, excessive mocking, and flaky patterns.',
+      provider: DEFAULT_PROVIDER,
+      model: DEFAULT_MODEL,
+      systemPrompt: TEST_QUALITY_REVIEWER_PROMPT,
+      enabled: true,
+      version: 1,
+      createdBy: userId,
+    },
   ];
   const agentIdByName = new Map<string, string>();
   for (const a of seedAgents) {
@@ -240,6 +319,71 @@ export async function seed(db: Db): Promise<{ workspaceId: string; userId: strin
     } else {
       const [inserted] = await db.insert(t.agents).values(a).returning();
       agentIdByName.set(a.name, inserted!.id);
+    }
+  }
+
+  // ---- built-in skills (L02) ----
+  // Bodies live in ./seed-skills.ts. Only 3 of the 4 planned skills are
+  // seeded here — `api-contract-gate` is deliberately left out; it is
+  // imported live through the UI as a demo of the import flow instead (see
+  // specs/L02-skills.md).
+  const seedSkills: Array<typeof t.skills.$inferInsert> = [
+    {
+      workspaceId,
+      name: 'uncovered-branches',
+      description: 'Flags conditional branches, error paths, and early returns with no test coverage.',
+      type: 'rubric',
+      source: 'manual',
+      body: UNCOVERED_BRANCHES_SKILL,
+      enabled: true,
+      version: 1,
+    },
+    {
+      workspaceId,
+      name: 'corner-cases',
+      description: 'Flags missing tests for empty input, boundary values, overflow, null/undefined, and locale behavior.',
+      type: 'rubric',
+      source: 'manual',
+      body: CORNER_CASES_SKILL,
+      enabled: true,
+      version: 1,
+    },
+    {
+      workspaceId,
+      name: 'mock-overuse',
+      description: 'Flags tests that assert on mocks instead of behavior, or over-mock the system under test.',
+      type: 'convention',
+      source: 'manual',
+      body: MOCK_OVERUSE_SKILL,
+      enabled: true,
+      version: 1,
+    },
+  ];
+  const skillIdByName = new Map<string, string>();
+  for (const s of seedSkills) {
+    const [existing] = await db
+      .select()
+      .from(t.skills)
+      .where(and(eq(t.skills.workspaceId, workspaceId), eq(t.skills.name, s.name)));
+    if (existing) {
+      skillIdByName.set(s.name, existing.id);
+    } else {
+      const [inserted] = await db.insert(t.skills).values(s).returning();
+      skillIdByName.set(s.name, inserted!.id);
+    }
+  }
+
+  // ---- link the seeded skills to the Test Quality Reviewer, in order ----
+  const testQualityReviewerId = agentIdByName.get('Test Quality Reviewer');
+  if (testQualityReviewerId) {
+    const linkedSkillNames = ['uncovered-branches', 'corner-cases', 'mock-overuse'];
+    for (let order = 0; order < linkedSkillNames.length; order++) {
+      const skillId = skillIdByName.get(linkedSkillNames[order]!);
+      if (!skillId) continue;
+      await db
+        .insert(t.agentSkills)
+        .values({ agentId: testQualityReviewerId, skillId, order })
+        .onConflictDoNothing();
     }
   }
 

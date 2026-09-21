@@ -97,6 +97,9 @@ export const RunSummary = z.object({
   run_id: z.string(),
   agent_id: z.string().nullable(),
   agent_name: z.string().nullable(),
+  /** PR number this run reviewed; used by the agent-level run-history table
+      (GET /agents/:id/runs, L02) to link back to the PR. Additive. */
+  pr_number: z.number().int().nullable(),
   provider: z.string().nullable(),
   model: z.string().nullable(),
   status: z.string().nullable(), // running | done | failed | cancelled

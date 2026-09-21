@@ -113,6 +113,12 @@ export const AgentStats = z.object({
     WARNING: z.number().int(),
     SUGGESTION: z.number().int(),
   }),
+  /**
+   * Findings grouped by category (e.g. "security", "bug", "perf", "style").
+   * Added for L02's Stats tab — additive; nothing consumed this contract
+   * before this field existed, so there's no reader to break.
+   */
+  findings_by_category: z.record(z.string(), z.number().int()),
   /** recent runs for a small trend chart (oldest→newest). */
   trend: z.array(StatPoint),
 });

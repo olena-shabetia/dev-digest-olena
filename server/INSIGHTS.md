@@ -32,6 +32,32 @@ invisible to tooling.
 
 ## Codebase Patterns
 
+### 2026-09-21 — cross-module data access must go through `container.<x>Repo`, never a direct sibling-module import
+
+**Symptom:** `pnpm arch` fails with a `no-cross-module-imports` violation when
+one module's `service.ts`/`repository.ts` imports a function directly from
+`../<other-module>/repository.ts`. Hit twice independently while building L02
+(skills reading `agents/repository.ts`'s `linkedSkills`; `agents` reading
+`reviews/repository/run.repo.ts`'s `listRunsForAgent`).
+
+**Cause:** `src/modules/<a>/` importing from `src/modules/<b>/` is a hard
+dependency-cruiser rule (`.dependency-cruiser.cjs`) — modules may only reach
+each other through the DI container.
+
+**Fix:** route through the container's lazy repo getters instead
+(`container.agentsRepo`, `container.reviewRepo` in `platform/container.ts`) —
+add a thin wrapper method on the target module's repository class if one
+doesn't exist yet. For a genuinely cross-cutting helper (not tied to one
+module's tables), put it in `platform/` instead — e.g. `resolveSkillBodies`
+(the skills untrusted-wrapping rule) lives in `platform/prompt.ts` because both
+`reviews/run-executor.ts` and `skills/helpers.ts` need it.
+
+**Rule:** before importing a data-access function across
+`src/modules/<a>/` → `src/modules/<b>/`, check whether it's already exposed via
+a `container.<x>Repo` getter and extend that — don't reach into a sibling
+module's folder directly, even when a plan/spec explicitly suggests the direct
+import path.
+
 ### 2026-09-21 — run events (SSE stream) are never persisted — no `run_events` table exists
 
 **Symptom:** a whole-repo DB-index audit (`plans/sparkling-wiggling-allen.md`,
@@ -216,6 +242,26 @@ import either, since their allowlists also target node_modules paths.
 `node_modules` must not appear in `exclude` — only in `doNotFollow`.
 
 ## Recurring Errors & Fixes
+
+### 2026-09-21 — an `.it.test.ts` that hand-inserts a workspace row fails every request with "No default workspace found"
+
+**Symptom:** a DB-backed integration test inserts its own `t.workspaces` row
+(instead of calling `seed()`) with an arbitrary name, then every
+`app.inject()` call in that test fails with "No default workspace found."
+
+**Cause:** `LocalNoAuthProvider.currentWorkspace()` (`adapters/auth/local.ts`)
+resolves the workspace by an exact name match on `DEFAULT_WORKSPACE_NAME`, not
+"the first workspace row" — an arbitrarily-named row is invisible to it. (This
+is a different failure mode than the caching issue below — that one is about a
+*stale* cache after reset, this one is about a workspace that's never found in
+the first place.)
+
+**Fix:** any new `.it.test.ts` that needs a workspace should call `seed()`, or
+if inserting one by hand, name it exactly `DEFAULT_WORKSPACE_NAME` (exported
+from `db/seed.ts`).
+
+**Rule:** don't hand-roll a workspace fixture with an arbitrary name in a new
+integration test — use `seed()` or the exact default name.
 
 ### 2026-09-18 — `LocalNoAuthProvider` caches workspace/user, so a DB reset needs a process restart
 

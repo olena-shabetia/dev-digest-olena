@@ -41,6 +41,9 @@ export const reviews = pgTable(
     // PR-list score ring). A btree index scans backward for DESC just fine
     // without needing an explicit descending column.
     wsPrCreatedIdx: index('reviews_ws_pr_created_idx').on(t.workspaceId, t.prId, t.createdAt),
+    // Agent Stats tab (L02, GET /agents/:id/stats) joins findings through
+    // reviews filtered on workspace_id + agent_id — agent_id had no index.
+    wsAgentIdx: index('reviews_ws_agent_idx').on(t.workspaceId, t.agentId),
   }),
 );
 
