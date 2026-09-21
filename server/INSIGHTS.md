@@ -32,6 +32,28 @@ invisible to tooling.
 
 ## Codebase Patterns
 
+### 2026-09-21 — `vendor/shared/index.ts`'s barrel silently drops a duplicate `export *` symbol
+
+**Symptom:** `contracts/productionize.ts:189` re-exports `Severity`, which
+already exists in `contracts/findings.ts` (re-exported by the same barrel).
+No build error, no lint warning, no runtime error — `Severity` just resolves
+to whichever of the two `export *` statements the barrel processes for that
+name (TypeScript's own rule for colliding wildcard re-exports), and the other
+copy is invisible from `@devdigest/shared`.
+
+**Cause:** `vendor/shared/index.ts` is 10 flat `export *` statements over
+`contracts/*.ts`, added independently per lesson/feature; nothing enforces
+that a symbol name is declared in exactly one of those files.
+
+**Fix:** none needed today — both copies of `Severity` are identical, so the
+collision is currently harmless.
+
+**Rule:** before adding a new export to any file under `contracts/`, grep the
+whole `contracts/` directory for that identifier first. If a future rename
+touches only one of two colliding copies, the other could silently vanish
+from `@devdigest/shared` with no error anywhere — this would surface as a
+missing-export TS error only at the IMPORT site, not at the barrel.
+
 ### 2026-09-18 — `pulls/routes.ts` had aggregate SQL business logic inline in the route handler
 
 **Symptom:** the PR-list route (`GET /repos/:id/pulls`,
@@ -73,6 +95,63 @@ Agent editor to `openai`/`anthropic` before running a review.
 provider the target agent is actually set to.
 
 ## Tool & Library Notes
+
+### 2026-09-21 — `fastify-type-provider-zod`'s response serializer runs `safeParse` BEFORE `JSON.stringify`, not after
+
+**Symptom:** attaching a `response:` schema to a route can (a) silently drop
+a field the handler actually returned, or (b) turn a previously-working
+route into a 500, for a value that serialized fine before the schema existed.
+
+**Cause:** the compiled serializer
+(`fastify-type-provider-zod/dist/src/core.js`) is
+`JSON.stringify(schema.safeParse(data).data)` — the schema runs against the
+in-memory JS object, not its JSON form. Two consequences fall out of that:
+Zod 3's default `z.object` strips any key the schema doesn't declare (so an
+omitted/undeclared field vanishes with no error, no log); and a `z.string()`
+field rejects a raw `Date` even though Fastify's own default `JSON.stringify`
+would have called `Date#toJSON()` on it just fine — the schema sees the
+`Date` object, not the string it would eventually become.
+
+**Fix:** hit both in practice on `repo-intel`: `IndexState.updatedAt` was a
+`Date` handed straight to the route (no DTO mapper, unlike every other
+module); adding `RepoIndexState` (`z.string()`) as its `response:` schema
+would have turned every call into a 500. Fixed by mapping to ISO explicitly
+in a new `repo-intel/helpers.ts` (`toIndexStateDto`) BEFORE the schema was
+ever attached — see `plans/moonlit-drifting-pnueli.md`, Wave 1.2 step B.
+
+**Rule:** before attaching a `response:` schema to an existing route, check
+every field the handler currently returns against the schema's declared
+keys AND types — an omitted key or a `Date`/other non-JSON-primitive field
+is a silent field-drop or a new 500, not a validation error you'd notice in
+a quick smoke test. Proving the gate actually catches both (a stripped field
+failing an existing test; a `Date` producing the structured 500 via
+`isResponseSerializationError`) is worth doing once per module, not just
+trusting the types.
+
+### 2026-09-21 — Fastify's `app.inject()` (and a real empty POST) delivers a body-less request as `null`, not `undefined`
+
+**Symptom:** `RunRequest.default({})` on a `schema.body` still rejects a
+POST with no payload and no `Content-Type` — 422 `"Expected object, received
+null"` — even though every field on `RunRequest` is `.optional()`.
+
+**Cause:** Zod's `.default()` only substitutes its default value when the
+input is exactly `undefined`; a body-less request (verified via
+`light-my-request`'s `app.inject()` with no `payload`, and expected to match
+real HTTP behavior) arrives as `null`, which `.default()` does not intercept
+— the wrapped object schema then rejects `null` on its own terms.
+
+**Fix:** `z.preprocess((v) => v ?? {}, RunRequest)` instead of
+`RunRequest.default({})` — `??` catches both `null` and `undefined` before
+`RunRequest` ever sees the value. Applied on `POST /pulls/:id/review`
+(`reviews/routes.ts`) when moving its manual `RunRequest.parse(req.body ??
+{})` onto `schema.body` (Wave 1.3).
+
+**Rule:** `.default()` on a Zod schema handles a MISSING key or an omitted
+property inside an object; it does NOT handle an explicit `null` at the top
+level of `schema.body`. Any route accepting a genuinely optional body needs
+`z.preprocess` (or `.nullable().transform(...)`), not `.default()` alone —
+verify with an actual `app.inject()` call with no `payload`, not just a
+`safeParse(undefined)` in isolation.
 
 ### 2026-09-21 — dependency-cruiser `path` matchers match the RESOLVED path, not the import specifier
 
