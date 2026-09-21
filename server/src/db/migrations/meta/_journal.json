@@ -92,6 +92,13 @@
       "when": 1789998091122,
       "tag": "0012_l02_skills_stats_indexes",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1790007148490,
+      "tag": "0013_nappy_tattoo",
+      "breakpoints": true
     }
   ]
 }

@@ -1,8 +1,19 @@
-import { and, desc, eq } from 'drizzle-orm';
+import { and, desc, eq, sql } from 'drizzle-orm';
 import type { Db } from '../../db/client.js';
 import * as t from '../../db/schema.js';
 import { INITIAL_SKILL_VERSION } from './constants.js';
 import { isBodyChange } from './helpers.js';
+
+/**
+ * List-view usage aggregates for one skill (HW2 criteria 22-24) — see the
+ * `Skill` contract's doc comment for why `pullFreq`/`acceptRate` are an
+ * approximation keyed off CURRENTLY linked agents, not a true per-run join.
+ */
+export interface SkillUsage {
+  agentCount: number;
+  pullFreq: number | null;
+  acceptRate: number | null;
+}
 
 /**
  * L02 — skills data-access. Owns `skills` and `skill_versions` (the agents
@@ -39,6 +50,67 @@ export class SkillsRepository {
 
   async list(workspaceId: string): Promise<SkillRow[]> {
     return this.db.select().from(t.skills).where(eq(t.skills.workspaceId, workspaceId));
+  }
+
+  /**
+   * Every skill for the workspace, plus usage aggregates for the list view's
+   * "⚙ N agents" badge and "pull freq · accept" pair — three queries total
+   * (list + one grouped agent-count query + one grouped review/finding
+   * query), not N. See `SkillUsage`'s doc comment for the approximation this
+   * makes in the absence of a per-run skill-attribution table.
+   */
+  async listWithUsage(workspaceId: string): Promise<Array<SkillRow & SkillUsage>> {
+    const rows = await this.list(workspaceId);
+    if (rows.length === 0) return [];
+
+    const agentCounts = await this.db
+      .select({ skillId: t.agentSkills.skillId, count: sql<number>`count(*)::int` })
+      .from(t.agentSkills)
+      .innerJoin(t.agents, eq(t.agentSkills.agentId, t.agents.id))
+      .where(eq(t.agents.workspaceId, workspaceId))
+      .groupBy(t.agentSkills.skillId);
+    const agentCountBySkill = new Map(agentCounts.map((r) => [r.skillId, r.count]));
+
+    const [totalRow] = await this.db
+      .select({ totalReviews: sql<number>`count(*)::int` })
+      .from(t.reviews)
+      .where(and(eq(t.reviews.workspaceId, workspaceId), eq(t.reviews.kind, 'review')));
+    const totalReviews = totalRow?.totalReviews ?? 0;
+
+    const usageRows =
+      totalReviews === 0
+        ? []
+        : await this.db
+            .select({
+              skillId: t.agentSkills.skillId,
+              reviewCount: sql<number>`count(distinct ${t.reviews.id})::int`,
+              findingCount: sql<number>`count(${t.findings.id})::int`,
+              acceptedCount: sql<number>`count(${t.findings.id}) filter (where ${t.findings.acceptedAt} is not null)::int`,
+            })
+            .from(t.agentSkills)
+            .innerJoin(t.agents, eq(t.agentSkills.agentId, t.agents.id))
+            .innerJoin(
+              t.reviews,
+              and(
+                eq(t.reviews.agentId, t.agents.id),
+                eq(t.reviews.workspaceId, workspaceId),
+                eq(t.reviews.kind, 'review'),
+              ),
+            )
+            .leftJoin(t.findings, eq(t.findings.reviewId, t.reviews.id))
+            .where(eq(t.agents.workspaceId, workspaceId))
+            .groupBy(t.agentSkills.skillId);
+    const usageBySkill = new Map(usageRows.map((r) => [r.skillId, r]));
+
+    return rows.map((row) => {
+      const usage = usageBySkill.get(row.id);
+      return {
+        ...row,
+        agentCount: agentCountBySkill.get(row.id) ?? 0,
+        pullFreq: totalReviews === 0 ? null : (usage?.reviewCount ?? 0) / totalReviews,
+        acceptRate: usage && usage.findingCount > 0 ? usage.acceptedCount / usage.findingCount : null,
+      };
+    });
   }
 
   async getById(workspaceId: string, id: string): Promise<SkillRow | undefined> {

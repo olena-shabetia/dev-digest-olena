@@ -39,7 +39,16 @@ export interface SkillRowLike {
  * BEFORE `JSON.stringify`, so an undeclared `Date` field can turn a working
  * route into a 500 (server/INSIGHTS.md, 2026-09-21).
  */
-export function toSkillDto(row: SkillRowLike): Skill {
+export interface SkillUsageLike {
+  agentCount: number;
+  pullFreq: number | null;
+  acceptRate: number | null;
+}
+
+/** `usage` is populated only by the list route (`GET /skills`) — omitted
+ *  entirely (never a fabricated 0) on single-skill routes, which don't run
+ *  the extra aggregate query. See the `Skill` contract's doc comment. */
+export function toSkillDto(row: SkillRowLike, usage?: SkillUsageLike): Skill {
   return {
     id: row.id,
     name: row.name,
@@ -50,6 +59,9 @@ export function toSkillDto(row: SkillRowLike): Skill {
     enabled: row.enabled,
     version: row.version,
     evidence_files: row.evidenceFiles ?? undefined,
+    ...(usage
+      ? { agent_count: usage.agentCount, pull_freq: usage.pullFreq, accept_rate: usage.acceptRate }
+      : {}),
   };
 }
 

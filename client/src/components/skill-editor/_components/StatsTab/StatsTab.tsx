@@ -11,7 +11,7 @@ import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { Skeleton, ErrorState, Icon } from "@devdigest/ui";
 import type { Skill } from "@devdigest/shared";
-import { useSkillStats } from "../../../../../../lib/hooks/skills";
+import { useSkillStats } from "@/lib/hooks/skills";
 import { s } from "./styles";
 
 export function StatsTab({ skill }: { skill: Skill }) {

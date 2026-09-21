@@ -32,6 +32,35 @@ invisible to tooling.
 
 ## Codebase Patterns
 
+### 2026-09-21 — fixing a `no-cross-module-imports` violation by wrapping the call as a `Container` method can trip `no-circular` instead
+
+**Symptom:** importing `settings/feature-models.ts`'s `getFeatureModelOverride`
+directly from `conventions/service.ts` fails `pnpm arch`'s
+`no-cross-module-imports` rule (the pattern below). The obvious fix — add a
+`Container` method that wraps the call, so the caller only ever touches
+`container.*` — instead fails a *different* rule, `no-circular`.
+
+**Cause:** `settings/feature-models.ts` already does `import type { Container }
+from '../../platform/container.js'` for its own function signatures. Because
+`.dependency-cruiser.cjs` sets `tsPreCompilationDeps: true`, that type-only
+import counts as a real edge — so `container.ts` → `feature-models.ts` →
+(back to) `container.ts` is a genuine cycle from depcruise's point of view,
+not a false positive.
+
+**Fix:** `conventions/repository.ts:76-83` (`getConventionsModelOverride`)
+reads the shared `settings` table directly via the schema barrel instead of
+calling through `feature-models.ts` at all — the same pattern already used
+for reading `repo_index_state` cross-module (`getLastIndexedSha`). No
+`Container` method was added; `platform/container.ts:109-110`'s new
+`skillsRepo` getter (added the same session, for a *different*, acyclic
+target) shows the normal case still works fine.
+
+**Rule:** before "fixing" a `no-cross-module-imports` violation by adding a
+wrapper method on `Container`, check whether the target file already imports
+`Container`'s type anywhere — if it does, the wrapper will trip
+`no-circular` instead, and reading the underlying shared table directly
+(schema barrel) is the escape hatch, not a second wrapper layer.
+
 ### 2026-09-21 — cross-module data access must go through `container.<x>Repo`, never a direct sibling-module import
 
 **Symptom:** `pnpm arch` fails with a `no-cross-module-imports` violation when
@@ -242,6 +271,27 @@ import either, since their allowlists also target node_modules paths.
 `node_modules` must not appear in `exclude` — only in `doNotFollow`.
 
 ## Recurring Errors & Fixes
+
+### 2026-09-21 — `drizzle-kit generate`'s interactive rename-vs-create prompt can't be answered by piping input into a non-tty stdin
+
+**Symptom:** running `pnpm db:generate` after adding new columns to the
+`conventions` table hangs (or silently misfires) when its output is piped or
+its stdin is fed via a normal `echo "\n" | ...` redirect — the "is this a
+rename or a new column?" prompt never receives the answer.
+
+**Cause:** drizzle-kit's schema-diff prompt reads keystrokes in raw mode; a
+piped `\n`/`\r` byte stream isn't a real keypress event to a raw-mode reader,
+so redirecting stdin doesn't work no matter what bytes are sent.
+
+**Fix:** drive it through a real pty instead — e.g. Python's
+`pty.openpty()`, writing `\r` for each prompt — then run `pnpm db:migrate`
+normally once the migration file is generated. Produced
+`server/src/db/migrations/0013_nappy_tattoo.sql` (all new columns, no
+renames, so every prompt answer was "create column").
+
+**Rule:** don't try to answer a `drizzle-kit generate` interactive prompt by
+piping `\n`/`\r` into stdin — it needs a pty. Reach for one immediately
+rather than debugging why a redirect "isn't working."
 
 ### 2026-09-21 — an `.it.test.ts` that hand-inserts a workspace row fails every request with "No default workspace found"
 

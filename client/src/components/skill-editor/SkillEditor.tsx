@@ -4,10 +4,11 @@
 "use client";
 
 import React from "react";
+import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { Icon, Badge, Toggle, Tabs } from "@devdigest/ui";
 import type { Skill } from "@devdigest/shared";
-import { useUpdateSkill } from "../../../../lib/hooks/skills";
+import { useUpdateSkill } from "@/lib/hooks/skills";
 import { ConfigTab } from "./_components/ConfigTab";
 import { PreviewTab } from "./_components/PreviewTab";
 import { EvalsTab } from "./_components/EvalsTab";
@@ -16,7 +17,10 @@ import { VersionsTab } from "./_components/VersionsTab";
 import { TABS } from "./constants";
 import { s } from "./styles";
 
-export function SkillEditor({ skill }: { skill: Skill }) {
+/** `openFullPageHref` is only passed by the `/skills` side-panel view — the
+ *  full-page route (`/skills/:id`) renders this same shell without it, so the
+ *  link never points at the page it's already on. */
+export function SkillEditor({ skill, openFullPageHref }: { skill: Skill; openFullPageHref?: string }) {
   const t = useTranslations("skills");
   const update = useUpdateSkill();
   const [tab, setTab] = React.useState("config");
@@ -34,6 +38,12 @@ export function SkillEditor({ skill }: { skill: Skill }) {
         <span style={s.name}>{skill.name}</span>
         <Badge>{t(`listItem.type.${skill.type}`)}</Badge>
         <Badge mono>{t("preview.version", { version: skill.version })}</Badge>
+        {openFullPageHref && (
+          <Link href={openFullPageHref} style={s.openFullPage}>
+            <Icon.ExternalLink size={13} />
+            {t("editor.openFullPage")}
+          </Link>
+        )}
         <label style={s.enabledLabel}>
           {t("preview.enabled")}
           <Toggle

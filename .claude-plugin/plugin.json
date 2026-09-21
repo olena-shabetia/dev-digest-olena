@@ -1,0 +1,5 @@
+{
+  "name": "devdigest-api-contract",
+  "version": "1.0.0",
+  "description": "API contract review rules (breaking changes, response schema drift, semver discipline, deprecation policy) authored for DevDigest's API Contract Reviewer agent."
+}

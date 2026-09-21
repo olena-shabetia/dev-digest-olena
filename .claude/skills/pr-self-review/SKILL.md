@@ -1,6 +1,7 @@
 ---
 name: pr-self-review
 version: 1.0.0
+type: Workflow
 description: >-
   Reviews all open local changes (committed on the branch, staged, unstaged,
   and untracked) before a pull request is opened — runs the deterministic

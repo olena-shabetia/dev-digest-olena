@@ -12,9 +12,14 @@ export {
 import { wrapUntrusted } from '@devdigest/reviewer-core';
 
 /**
- * L02 — the trust rule (specs/L02-skills.md): `source: 'manual'` skill bodies
- * pass through to `reviewPullRequest` as-is; `imported_url`/`community`
- * bodies are wrapped with `wrapUntrusted('skill:<name>', body)` first. This
+ * L02/HW2 — the trust rule (specs/L02-skills.md,
+ * specs/L02-conventions-extractor.md): `source: 'manual'` skill bodies pass
+ * through to `reviewPullRequest` as-is; so does `source: 'extracted'` — its
+ * body is our own template rendered over human-accepted, code-verified
+ * evidence from the user's own repo (the conventions extractor), not
+ * third-party text, so it earns the same trust as a hand-written skill.
+ * `imported_url`/`community` bodies are wrapped with
+ * `wrapUntrusted('skill:<name>', body)` first. This
  * lives here (platform, cross-cutting) rather than in the skills module's own
  * helpers.ts so both the skills module (which needs it to build a preview)
  * and the reviews module's run-executor (which resolves an agent's linked
@@ -29,6 +34,8 @@ export interface SkillBodySource {
 
 export function resolveSkillBodies(links: SkillBodySource[]): string[] {
   return links.map(({ skill }) =>
-    skill.source === 'manual' ? skill.body : wrapUntrusted(`skill:${skill.name}`, skill.body),
+    skill.source === 'manual' || skill.source === 'extracted'
+      ? skill.body
+      : wrapUntrusted(`skill:${skill.name}`, skill.body),
   );
 }

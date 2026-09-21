@@ -41,8 +41,10 @@ export class SkillsService {
   }
 
   async list(workspaceId: string): Promise<Skill[]> {
-    const rows = await this.repo.list(workspaceId);
-    return rows.map(toSkillDto);
+    const rows = await this.repo.listWithUsage(workspaceId);
+    return rows.map((row) =>
+      toSkillDto(row, { agentCount: row.agentCount, pullFreq: row.pullFreq, acceptRate: row.acceptRate }),
+    );
   }
 
   async get(workspaceId: string, id: string): Promise<Skill | undefined> {

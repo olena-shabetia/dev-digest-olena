@@ -2,13 +2,13 @@ import { describe, it, expect, afterEach, vi } from "vitest";
 import { render, screen, cleanup } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import type { Skill } from "@devdigest/shared";
-import messages from "../../../../../messages/en/skills.json";
-import shellMessages from "../../../../../messages/en/shell.json";
-import { ToastProvider } from "../../../../lib/toast";
+import messages from "../../../messages/en/skills.json";
+import shellMessages from "../../../messages/en/shell.json";
+import { ToastProvider } from "@/lib/toast";
 
 // Mock the data hooks so the editor renders without a network/query client,
 // same pattern as AgentEditor.test.tsx.
-vi.mock("../../../../lib/hooks/skills", () => ({
+vi.mock("@/lib/hooks/skills", () => ({
   useUpdateSkill: () => ({ mutate: vi.fn(), isPending: false }),
   useSkillStats: () => ({ data: { skill_id: "sk1", agents_using: [] }, isLoading: false, isError: false }),
   useSkillVersions: () => ({ data: [], isLoading: false, isError: false }),

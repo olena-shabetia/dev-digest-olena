@@ -28,7 +28,7 @@ import { useSkills, useSkill, useUpdateSkill } from "../../../../lib/hooks/skill
 import { SkillCard } from "./_components/SkillCard";
 import { CreateSkillModal } from "./_components/CreateSkillModal";
 import { ImportSkillDrawer } from "./_components/ImportSkillDrawer";
-import { SkillEditor } from "../SkillEditor";
+import { SkillEditor } from "@/components/skill-editor";
 import { filterSkills } from "./helpers";
 import { s } from "./styles";
 
@@ -131,7 +131,7 @@ export function SkillsListView() {
           </div>
         ) : (
           <div style={s.right}>
-            <SkillEditor skill={selectedSkill} />
+            <SkillEditor skill={selectedSkill} openFullPageHref={`/skills/${selectedSkill.id}`} />
           </div>
         )}
       </div>

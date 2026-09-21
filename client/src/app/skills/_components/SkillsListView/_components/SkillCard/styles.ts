@@ -43,4 +43,29 @@ export const s = {
     textOverflow: "ellipsis",
   } satisfies CSSProperties,
   metaRow: { display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" } satisfies CSSProperties,
+  versionLine: {
+    fontSize: 12,
+    color: "var(--text-muted)",
+    fontVariantNumeric: "tabular-nums",
+  } satisfies CSSProperties,
+  statsRow: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
+    marginTop: 2,
+  } satisfies CSSProperties,
+  usagePair: {
+    fontSize: 12,
+    color: "var(--text-muted)",
+    marginLeft: "auto",
+  } satisfies CSSProperties,
+  deleteBtn: {
+    background: "none",
+    border: "none",
+    cursor: "pointer",
+    color: "var(--text-muted)",
+    display: "inline-flex",
+    padding: 4,
+  } satisfies CSSProperties,
 } as const;

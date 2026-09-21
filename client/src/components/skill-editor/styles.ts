@@ -16,4 +16,12 @@ export const s = {
   } satisfies CSSProperties,
   tabsBar: { marginTop: 14 } satisfies CSSProperties,
   body: { flex: 1, overflow: "auto", padding: 28 } satisfies CSSProperties,
+  openFullPage: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 5,
+    fontSize: 12.5,
+    color: "var(--text-secondary)",
+    textDecoration: "none",
+  } satisfies CSSProperties,
 } as const;

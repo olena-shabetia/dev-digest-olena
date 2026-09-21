@@ -8,7 +8,7 @@ import React from "react";
 import { useTranslations } from "next-intl";
 import { Button, SearchableSelect, Skeleton, ErrorState, Badge } from "@devdigest/ui";
 import type { Skill, SkillVersion } from "@devdigest/shared";
-import { useSkillVersions, useUpdateSkill } from "../../../../../../lib/hooks/skills";
+import { useSkillVersions, useUpdateSkill } from "@/lib/hooks/skills";
 import { computeLineDiff, formatVersionDate } from "./helpers";
 import { s } from "./styles";
 
