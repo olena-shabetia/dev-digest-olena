@@ -4,8 +4,14 @@ import type { CSSProperties } from "react";
  *  plus a header row (icon/name/type/version/enabled). */
 export const s = {
   wrap: { flex: 1, display: "flex", flexDirection: "column", minWidth: 0, minHeight: 0 } satisfies CSSProperties,
-  header: { display: "flex", alignItems: "center", gap: 12, padding: "16px 28px 0", flexShrink: 0 } satisfies CSSProperties,
+  header: { display: "flex", flexDirection: "column", gap: 6, padding: "16px 28px 0", flexShrink: 0 } satisfies CSSProperties,
+  headerRow: { display: "flex", alignItems: "center", gap: 12 } satisfies CSSProperties,
   name: { fontSize: 18, fontWeight: 700 } satisfies CSSProperties,
+  description: {
+    fontSize: 13,
+    color: "var(--text-muted)",
+    lineHeight: 1.4,
+  } satisfies CSSProperties,
   enabledLabel: {
     marginLeft: "auto",
     display: "flex",

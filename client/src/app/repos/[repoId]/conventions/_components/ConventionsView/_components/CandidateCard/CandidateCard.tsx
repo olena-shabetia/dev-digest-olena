@@ -3,9 +3,11 @@
    select, with Save/Cancel beneath; the evidence block and Accept/Reject
    column stay visible and functional the whole time (plan "Design decisions"
    — criterion 47 wants Accept/Reject/Edit all present, Edit just isn't a
-   button). Accept becomes the static label "✓ Accepted" once accepted;
-   Reject stays a live button always, so a decision is reversible in both
-   directions (a rejected candidate can still be re-Accepted). */
+   button). Accept becomes the static badge "✓ Accepted" once accepted, and
+   symmetrically Reject becomes the static badge "✗ Rejected" once rejected —
+   whichever action WASN'T taken stays a live button, so a decision is
+   reversible in both directions (a rejected candidate can still be
+   re-Accepted, and vice versa) without either state hiding the card. */
 "use client";
 
 import React from "react";
@@ -130,9 +132,15 @@ export function CandidateCard({
             {saving ? t("card.accepting") : t("card.accept")}
           </Button>
         )}
-        <Button kind={rejected ? "secondary" : "ghost"} size="sm" icon="X" onClick={onReject} disabled={saving}>
-          {t("card.reject")}
-        </Button>
+        {rejected ? (
+          <Badge color="var(--crit)" icon="X">
+            {t("card.rejected")}
+          </Badge>
+        ) : (
+          <Button kind="ghost" size="sm" icon="X" onClick={onReject} disabled={saving}>
+            {t("card.reject")}
+          </Button>
+        )}
       </div>
     </div>
   );

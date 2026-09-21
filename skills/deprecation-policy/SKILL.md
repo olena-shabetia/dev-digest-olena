@@ -1,11 +1,6 @@
 ---
 name: deprecation-policy
-description: >-
-  Checks that a field or route being retired follows the deprecation path —
-  an explicit @deprecated marker plus a sunset signal, and the old
-  field/route kept working alongside the new one for at least one minor
-  version — rather than being silently deleted in the same diff that adds
-  its replacement.
+description: Checks that a field or route being retired follows the deprecation path — an explicit @deprecated marker plus a sunset signal, and the old field/route kept working alongside the new one for at least one minor version — rather than being silently deleted in the same diff that adds its replacement.
 type: convention
 ---
 

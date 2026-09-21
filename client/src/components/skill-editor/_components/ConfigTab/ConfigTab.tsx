@@ -41,6 +41,13 @@ export function ConfigTab({ skill }: { skill: Skill }) {
   // letting a typed note vanish with no explanation.
   const bodyChanged = draftBody !== skill.body;
 
+  // Nothing to save — the button must stay disabled here, not just while a
+  // save is in flight, or a no-op click still fires a full PUT (and, if body
+  // happened to match some earlier draft round-trip byte-for-byte, could
+  // read as a spurious "saved" toast with no real change behind it).
+  const hasChanges =
+    name !== skill.name || description !== skill.description || type !== skill.type || bodyChanged;
+
   // If the body reverts to the saved value after a note was typed, the note
   // is about to become unsaveable again — clear it so it can't be lost
   // silently on the next save.
@@ -101,7 +108,7 @@ export function ConfigTab({ skill }: { skill: Skill }) {
         />
       </FormField>
       <div style={s.actions}>
-        <Button kind="primary" icon="Check" onClick={save} disabled={update.isPending}>
+        <Button kind="primary" icon="Check" onClick={save} disabled={update.isPending || !hasChanges}>
           {update.isPending ? t("config.saving") : t("config.save")}
         </Button>
       </div>

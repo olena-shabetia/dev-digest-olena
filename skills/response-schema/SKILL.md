@@ -1,9 +1,6 @@
 ---
 name: response-schema
-description: >-
-  Flags response shape changes that break a typed caller — a field's type
-  narrowing/widening, a field's required/optional flag flipping the wrong
-  way, an enum value removed, or nullability flipping.
+description: Flags response shape changes that break a typed caller — a field's type narrowing/widening, a field's required/optional flag flipping the wrong way, an enum value removed, or nullability flipping.
 type: convention
 ---
 

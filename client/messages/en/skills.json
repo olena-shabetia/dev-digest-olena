@@ -23,7 +23,7 @@
   },
   "card": {
     "versionLine": "{source} · v{version}",
-    "agentCount": "{count, plural, one {⚙ # agent} other {⚙ # agents}}",
+    "agentCount": "{count, plural, one {# agent} other {# agents}}",
     "usagePair": "{pull} pull freq · {accept} accept",
     "deleteTitle": "Delete skill",
     "deleteBody": "Delete skill \"{name}\"? This removes it from every agent it's linked to and cannot be undone.",

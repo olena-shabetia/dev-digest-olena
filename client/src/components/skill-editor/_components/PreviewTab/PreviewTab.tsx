@@ -1,5 +1,11 @@
 /* PreviewTab — renders the skill body as the reviewing agent receives it
-   (Markdown), plus the untrusted-source notice for a non-manual skill. */
+   (Markdown), plus the untrusted-source notice for a wrapped skill. Must
+   mirror `resolveSkillBodies` (server/src/platform/prompt.ts) exactly:
+   'manual' AND 'extracted' pass through unwrapped ('extracted' bodies are
+   our own template over code-verified evidence from the conventions
+   extractor, not third-party text); only 'imported_url'/'community' are
+   actually delimiter-wrapped at review time. Showing this banner for
+   'extracted' would tell the user the opposite of what really happens. */
 "use client";
 
 import React from "react";
@@ -9,7 +15,7 @@ import type { Skill } from "@devdigest/shared";
 
 export function PreviewTab({ skill }: { skill: Skill }) {
   const t = useTranslations("skills");
-  const untrusted = skill.source !== "manual";
+  const untrusted = skill.source !== "manual" && skill.source !== "extracted";
 
   return (
     <div style={{ maxWidth: 760 }}>

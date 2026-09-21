@@ -62,6 +62,21 @@ export function ConfigTab({ agent }: { agent: Agent }) {
   const strategyOptions = STRATEGY_VALUES.map((v) => ({ value: v, label: t(`config.strategyOptions.${v}`) }));
   const ciFailOnOptions = CI_FAIL_ON_VALUES.map((v) => ({ value: v, label: t(`config.ciFailOnOptions.${v}`) }));
 
+  // Nothing to save — keep the button disabled here too, not just while a
+  // save is in flight, so a no-op click can't fire a PUT and bump
+  // agent_versions for zero actual change (mirrors the same fix on the
+  // skill editor's ConfigTab).
+  const hasChanges =
+    name !== agent.name ||
+    description !== agent.description ||
+    provider !== agent.provider ||
+    model !== agent.model ||
+    systemPrompt !== agent.system_prompt ||
+    strategy !== agent.strategy ||
+    ciFailOn !== agent.ci_fail_on ||
+    repoIntel !== agent.repo_intel ||
+    enabled !== agent.enabled;
+
   const save = () =>
     update.mutate(
       {
@@ -155,7 +170,7 @@ export function ConfigTab({ agent }: { agent: Agent }) {
         <SelectInput value={OUTPUT_SCHEMA_VALUE} options={[OUTPUT_SCHEMA_VALUE]} />
       </FormField>
       <div style={s.actions}>
-        <Button kind="primary" icon="Check" onClick={save} disabled={update.isPending}>
+        <Button kind="primary" icon="Check" onClick={save} disabled={update.isPending || !hasChanges}>
           {update.isPending ? t("config.saving") : t("config.save")}
         </Button>
         {update.isSuccess && (

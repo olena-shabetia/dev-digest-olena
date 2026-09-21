@@ -1,9 +1,6 @@
 ---
 name: breaking-change
-description: >-
-  Flags removals or renames of a public route path, request param, or
-  response field, and any change to a status code or auth requirement — the
-  class of edit that breaks an existing caller without warning.
+description: Flags removals or renames of a public route path, request param, or response field, and any change to a status code or auth requirement — the class of edit that breaks an existing caller without warning.
 type: convention
 ---
 

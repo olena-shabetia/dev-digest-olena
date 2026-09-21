@@ -1,10 +1,15 @@
 /* ConventionsView — Skills Lab → Conventions (HW2 criteria 45-51). Header
    (title, "N of M accepted", Run Scan/Re-scan, Create skill once >=1
    accepted, "Scanning repository…" while a scan is in flight), then the
-   merged-candidate card list. `useConventions` polls GET while the latest
-   scan is queued/running so this page self-updates without a manual
-   refresh (criterion 38's restart-durability is a server-side property;
-   this is just riding the same GET). */
+   merged-candidate card list, sorted accepted -> pending -> rejected
+   (helpers.ts#sortByStatus) so accepting/rejecting a card visibly moves it
+   instead of leaving decided and undecided rows interleaved; confidence
+   order (the server's own sort) is preserved within each group. Rejected
+   candidates stay in the list rather than disappearing — see
+   CandidateCard's header comment for why. `useConventions` polls GET while
+   the latest scan is queued/running so this page self-updates without a
+   manual refresh (criterion 38's restart-durability is a server-side
+   property; this is just riding the same GET). */
 "use client";
 
 import React from "react";
@@ -18,6 +23,7 @@ import { useConventions, useExtractConventions, usePatchConvention } from "@/lib
 import { ApiError } from "@/lib/api";
 import { CandidateCard } from "./_components/CandidateCard";
 import { CreateSkillModal } from "./_components/CreateSkillModal";
+import { sortByStatus } from "./helpers";
 import { s } from "./styles";
 
 export function ConventionsView() {
@@ -35,7 +41,7 @@ export function ConventionsView() {
 
   const repoLabel = activeRepo?.full_name ?? t("page.repoFallback");
   const scan = data?.scan ?? null;
-  const candidates = data?.candidates ?? [];
+  const candidates = React.useMemo(() => sortByStatus(data?.candidates ?? []), [data?.candidates]);
   const acceptedCandidates = candidates.filter((c) => c.status === "accepted");
   const isScanning = scan?.status === "queued" || scan?.status === "running";
   const hasEverScanned = scan != null;

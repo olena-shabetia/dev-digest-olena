@@ -1,10 +1,7 @@
 ---
 name: test-quality
-description: >-
-  Flags a PR whose new or changed test only exercises the happy path for a
-  function with 2+ branches, leaving an error path or boundary condition
-  unverified. For a Test Quality Reviewer agent.
-type: convention
+description: Flags a PR whose new or changed test only exercises the happy path for a function with 2+ branches, leaving an error path or boundary condition unverified. For a Test Quality Reviewer agent.
+type: rubric
 ---
 
 # Test Quality: Happy-Path-Only Coverage

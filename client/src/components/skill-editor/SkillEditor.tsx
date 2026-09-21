@@ -1,6 +1,10 @@
 /* SkillEditor — right-pane shell for the /skills master-detail view: header
-   (icon, name, type badge, version chip, Enabled toggle) + a 5-tab body
-   (Config/Preview/Evals/Stats/Versions). Mirrors AgentEditor's shape. */
+   (icon/name/type badge/version chip/Enabled toggle row, plus a read-only
+   description line beneath it — visible on every tab, not just buried in
+   Config's editable field, since the list's SkillCard already shows the
+   description and it shouldn't vanish the moment you open a skill) + a
+   5-tab body (Config/Preview/Evals/Stats/Versions). Mirrors AgentEditor's
+   shape. */
 "use client";
 
 import React from "react";
@@ -34,24 +38,27 @@ export function SkillEditor({ skill, openFullPageHref }: { skill: Skill; openFul
   return (
     <div style={s.wrap}>
       <div style={s.header}>
-        <Icon.Sparkles size={18} style={{ color: "var(--accent)" }} />
-        <span style={s.name}>{skill.name}</span>
-        <Badge>{t(`listItem.type.${skill.type}`)}</Badge>
-        <Badge mono>{t("preview.version", { version: skill.version })}</Badge>
-        {openFullPageHref && (
-          <Link href={openFullPageHref} style={s.openFullPage}>
-            <Icon.ExternalLink size={13} />
-            {t("editor.openFullPage")}
-          </Link>
-        )}
-        <label style={s.enabledLabel}>
-          {t("preview.enabled")}
-          <Toggle
-            on={skill.enabled}
-            onChange={(enabled) => update.mutate({ id: skill.id, patch: { enabled } })}
-            size={16}
-          />
-        </label>
+        <div style={s.headerRow}>
+          <Icon.Sparkles size={18} style={{ color: "var(--accent)" }} />
+          <span style={s.name}>{skill.name}</span>
+          <Badge>{t(`listItem.type.${skill.type}`)}</Badge>
+          <Badge mono>{t("preview.version", { version: skill.version })}</Badge>
+          {openFullPageHref && (
+            <Link href={openFullPageHref} style={s.openFullPage}>
+              <Icon.ExternalLink size={13} />
+              {t("editor.openFullPage")}
+            </Link>
+          )}
+          <label style={s.enabledLabel}>
+            {t("preview.enabled")}
+            <Toggle
+              on={skill.enabled}
+              onChange={(enabled) => update.mutate({ id: skill.id, patch: { enabled } })}
+              size={16}
+            />
+          </label>
+        </div>
+        <p style={s.description}>{skill.description || t("file.noDescription")}</p>
       </div>
       <div style={s.tabsBar}>
         <Tabs tabs={tabs} value={tab} onChange={setTab} pad="0 24px" />

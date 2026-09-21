@@ -1,9 +1,6 @@
 ---
 name: semver-discipline
-description: >-
-  Maps a change class to the semver bump it requires (major/minor/patch) and
-  flags a breaking diff that is mislabeled as patch or minor in its version
-  bump, changelog entry, or PR description.
+description: Maps a change class to the semver bump it requires (major/minor/patch) and flags a breaking diff that is mislabeled as patch or minor in its version bump, changelog entry, or PR description.
 type: convention
 ---
 
