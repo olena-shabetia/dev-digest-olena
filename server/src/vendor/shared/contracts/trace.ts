@@ -116,3 +116,17 @@ export const RunSummary = z.object({
   blockers: z.number().int().nullable(),
 });
 export type RunSummary = z.infer<typeof RunSummary>;
+
+/**
+ * One in-flight (status='running') run for a PR — the server-side source of
+ * truth for "which agents are running now" (`GET /pulls/:id/runs/active`).
+ * A `RunSummary` narrowed to what the UI needs while a run is live; once it
+ * finishes, the same run shows up in `RunSummary` instead.
+ */
+export const ActiveRun = z.object({
+  run_id: z.string(),
+  agent_id: z.string().nullable(),
+  agent_name: z.string().nullable(),
+  ran_at: z.string().nullable(),
+});
+export type ActiveRun = z.infer<typeof ActiveRun>;

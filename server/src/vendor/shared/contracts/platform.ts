@@ -292,6 +292,36 @@ export const IndexStatus = z.object({
 });
 export type IndexStatus = z.infer<typeof IndexStatus>;
 
+// ---- Repo-intel index state (GET /repos/:id/index-state) ----
+// NOT the same surface as IndexStatus above (that's the Project Context
+// folder's clone/embed progress). This is repo-intel's ast-grep/symbol index:
+// ALWAYS resolves (never throws), degrading to a synthesized row when no
+// `repo_index_state` row exists yet.
+export const RepoIndexDegradedReason = z.enum([
+  'flag_off',
+  'index_failed',
+  'index_partial',
+  'repo_too_large',
+  'no_data',
+]);
+export type RepoIndexDegradedReason = z.infer<typeof RepoIndexDegradedReason>;
+
+export const RepoIndexState = z.object({
+  repoId: z.string(),
+  status: z.enum(['full', 'partial', 'degraded', 'failed']),
+  filesIndexed: z.number().int(),
+  filesSkipped: z.number().int(),
+  durationMs: z.number().int(),
+  reason: z.string().optional(),
+  lastIndexedSha: z.string(),
+  indexerVersion: z.number().int(),
+  updatedAt: z.string(),
+  /** True when the layer is running on the ripgrep fallback. */
+  degraded: z.boolean().optional(),
+  degradedReason: RepoIndexDegradedReason.optional(),
+});
+export type RepoIndexState = z.infer<typeof RepoIndexState>;
+
 // ---- Run request (review trigger; owned by A2, contract lives here) ----
 export const RunRequest = z.object({
   agentId: z.string().optional(),

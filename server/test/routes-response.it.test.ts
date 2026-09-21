@@ -380,7 +380,7 @@ d('response shapes — routes with no prior test coverage', () => {
     await app.close();
   });
 
-  it('GET /repos/:id/index-state → IndexState keys (updatedAt currently a Date, serialized by JSON.stringify)', async () => {
+  it('GET /repos/:id/index-state → RepoIndexState keys (updatedAt mapped to ISO by toIndexStateDto, step B)', async () => {
     const app = await makeApp();
     const repo = (
       await app.inject({ method: 'POST', url: '/repos', payload: { url: 'https://github.com/acme/idx' } })
@@ -407,10 +407,9 @@ d('response shapes — routes with no prior test coverage', () => {
         'degradedReason',
       ].sort(),
     );
-    // `updatedAt` arrives over the wire as a string today — Fastify's default
-    // JSON.stringify calls Date#toJSON() for us. A z.string() response schema
-    // would reject the in-memory Date BEFORE stringification (step B fixes
-    // this by mapping to ISO explicitly before any schema is added).
+    // Step B (repo-intel/helpers.ts:toIndexStateDto) now maps `updatedAt`
+    // to an ISO string explicitly, ahead of any `response:` schema — the
+    // facade itself still returns a `Date` (repo-intel/types.ts:46).
     expect(typeof body.updatedAt).toBe('string');
     await app.close();
   });

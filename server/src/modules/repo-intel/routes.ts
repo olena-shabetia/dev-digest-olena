@@ -12,11 +12,12 @@
  */
 import type { FastifyInstance } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
+import type { RepoIndexState } from '@devdigest/shared';
 import { getContext } from '../_shared/context.js';
 import { IdParams } from '../_shared/schemas.js';
 import { RepoIntelService } from './service.js';
 import { RESYNC_JOB_KIND } from './constants.js';
-import type { IndexState } from './types.js';
+import { toIndexStateDto } from './helpers.js';
 
 export default async function repoIntelRoutes(appBase: FastifyInstance) {
   const app = appBase.withTypeProvider<ZodTypeProvider>();
@@ -32,11 +33,12 @@ export default async function repoIntelRoutes(appBase: FastifyInstance) {
   app.get(
     '/repos/:id/index-state',
     { schema: { params: IdParams } },
-    async (req): Promise<IndexState> => {
+    async (req): Promise<RepoIndexState> => {
       // Resolve tenancy so the request is workspace-scoped even though the
       // facade itself is tenant-agnostic (consistent with blast routes).
       await getContext(container, req);
-      return container.repoIntel.getIndexState(req.params.id);
+      const state = await container.repoIntel.getIndexState(req.params.id);
+      return toIndexStateDto(state);
     },
   );
 
