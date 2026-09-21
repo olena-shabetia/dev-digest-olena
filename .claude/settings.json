@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pnpm exec vitest *)",
+      "Bash(curl -s http://localhost:3001*)",
+      "Bash(pnpm typecheck)",
+      "Bash(pnpm run arch)",
+      "Bash(ss -tlnp *)",
+      "Bash(ss -ltnp *)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git mv *)",
+      "Bash(git cherry-pick *)",
+      "Bash(pnpm install)",
+      "Bash(npm ci)",
+      "Bash(mkdir -p *)"
+    ]
+  }
+}

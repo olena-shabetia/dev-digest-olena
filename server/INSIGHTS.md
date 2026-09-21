@@ -74,7 +74,45 @@ provider the target agent is actually set to.
 
 ## Tool & Library Notes
 
-_None yet._
+### 2026-09-21 — dependency-cruiser `path` matchers match the RESOLVED path, not the import specifier
+
+A rule's `path`/`pathNot` is tested against the resolved file dependency-cruiser
+found for an edge, not the string in the `import` line. For an npm package that
+resolved path looks like `node_modules/.pnpm/drizzle-orm@0.38.4_postgres@3.4.9/node_modules/drizzle-orm/index.d.ts`
+(pnpm's nested layout), or for some packages (observed for `octokit`) the bare
+specifier with no path prefix at all. A pattern written as `^drizzle-orm` or
+`^zod$` matches neither shape and silently never fires — the rule reports a
+clean pass while enforcing nothing.
+
+**Fix:** `server/.dependency-cruiser.cjs`'s `pkg(name)` helper builds all the
+patterns a package name needs (both the pnpm-nested and bare-specifier forms).
+Any new rule targeting an npm dependency should call `pkg()` rather than
+hand-write a `^pkgname$`-style pattern.
+
+**Rule:** when a dependency-cruiser rule targeting a third-party package
+reports zero violations, verify with `--output-type json` and inspect
+`dep.resolved` before trusting the "clean" result — it may be a silent
+non-match, not an actual absence of violations.
+
+### 2026-09-21 — dependency-cruiser `exclude` deletes the edge before any rule runs; use `doNotFollow` for npm packages
+
+`exclude.path` and `doNotFollow.path` look interchangeable but are not:
+`exclude` removes the matched edge from the dependency graph entirely, before
+any `forbidden` rule ever sees it, while `doNotFollow` keeps the edge visible
+for rule matching but stops crawling past it into the package's own internals.
+Putting `node_modules` in `exclude` (as `server/.dependency-cruiser.cjs` did
+initially) silently reduced a real 22-violation `no-sql-outside-repository`
+result to 15 — every bare `drizzle-orm`/`postgres` package import vanished,
+leaving only the `src/db/**`-path matches — and made rules like `ports-purity`
+and `vendor-sdk-only-in-adapters` never fire on any legitimate `zod`/`octokit`
+import either, since their allowlists also target node_modules paths.
+
+**Fix:** keep `node_modules` out of `options.exclude` and put it only in
+`options.doNotFollow` (`server/.dependency-cruiser.cjs`).
+
+**Rule:** if a dependency-cruiser config needs any rule to match an edge
+*into* node_modules (SDK containment, persistence containment, port purity),
+`node_modules` must not appear in `exclude` — only in `doNotFollow`.
 
 ## Recurring Errors & Fixes
 
