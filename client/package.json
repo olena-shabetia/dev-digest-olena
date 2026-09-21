@@ -7,7 +7,10 @@
     "build": "next build",
     "start": "next start -p 3000",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "dependencies": {
     "@tanstack/react-query": "^5.62.8",
@@ -29,9 +32,14 @@
     "@types/node": "^22.10.0",
     "@types/react": "^19.0.2",
     "@types/react-dom": "^19.0.2",
+    "@eslint/eslintrc": "^3.2.0",
     "@vitejs/plugin-react": "^4.3.4",
+    "eslint": "^9.17.0",
+    "eslint-config-next": "15.5.25",
+    "eslint-config-prettier": "^9.1.0",
     "jsdom": "^25.0.1",
     "postcss": "^8.4.49",
+    "prettier": "^3.4.2",
     "tailwindcss": "^4.0.0",
     "typescript": "^5.7.2",
     "vitest": "^2.1.8"

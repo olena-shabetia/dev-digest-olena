@@ -107,6 +107,34 @@ a string — don't expect `{var}` alone to do it.
 
 ## Recurring Errors & Fixes
 
+### 2026-09-21 — turning on ESLint for the first time found two real `react-hooks/exhaustive-deps` bugs
+
+**Symptom:** the client tree had zero ESLint config before this session, so
+`react-hooks/exhaustive-deps` was never actually enforced despite hooks-heavy
+code throughout. The first `eslint .` run (once `eslint-config-next` was
+added) immediately flagged two real issues with no config tuning needed:
+`app/repos/[repoId]/pulls/[number]/page.tsx`'s `allFindings` `useMemo` listed
+`reviews` as its dependency but read the locally-derived `runs` (`= reviews ??
+[]`) inside the callback — correct today only because `runs` happens to be
+recomputed fresh every render from exactly `reviews` and nothing else; and
+`ReviewRunAccordion.tsx` carried a `// eslint-disable-next-line
+react-hooks/exhaustive-deps` for an effect whose current dependency array
+(`[targetRunId, targetNonce, review.run_id]`) already satisfies the rule — the
+disable was stale and silently suppressing a check that would otherwise pass.
+
+**Cause:** no lint config anywhere in the repo (root `INSIGHTS.md`'s Wave-0
+finding), so an `eslint-disable` comment could go stale for sessions without
+anyone noticing, and a memo's dependency array could name a variable one level
+removed from what the callback actually reads without any check catching it.
+
+**Fix:** inlined `reviews ?? []` directly in the `useMemo` callback (matching
+its own dependency array), and removed the stale disable comment.
+
+**Rule:** an `eslint-disable-next-line` comment is not self-verifying — once a
+lint config exists, re-run the linter after touching a file that carries one;
+if the disable no longer suppresses anything, delete it rather than assuming
+it's still needed.
+
 ### 2026-09-18 — a hand-rolled severity color map drifted from the canonical `SEV` tokens
 
 **Symptom:** the trace/log drawer's findings section (`FindingsSection.tsx`,

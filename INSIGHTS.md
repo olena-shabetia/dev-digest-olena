@@ -41,6 +41,30 @@ for production image optimization. Verified: API and web both boot and serve 200
 **Rule:** do not blanket-approve build scripts to make a warning go away. Check
 whether the binary is actually reachable at runtime first.
 
+### 2026-09-21 — `pnpm install --frozen-lockfile` (what CI runs) hits the same error, even on an untouched lockfile
+
+**Symptom:** `pnpm install --frozen-lockfile` — the exact command every CI
+workflow step runs — exits 1 with `ERR_PNPM_IGNORED_BUILDS` in `server/` and
+`client/`, reproduced even after reverting to the pre-existing, untouched
+`package.json`/lockfile (i.e. not caused by any dependency added this
+session).
+
+**Cause:** the hard-fail-on-unapproved-builds behavior above is version-gated
+in pnpm, and this local shell has pnpm 12.4.2 installed globally, while every
+CI workflow pins `pnpm/action-setup@v4` to `version: 10` — the version that
+predates (or doesn't enforce) this hard error. That's the likely reason CI has
+never surfaced this: it never runs the pnpm version that fails here.
+
+**Fix:** none needed for CI as configured today. Packages fully install and
+link to `node_modules` before pnpm errors at the end — `rm -f
+pnpm-workspace.yaml` (now gitignored) after each local install is enough to
+keep working locally.
+
+**Rule:** if the CI pnpm version pin (`pnpm/action-setup@v4` in any
+`.github/workflows/*.yml`) is ever bumped past whatever version introduced
+`ERR_PNPM_IGNORED_BUILDS`, every `pnpm install --frozen-lockfile` step in CI
+will start failing — verify this specifically before bumping that pin.
+
 ## Recurring Errors & Fixes
 
 _None yet._

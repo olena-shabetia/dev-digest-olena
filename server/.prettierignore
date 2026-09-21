@@ -1,0 +1,5 @@
+src/vendor/**
+src/db/migrations/**
+clones/**
+dist/**
+node_modules/**

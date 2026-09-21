@@ -1,0 +1,111 @@
+# Repo-wide gates — deliberately NO path filter.
+#
+# Every other workflow (client/server-unit/server-integration/reviewer-core/
+# e2e-web) is path-filtered to a single package, so a change to a
+# cross-package config file (the dependency-cruiser config/baseline, the
+# vendor-shared sync script, or a lint config) triggers none of them. This
+# workflow is the one thing that always runs, protecting:
+#   - the dependency-cruiser onion-architecture baseline (`arch`)
+#   - the client/server-unit/reviewer-core lint configs
+#   - client/src/vendor/shared staying in sync with the canonical
+#     server/src/vendor/shared (server/AGENTS.md)
+#   - e2e/'s own typecheck script, which no other workflow runs
+name: repo gates
+
+on:
+  push:
+    branches: [main]
+  pull_request: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: repo-gates-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  vendor-sync:
+    name: vendor-shared sync
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: ./scripts/check-vendor-sync.sh
+
+  arch:
+    name: architecture (onion)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: server/pnpm-lock.yaml
+
+      - working-directory: server
+        run: pnpm install --frozen-lockfile
+
+      # dependency-cruiser resolves ../reviewer-core/src too — see
+      # server/.dependency-cruiser.cjs and server-unit.yml's arch job.
+      - working-directory: reviewer-core
+        run: npm ci
+
+      - working-directory: server
+        run: pnpm exec depcruise src ../reviewer-core/src --config .dependency-cruiser.cjs --ignore-known
+
+  lint:
+    name: lint (client / server / reviewer-core)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: |
+            client/pnpm-lock.yaml
+            server/pnpm-lock.yaml
+
+      - working-directory: client
+        run: pnpm install --frozen-lockfile
+      - working-directory: client
+        run: pnpm lint
+
+      - working-directory: server
+        run: pnpm install --frozen-lockfile
+      - working-directory: server
+        run: pnpm lint
+
+      - working-directory: reviewer-core
+        run: npm ci
+      - working-directory: reviewer-core
+        run: npm run lint
+
+  e2e-typecheck:
+    name: e2e typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: e2e/package-lock.json
+
+      - working-directory: e2e
+        run: npm ci
+
+      - working-directory: e2e
+        run: npm run typecheck

@@ -3,7 +3,16 @@
     "allow": [
       "Bash(pnpm exec vitest *)",
       "Bash(curl -s http://localhost:3001*)",
+      "Bash(curl -sS http://localhost:3001*)",
+      "Bash(echo)",
       "Bash(pnpm typecheck)",
+      "Bash(pnpm typecheck*)",
+      "Bash(pnpm test*)",
+      "Bash(pnpm build*)",
+      "Bash(pnpm lint*)",
+      "Bash(pnpm arch*)",
+      "Bash(tail *)",
+      "Bash(pnpm install)",
       "Bash(pnpm run arch)",
       "Bash(ss -tlnp *)",
       "Bash(ss -ltnp *)",
@@ -11,9 +20,13 @@
       "Bash(git commit *)",
       "Bash(git mv *)",
       "Bash(git cherry-pick *)",
+      "Bash(git stash *)",
       "Bash(pnpm install)",
+      "Bash(pnpm install --frozen-lockfile*)",
+      "Bash(echo *)",
       "Bash(npm ci)",
-      "Bash(mkdir -p *)"
+      "Bash(mkdir -p *)",
+      "Bash(cd *)"
     ]
   }
 }
