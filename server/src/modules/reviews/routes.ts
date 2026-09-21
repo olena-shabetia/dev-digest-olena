@@ -34,16 +34,28 @@ export default async function reviewsRoutes(appBase: FastifyInstance) {
 
   // ---- Run a review (manual trigger) -------------------------------
   // Tight per-route limit: each call can fan out to expensive LLM runs.
-  // Body stays a tolerant manual parse (both fields optional; empty body is OK).
+  // A fully empty request (both fields are optional anyway) must still
+  // reach resolveTargets(), which is what turns "neither provided" into the
+  // friendlier 400 'invalid_run_request' instead of a schema-level 422.
+  // `.default({})` alone is NOT enough: an empty-body POST arrives as
+  // `null` (not `undefined`) once it passes through Fastify's body parser,
+  // and Zod's `.default()` only substitutes for `undefined`. `z.preprocess`
+  // normalizes both "no body at all" (undefined) and "empty body" (null) to
+  // `{}` before RunRequest ever sees them.
+  const RunRequestBody = z.preprocess((v) => v ?? {}, RunRequest);
   app.post(
     '/pulls/:id/review',
     {
-      schema: { params: IdParams, response: { 200: ReviewRunResponse } },
+      schema: {
+        params: IdParams,
+        body: RunRequestBody,
+        response: { 200: ReviewRunResponse },
+      },
       config: { rateLimit: { max: 10, timeWindow: '1 minute' } },
     },
     async (req) => {
       const { workspaceId } = await getContext(container, req);
-      const body = RunRequest.parse(req.body ?? {});
+      const body = req.body;
       const targets = await service.resolveTargets(workspaceId, {
         ...(body.agentId !== undefined ? { agentId: body.agentId } : {}),
         ...(body.all !== undefined ? { all: body.all } : {}),

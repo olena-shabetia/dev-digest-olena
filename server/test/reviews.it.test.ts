@@ -302,4 +302,22 @@ d('A2 reviews + agents (Testcontainers pg)', () => {
     expect(body.runs.length).toBeGreaterThanOrEqual(2);
     await app.close();
   });
+
+  it('POST /pulls/:id/review with a fully empty body is tolerated at validation (422 is NOT the failure mode) — but 400s at the business rule', async () => {
+    const app = await appWith(REVIEW_FIXTURE);
+    const { pr } = await setupRepoAndPr(pg.handle.db, workspaceId);
+
+    // No Content-Type, no payload at all — Wave 1.2 step 1.3 moved this off a
+    // manual `.parse(req.body ?? {})` onto `schema: { body: RunRequestBody } }`.
+    // A body-less request arrives as `null` here (not `undefined`), so a
+    // plain `RunRequest.default({})` would still 422 with "Expected object,
+    // received null" — `RunRequestBody` (reviews/routes.ts) wraps it in
+    // `z.preprocess((v) => v ?? {}, RunRequest)` to normalize both. Without
+    // that, this would be a 422 (schema-level) instead of the intended 400
+    // (business-rule "neither agentId nor all provided").
+    const res = await app.inject({ method: 'POST', url: `/pulls/${pr.id}/review` });
+    expect(res.statusCode).toBe(400);
+    expect(res.json()).toMatchObject({ error: { code: 'invalid_run_request' } });
+    await app.close();
+  });
 });
