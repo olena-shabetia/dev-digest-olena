@@ -133,8 +133,12 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
       return;
     }
     // Robust ZodError detection: `instanceof` can fail across duplicate zod
-    // module instances (shared vs api), so also match by shape. Still needed for
-    // service-level `.parse` calls and routes not yet on schema.body.
+    // module instances (shared vs api), so also match by shape. As of Wave 1
+    // (contracts) there is no route left bypassing schema.body, and the one
+    // remaining request-reachable manual `.parse` (agents/helpers.ts's
+    // AgentVersionConfig) throws ValidationError instead — this branch is now
+    // a defensive fallback for a ZodError from anywhere else in the call
+    // graph, not an active path for a known caller.
     const maybeZod = err as { name?: string; issues?: unknown; errors?: unknown };
     const isZodError =
       err instanceof z.ZodError ||
