@@ -363,20 +363,32 @@ d('response shapes — routes with no prior test coverage', () => {
     await app.close();
   });
 
-  it('GET /settings → only PERSISTED keys (rowsToSettings casts, never applies .default())', async () => {
+  it('GET /settings → all six Settings keys, defaults backfilled by the response: schema', async () => {
     const app = await makeApp();
     const res = await app.inject({ method: 'GET', url: '/settings' });
     expect(res.statusCode).toBe(200);
     const body = res.json();
-    // NOTE: Settings' Zod schema (contracts/platform.ts) gives every field a
-    // `.default()`, but `rowsToSettings` (settings/helpers.ts:10) only
-    // collapses whichever rows exist in `t.settings` and `as Settings`-casts
-    // the result — it never runs the schema, so an unconfigured workspace
-    // gets back only the keys someone actually wrote via PUT /settings, not
-    // all six with defaults filled in. This is exactly the gap a
-    // `response: Settings` schema would close (Wave 1.2, step D) — assert
-    // "as observed today", not "as documented in the contract".
-    expect(Object.keys(body).sort()).toEqual(['density', 'polling_interval_min', 'sync_to_folder', 'theme'].sort());
+    // `rowsToSettings` (settings/helpers.ts:10) only collapses whichever rows
+    // exist in `t.settings` and `as Settings`-casts the result — on its own
+    // it would return only the persisted subset. Wave 1.2 step D's
+    // `response: Settings` schema now runs that object through
+    // `Settings.safeParse` before serializing, and every field on
+    // `SettingsKnown` (contracts/platform.ts) carries a `.default()` — so
+    // an unconfigured workspace's missing keys (`automatic_reviews`,
+    // `feature_models`) are backfilled on the wire, not just documented in
+    // the contract. This assertion intentionally changed from "4 keys" to
+    // "6 keys" in the same commit that added the schema (see git history —
+    // do not silently re-tighten this back to 4 if it ever regresses).
+    expect(Object.keys(body).sort()).toEqual(
+      [
+        'polling_interval_min',
+        'theme',
+        'density',
+        'sync_to_folder',
+        'automatic_reviews',
+        'feature_models',
+      ].sort(),
+    );
     await app.close();
   });
 
