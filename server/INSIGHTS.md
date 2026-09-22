@@ -11,6 +11,41 @@ _None yet._
 
 ## What Doesn't Work
 
+### 2026-09-22 — dependency-cruiser's `.dependency-cruiser-known-violations.json` baseline is pnpm-linker-specific
+
+**Symptom:** `pnpm arch` passes clean locally (`0 dependency violations`) but
+CI's `architecture` / `architecture (onion)` jobs fail on the exact same
+commit, flagging 7 `no-sql-outside-repository` violations as new even though
+`.dependency-cruiser-known-violations.json` already lists them.
+
+**Cause:** `server/.npmrc:1` sets `node-linker=hoisted` — a flat `node_modules`
+with no `.pnpm` virtual store, so `drizzle-orm` resolves to
+`node_modules/drizzle-orm/index.d.ts`. CI's pinned `pnpm/action-setup@v4
+version: 10` honors that setting. A locally-installed pnpm 12 did not honor it
+and produced an isolated store instead, resolving the same import to
+`node_modules/.pnpm/drizzle-orm@0.38.4_postgres@3.4.9/node_modules/drizzle-orm/index.d.ts`.
+Regenerating the baseline (`pnpm run arch:baseline`) under that pnpm 12 install
+baked in the isolated-store path, which never matches what CI's pnpm 10
+actually resolves — dependency-cruiser's known-violations match is an exact
+string compare on the resolved `to` path, so only the 7 violations that route
+through `drizzle-orm` (the one dependency in this diff with an optional peer,
+`postgres`, and therefore the only one whose resolved path differs between the
+two store layouts) silently stopped matching.
+
+**Fix:** regenerate the baseline from an install that actually honors
+`node-linker=hoisted` — e.g. `CI=true npx --yes pnpm@10 install
+--frozen-lockfile && npx --yes pnpm@10 exec depcruise src ../reviewer-core/src
+--config .dependency-cruiser.cjs --output-type baseline >
+.dependency-cruiser-known-violations.json` — then restore the normal local
+install (`pnpm install --frozen-lockfile`) for day-to-day work; the committed
+baseline doesn't need the local node_modules to match it.
+
+**Rule:** never trust a clean local `pnpm arch` run as proof the baseline is
+right if the local pnpm major version differs from CI's pinned one
+(`.github/workflows/*.yml`'s `pnpm/action-setup@v4 version:`) — regenerate (or
+at least verify) the baseline under a pnpm version that matches CI, not
+whatever is installed locally.
+
 ### 2026-09-17 — `server/clones/` holds a full copy of this repository
 
 **Symptom:** `grep`/`glob` across the repo return two hits for essentially every
