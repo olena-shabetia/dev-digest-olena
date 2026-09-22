@@ -34,7 +34,7 @@ export function rollupSeverities(rows: { severity: string }[]): SeverityCounts {
 export const PREVIEW_DESCRIPTION_MAX = 160;
 
 /** Sort weight per severity for the preview ordering (lower = first). */
-const SEVERITY_RANK: Record<string, number> = { CRITICAL: 0, WARNING: 1, SUGGESTION: 2 };
+const SEVERITY_RANK: Record<string, number> = { CRITICAL: 1, WARNING: 0, SUGGESTION: 2 };
 
 export interface FindingRollupRow {
   severity: string;
