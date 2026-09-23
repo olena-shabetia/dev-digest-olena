@@ -2,7 +2,7 @@
 
 Cross-package spec. Implementation plan: see PR description / commit history
 around this spec's introduction; this file is the binding contract for the
-*shape* of the feature, per root `CLAUDE.md`'s "write the spec first" rule.
+*shape* of the feature, per root `AGENTS.md`'s "write the spec first" rule.
 
 ## Problem
 

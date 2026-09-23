@@ -1,0 +1,24 @@
+{
+  "name": "Skills page renders seeded skills and links to the Test Quality Reviewer agent",
+  "description": "L02 (skills). Loads /skills, confirms the seeded skill 'uncovered-branches' is listed, selects it and confirms its Config tab renders. Then loads /agents, opens the seeded 'Test Quality Reviewer' agent card, switches to its Skills tab, and confirms the three seeded skills (uncovered-branches, corner-cases, mock-overuse) linked in seed.ts are listed there. Read-only: no create/import/delete/drag-and-drop.",
+  "steps": [
+    { "cmd": ["open", "{BASE}/skills"], "label": "load the skills page" },
+    { "cmd": ["wait", "--url", "/skills"], "label": "skills route reached" },
+    { "cmd": ["wait", "--load", "networkidle"], "label": "skills fetch settles" },
+    { "cmd": ["wait", "--text", "uncovered-branches"], "label": "seeded skill card is visible in the rail" },
+    { "cmd": ["find", "text", "uncovered-branches", "click"], "label": "select the uncovered-branches skill" },
+    { "cmd": ["wait", "--load", "networkidle"], "label": "selected skill fetch settles" },
+    { "cmd": ["wait", "--text", "Configuration"], "label": "Config tab of the skill editor renders" },
+    { "cmd": ["open", "{BASE}/agents"], "label": "load the agents page" },
+    { "cmd": ["wait", "--url", "/agents"], "label": "agents route reached" },
+    { "cmd": ["wait", "--load", "networkidle"], "label": "agents fetch settles" },
+    { "cmd": ["wait", "--text", "Test Quality Reviewer"], "label": "seeded Test Quality Reviewer card is visible" },
+    { "cmd": ["find", "text", "Test Quality Reviewer", "click"], "label": "open the Test Quality Reviewer agent" },
+    { "cmd": ["wait", "--load", "networkidle"], "label": "agent detail fetch settles" },
+    { "cmd": ["find", "role", "button", "click", "--name", "Skills"], "label": "switch to the agent's Skills tab" },
+    { "cmd": ["wait", "--load", "networkidle"], "label": "agent skills + links fetch settles" },
+    { "cmd": ["wait", "--text", "uncovered-branches"], "label": "linked skill uncovered-branches is visible" },
+    { "cmd": ["wait", "--text", "corner-cases"], "label": "linked skill corner-cases is visible" },
+    { "cmd": ["wait", "--text", "mock-overuse"], "label": "linked skill mock-overuse is visible" }
+  ]
+}

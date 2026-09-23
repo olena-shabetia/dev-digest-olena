@@ -1,17 +1,21 @@
 import type { Container } from '../../platform/container.js';
-import type { FindingActionKind, RunEventKind, RunTrace } from '@devdigest/shared';
+import type {
+  FindingActionKind,
+  FindingRecord,
+  ReviewRecord,
+  RunEventKind,
+  RunTrace,
+} from '@devdigest/shared';
 import { AppError, NotFoundError } from '../../platform/errors.js';
 import type { AgentRow } from '../../db/rows.js';
 import { ReviewRepository } from './repository.js';
-import { type ReviewDto, type ReviewDtoFinding } from './helpers.js';
 import { ReviewRunExecutor, type Logger } from './run-executor.js';
 import { actOnFinding as actOnFindingImpl } from './findings.js';
 import { reviewToDto } from './helpers.js';
 
-// Re-export DTO types + converters for backward-compatible imports from
-// './service.js' (these previously lived here; logic now in ./helpers.ts).
+// Re-export converters for backward-compatible imports from './service.js'
+// (these previously lived here; logic now in ./helpers.ts).
 export { findingRowToDto, reviewToDto } from './helpers.js';
-export type { ReviewDto, ReviewDtoFinding } from './helpers.js';
 
 /**
  * Review service (the core). Orchestrates:
@@ -105,7 +109,10 @@ export class ReviewService {
     prId: string,
     targets: AgentRow[],
     logger?: Logger,
-  ): Promise<{ runs: { run_id: string; agent_id: string; agent_name: string }[]; reviews: ReviewDto[] }> {
+  ): Promise<{
+    runs: { run_id: string; agent_id: string; agent_name: string }[];
+    reviews: ReviewRecord[];
+  }> {
     const pull = await this.repo.getPull(workspaceId, prId);
     if (!pull) throw new NotFoundError('Pull request not found');
     const repo = await this.repo.getRepo(pull.repoId);
@@ -149,7 +156,7 @@ export class ReviewService {
     workspaceId: string,
     findingId: string,
     action: FindingActionKind,
-  ): Promise<{ finding: ReviewDtoFinding }> {
+  ): Promise<{ finding: FindingRecord }> {
     return actOnFindingImpl(this.repo, workspaceId, findingId, action);
   }
 
@@ -157,7 +164,7 @@ export class ReviewService {
   // Reads
   // ===========================================================================
 
-  async reviewsForPull(workspaceId: string, prId: string): Promise<ReviewDto[]> {
+  async reviewsForPull(workspaceId: string, prId: string): Promise<ReviewRecord[]> {
     const pull = await this.repo.getPull(workspaceId, prId);
     if (!pull) throw new NotFoundError('Pull request not found');
     const rows = await this.repo.reviewsForPull(prId);

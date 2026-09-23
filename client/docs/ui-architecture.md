@@ -2,7 +2,7 @@
 
 Where Server vs Client Components split, and how data actually reaches a
 page. For the route map itself, see `specs/pages.md`. For the
-feature-colocation folder convention, see `../CLAUDE.md`.
+feature-colocation folder convention, see `../AGENTS.md`.
 
 ## Server/Client boundary
 
@@ -26,7 +26,7 @@ shapes:
 Either way, the actual data fetching is never inline in a Server Component —
 it goes through `src/lib/hooks/*`, which call `apiFetch`
 (`src/lib/api.ts`). A repo-wide grep for bare `fetch(` turns up exactly one
-call site: inside `apiFetch` itself. The claim in `../CLAUDE.md` — "data
+call site: inside `apiFetch` itself. The claim in `../AGENTS.md` — "data
 flows only through hooks" — holds for every actual data-fetching page in the
 tree.
 
@@ -48,7 +48,7 @@ the optional siblings that carry real content.
 - `src/app/repos/[repoId]/pulls/_components/FindingsCell/` only needed
   `FindingsCell.tsx`, `styles.ts`, `index.ts` — no `constants.ts`/
   `helpers.ts`, because none carried real content. This is the "optional
-  siblings" rule in `../CLAUDE.md` in effect, not an oversight.
+  siblings" rule in `../AGENTS.md` in effect, not an oversight.
 - `AgentsListView/` additionally nests its own `_components/` subfolder for
   the create-agent modal — colocation nests as deep as a feature actually
   needs, it isn't flattened to one level.
@@ -79,7 +79,7 @@ before.
   observability, productionize, adapters). Hooks import types directly from
   it, e.g. `src/lib/hooks/agents.ts` (`Agent`, `ModelInfo`, `Provider`,
   `ReviewStrategy`). This copy is DERIVED — see the vendor-sync rule in
-  `../CLAUDE.md` and the drift note in `../INSIGHTS.md` before editing it.
+  `../AGENTS.md` and the drift note in `../INSIGHTS.md` before editing it.
 
 ## i18n
 

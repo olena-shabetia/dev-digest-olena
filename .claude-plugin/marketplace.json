@@ -1,0 +1,12 @@
+{
+  "name": "devdigest-plugins",
+  "owner": {
+    "name": "DevDigest"
+  },
+  "plugins": [
+    {
+      "name": "devdigest-api-contract",
+      "source": "./"
+    }
+  ]
+}

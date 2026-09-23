@@ -128,6 +128,20 @@ export const Skill = z.object({
   enabled: z.boolean(),
   version: z.number().int(),
   evidence_files: z.array(z.string()).nullish(),
+  /**
+   * List-view usage aggregates (HW2 criteria 22-24) — populated by `GET
+   * /skills` only; omitted (never a fabricated 0) on the single-skill
+   * routes (`GET`/`POST`/`PUT /skills/:id`), which don't pay for the extra
+   * aggregate query. `agent_count` is exact (an `agent_skills` count).
+   * `pull_freq`/`accept_rate` are an approximation: there is no per-run
+   * skill-attribution table (see `SkillStats`'s doc comment), so they're
+   * derived from the skill's CURRENTLY linked agents' historical review
+   * runs — a proxy for "was this skill in the prompt", not a true per-run
+   * join. `null` when the denominator (reviews / findings) is zero.
+   */
+  agent_count: z.number().int().nullish(),
+  pull_freq: z.number().min(0).max(1).nullable().optional(),
+  accept_rate: z.number().min(0).max(1).nullable().optional(),
 });
 export type Skill = z.infer<typeof Skill>;
 
@@ -140,16 +154,122 @@ export const CommunitySkill = z.object({
 });
 export type CommunitySkill = z.infer<typeof CommunitySkill>;
 
+/**
+ * Parsed-but-not-saved result of `POST /skills/import/preview` (a single
+ * `.md`/`.markdown` file, or the picked core of a `.zip`). Nothing is written
+ * to the DB until the client confirms with a normal `POST /skills`.
+ * `ignored_entries`/`executable_entries` are archive entries that were listed
+ * but never read, written, or executed — the on-camera proof of the trust
+ * story (see specs/L02-skills.md).
+ */
+export const SkillImportPreview = z.object({
+  name: z.string(),
+  description: z.string(),
+  type: SkillType,
+  body: z.string(),
+  source_filename: z.string(),
+  ignored_entries: z.array(z.string()),
+  executable_entries: z.array(z.string()),
+});
+export type SkillImportPreview = z.infer<typeof SkillImportPreview>;
+
+/**
+ * One immutable snapshot of a skill's body (`skill_versions`, GET
+ * /skills/:id/versions, newest first). Simpler than `AgentVersion` — a skill
+ * version stores only a body, never a JSON config blob, so there's no
+ * malformed-snapshot `.safeParse` concern the way `AgentVersionConfig` has.
+ */
+export const SkillVersion = z.object({
+  skill_id: z.string(),
+  version: z.number().int(),
+  body: z.string(),
+  /** Optional human note captured at save time, e.g. "Tightened scope rule". */
+  change_note: z.string().nullable(),
+  created_at: z.string(),
+});
+export type SkillVersion = z.infer<typeof SkillVersion>;
+
+/**
+ * GET /skills/:id/stats. Deliberately small: only "which agents use this
+ * skill" is backed by real data today (a plain `agent_skills` join). Pull
+ * frequency / accept rate / findings-by-category need a per-run
+ * skill-attribution table that doesn't exist yet — see specs/L02-skills.md.
+ */
+export const SkillStats = z.object({
+  skill_id: z.string(),
+  agents_using: z.array(z.object({ id: z.string(), name: z.string() })),
+});
+export type SkillStats = z.infer<typeof SkillStats>;
+
 // ---- Conventions ----
+export const ConventionCategory = z.enum([
+  'naming',
+  'structure',
+  'error-handling',
+  'testing',
+  'imports',
+  'typing',
+  'async',
+  'styling',
+  'other',
+]);
+export type ConventionCategory = z.infer<typeof ConventionCategory>;
+
+export const ConventionStatus = z.enum(['pending', 'accepted', 'rejected']);
+export type ConventionStatus = z.infer<typeof ConventionStatus>;
+
+/** One verified occurrence of a candidate rule. `url` is derived (never
+ *  stored) from `sha`+`line`; `null` when either is missing. */
+export const ConventionEvidence = z.object({
+  path: z.string(),
+  line: z.number().int().nullable(),
+  snippet: z.string(),
+  sha: z.string().nullable(),
+  url: z.string().nullable(),
+});
+export type ConventionEvidence = z.infer<typeof ConventionEvidence>;
+
+/**
+ * A candidate house-rule proposed by the extractor and code-verified against
+ * the clone. `evidence_*` (flat) mirrors `evidences[0]` (the highest-ranked
+ * occurrence) so simple reads/sorts don't need to unpack the array;
+ * `evidences` carries every verified occurrence, primary first, capped at 5.
+ */
 export const ConventionCandidate = z.object({
   id: z.string(),
+  repo_id: z.string(),
+  scan_id: z.string().nullable(),
+  category: ConventionCategory,
   rule: z.string(),
   evidence_path: z.string(),
+  evidence_line: z.number().int().nullable(),
   evidence_snippet: z.string(),
+  evidence_sha: z.string().nullable(),
+  evidence_url: z.string().nullable(),
+  evidences: z.array(ConventionEvidence),
   confidence: z.number().min(0).max(1),
-  accepted: z.boolean(),
+  status: ConventionStatus,
+  edited: z.boolean(),
+  created_at: z.string(),
 });
 export type ConventionCandidate = z.infer<typeof ConventionCandidate>;
+
+/** One extraction run (`POST /repos/:id/conventions/extract`), restart-durable
+ *  so the UI can report proposed-vs-verified counts after a reload. */
+export const ConventionScan = z.object({
+  id: z.string(),
+  repo_id: z.string(),
+  status: z.enum(['queued', 'running', 'done', 'failed']),
+  sha: z.string().nullable(),
+  provider: z.string().nullable(),
+  model: z.string().nullable(),
+  candidates_proposed: z.number().int(),
+  candidates_verified: z.number().int(),
+  degraded: z.boolean(),
+  degraded_reason: z.string().nullable(),
+  created_at: z.string(),
+});
+export type ConventionScan = z.infer<typeof ConventionScan>;
 
 // ---- Agents ----
 // 'openrouter' routes through the OpenAI-compatible API (OpenAIProvider with a

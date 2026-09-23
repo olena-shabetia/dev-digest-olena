@@ -2,6 +2,7 @@ import Fastify, { type FastifyInstance } from 'fastify';
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
 import rateLimit from '@fastify/rate-limit';
+import multipart from '@fastify/multipart';
 import { FastifySSEPlugin } from 'fastify-sse-v2';
 import {
   validatorCompiler,
@@ -89,6 +90,9 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
   await app.register(helmet);
   await app.register(cors, { origin: [config.webOrigin], credentials: true });
   await app.register(FastifySSEPlugin);
+  // Skills import (.md/.zip). Small cap — a skill body is a markdown block,
+  // not a code archive; one file per request.
+  await app.register(multipart, { limits: { fileSize: 256 * 1024, files: 1 } });
 
   // Global rate limit. Disabled under test so integration suites can hammer
   // endpoints via inject(); per-route overrides live on the routes themselves.
@@ -133,8 +137,12 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
       return;
     }
     // Robust ZodError detection: `instanceof` can fail across duplicate zod
-    // module instances (shared vs api), so also match by shape. Still needed for
-    // service-level `.parse` calls and routes not yet on schema.body.
+    // module instances (shared vs api), so also match by shape. As of Wave 1
+    // (contracts) there is no route left bypassing schema.body, and the one
+    // remaining request-reachable manual `.parse` (agents/helpers.ts's
+    // AgentVersionConfig) throws ValidationError instead — this branch is now
+    // a defensive fallback for a ZodError from anywhere else in the call
+    // graph, not an active path for a known caller.
     const maybeZod = err as { name?: string; issues?: unknown; errors?: unknown };
     const isZodError =
       err instanceof z.ZodError ||

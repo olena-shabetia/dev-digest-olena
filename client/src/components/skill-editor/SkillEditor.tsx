@@ -1,0 +1,75 @@
+/* SkillEditor — right-pane shell for the /skills master-detail view: header
+   (icon/name/type badge/version chip/Enabled toggle row, plus a read-only
+   description line beneath it — visible on every tab, not just buried in
+   Config's editable field, since the list's SkillCard already shows the
+   description and it shouldn't vanish the moment you open a skill) + a
+   5-tab body (Config/Preview/Evals/Stats/Versions). Mirrors AgentEditor's
+   shape. */
+"use client";
+
+import React from "react";
+import Link from "next/link";
+import { useTranslations } from "next-intl";
+import { Icon, Badge, Toggle, Tabs } from "@devdigest/ui";
+import type { Skill } from "@devdigest/shared";
+import { useUpdateSkill } from "@/lib/hooks/skills";
+import { ConfigTab } from "./_components/ConfigTab";
+import { PreviewTab } from "./_components/PreviewTab";
+import { EvalsTab } from "./_components/EvalsTab";
+import { StatsTab } from "./_components/StatsTab";
+import { VersionsTab } from "./_components/VersionsTab";
+import { TABS } from "./constants";
+import { s } from "./styles";
+
+/** `openFullPageHref` is only passed by the `/skills` side-panel view — the
+ *  full-page route (`/skills/:id`) renders this same shell without it, so the
+ *  link never points at the page it's already on. */
+export function SkillEditor({ skill, openFullPageHref }: { skill: Skill; openFullPageHref?: string }) {
+  const t = useTranslations("skills");
+  const update = useUpdateSkill();
+  const [tab, setTab] = React.useState("config");
+
+  // Reset to Config when switching skills, same as AgentEditor's ConfigTab
+  // resets its local form on `agent.id` change.
+  React.useEffect(() => setTab("config"), [skill.id]);
+
+  const tabs = TABS.map((tb) => ({ key: tb.key, label: t(tb.labelKey), icon: tb.icon }));
+
+  return (
+    <div style={s.wrap}>
+      <div style={s.header}>
+        <div style={s.headerRow}>
+          <Icon.Sparkles size={18} style={{ color: "var(--accent)" }} />
+          <span style={s.name}>{skill.name}</span>
+          <Badge>{t(`listItem.type.${skill.type}`)}</Badge>
+          <Badge mono>{t("preview.version", { version: skill.version })}</Badge>
+          {openFullPageHref && (
+            <Link href={openFullPageHref} style={s.openFullPage}>
+              <Icon.ExternalLink size={13} />
+              {t("editor.openFullPage")}
+            </Link>
+          )}
+          <label style={s.enabledLabel}>
+            {t("preview.enabled")}
+            <Toggle
+              on={skill.enabled}
+              onChange={(enabled) => update.mutate({ id: skill.id, patch: { enabled } })}
+              size={16}
+            />
+          </label>
+        </div>
+        <p style={s.description}>{skill.description || t("file.noDescription")}</p>
+      </div>
+      <div style={s.tabsBar}>
+        <Tabs tabs={tabs} value={tab} onChange={setTab} pad="0 24px" />
+      </div>
+      <div style={s.body}>
+        {tab === "config" && <ConfigTab skill={skill} />}
+        {tab === "preview" && <PreviewTab skill={skill} />}
+        {tab === "evals" && <EvalsTab />}
+        {tab === "stats" && <StatsTab skill={skill} />}
+        {tab === "versions" && <VersionsTab skill={skill} />}
+      </div>
+    </div>
+  );
+}

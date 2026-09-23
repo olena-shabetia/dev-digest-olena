@@ -3,13 +3,17 @@
 import React from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { Button, Modal, FormField, TextInput, SelectInput, Textarea } from "@devdigest/ui";
+import { Button, Modal, FormField, TextInput, SelectInput, SearchableSelect, Textarea } from "@devdigest/ui";
 import type { Provider } from "@devdigest/shared";
-import { useCreateAgent } from "../../../../../../lib/hooks/agents";
+import { useCreateAgent, useProviderModels } from "../../../../../../lib/hooks/agents";
+import { toModelOptions } from "../../../../../../lib/model-label";
 import { DEFAULT_MODEL, DEFAULT_PROVIDER, MODAL_WIDTH, PROVIDER_OPTIONS } from "./constants";
 import { s } from "./styles";
 
-/** Create-agent modal — name/description/provider/model/system-prompt. */
+/** Create-agent modal — name/description/provider/model/system-prompt. Model
+ *  is a live SearchableSelect (same list source and labeling as AgentEditor's
+ *  ConfigTab), not a free-text field — plain text made it too easy to typo a
+ *  model id the provider doesn't actually serve. */
 export function CreateAgentModal({ onClose }: { onClose: () => void }) {
   const t = useTranslations("agents");
   const router = useRouter();
@@ -19,6 +23,15 @@ export function CreateAgentModal({ onClose }: { onClose: () => void }) {
   const [provider, setProvider] = React.useState<Provider>(DEFAULT_PROVIDER);
   const [model, setModel] = React.useState(DEFAULT_MODEL);
   const [systemPrompt, setSystemPrompt] = React.useState(t("create.defaultSystemPrompt"));
+
+  // Same live model picker as AgentEditor's ConfigTab — dynamic list from the
+  // provider's /models, priced/context labels, and a fallback entry so an
+  // already-set model that isn't in the freshly loaded list doesn't vanish.
+  const { data: models } = useProviderModels(provider);
+  const modelOptions = toModelOptions(models);
+  const hasModel = modelOptions.some((o) => (typeof o === "string" ? o : o.value) === model);
+  if (!hasModel) modelOptions.unshift(model);
+  const noModels = models !== undefined && models.length === 0;
 
   const submit = async () => {
     const agent = await create.mutateAsync({
@@ -67,8 +80,16 @@ export function CreateAgentModal({ onClose }: { onClose: () => void }) {
             options={[...PROVIDER_OPTIONS]}
           />
         </FormField>
-        <FormField label={t("create.fields.model")}>
-          <TextInput value={model} onChange={setModel} mono />
+        <FormField
+          label={t("create.fields.model")}
+          hint={noModels ? t("config.modelEmptyHint", { provider }) : t("config.modelHint")}
+        >
+          <SearchableSelect
+            value={model}
+            onChange={setModel}
+            options={modelOptions}
+            placeholder={t("config.modelSearch")}
+          />
         </FormField>
         <FormField label={t("create.fields.systemPrompt")}>
           <Textarea value={systemPrompt} onChange={setSystemPrompt} rows={6} mono />

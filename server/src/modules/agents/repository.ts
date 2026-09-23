@@ -1,7 +1,7 @@
-import { and, asc, desc, eq } from 'drizzle-orm';
+import { and, asc, desc, eq, sql } from 'drizzle-orm';
 import type { Db } from '../../db/client.js';
 import * as t from '../../db/schema.js';
-import type { CiFailOn, Provider, ReviewStrategy } from '@devdigest/shared';
+import type { AgentStats, CiFailOn, Provider, ReviewStrategy, StatPoint } from '@devdigest/shared';
 import { DEFAULT_AGENT_DESCRIPTION, INITIAL_AGENT_VERSION } from './constants.js';
 import { isConfigChange } from './helpers.js';
 
@@ -232,5 +232,119 @@ export class AgentsRepository {
     await this.db
       .insert(t.agentSkills)
       .values(skillIds.map((skillId, i) => ({ agentId, skillId, order: i })));
+  }
+
+  // ---- Agent Stats (GET /agents/:id/stats, L02) ----------------------------
+
+  /**
+   * Per-agent quality/cost aggregates (`AgentStats`, `contracts/observability.ts`).
+   *
+   * IMPORTANT — two different time windows are mixed into one DTO, because
+   * `AgentStats` has no separate field to make this explicit from the contract
+   * alone:
+   *   - `runs`, `total_cost_usd`, `avg_cost_usd`, `avg_latency_ms`, `trend` are
+   *     windowed to the last 30 days of `agent_runs` (workspace_id + agent_id).
+   *   - `findings_total`, `accepted`, `dismissed`, `pending`, `accept_rate`,
+   *     `dismiss_rate`, `avg_findings_per_run`, `findings_by_severity`,
+   *     `findings_by_category` are ALL-TIME — findings carry no `ran_at` of
+   *     their own, so they're joined via `findings.review_id -> reviews.id`
+   *     where `reviews.workspace_id`/`reviews.agent_id` match, unwindowed.
+   * `avg_findings_per_run` divides the all-time `findings_total` by the
+   * 30-day `runs` count, per spec — it is intentionally a mixed-window ratio.
+   *
+   * `agentName` is passed in by the caller (already loaded for the 404 check)
+   * rather than re-queried here.
+   */
+  async agentStats(workspaceId: string, agentId: string, agentName: string): Promise<AgentStats> {
+    // ---- 30-day window: agent_runs -----------------------------------------
+    const runRows = await this.db
+      .select({
+        ranAt: t.agentRuns.ranAt,
+        durationMs: t.agentRuns.durationMs,
+        costUsd: t.agentRuns.costUsd,
+      })
+      .from(t.agentRuns)
+      .where(
+        and(
+          eq(t.agentRuns.workspaceId, workspaceId),
+          eq(t.agentRuns.agentId, agentId),
+          sql`${t.agentRuns.ranAt} >= now() - interval '30 days'`,
+        ),
+      );
+
+    const runs = runRows.length;
+    const costs = runRows.map((r) => r.costUsd).filter((c): c is number => c != null);
+    const totalCostUsd = costs.length > 0 ? costs.reduce((a, b) => a + b, 0) : null;
+    const avgCostUsd = costs.length > 0 ? totalCostUsd! / costs.length : null;
+    const durations = runRows.map((r) => r.durationMs).filter((d): d is number => d != null);
+    const avgLatencyMs =
+      durations.length > 0 ? durations.reduce((a, b) => a + b, 0) / durations.length : null;
+
+    // One point per day for the last 30 days, oldest -> newest, value = that
+    // day's run count (UTC day buckets).
+    const dayCounts = new Map<string, number>();
+    for (const row of runRows) {
+      if (!row.ranAt) continue;
+      const day = row.ranAt.toISOString().slice(0, 10);
+      dayCounts.set(day, (dayCounts.get(day) ?? 0) + 1);
+    }
+    const trend: StatPoint[] = [];
+    const today = new Date();
+    for (let i = 29; i >= 0; i--) {
+      const d = new Date(
+        Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate() - i),
+      );
+      const label = d.toISOString().slice(0, 10);
+      trend.push({ label, value: dayCounts.get(label) ?? 0 });
+    }
+
+    // ---- all-time: findings joined through reviews -------------------------
+    const findingRows = await this.db
+      .select({
+        severity: t.findings.severity,
+        category: t.findings.category,
+        acceptedAt: t.findings.acceptedAt,
+        dismissedAt: t.findings.dismissedAt,
+      })
+      .from(t.findings)
+      .innerJoin(t.reviews, eq(t.reviews.id, t.findings.reviewId))
+      .where(and(eq(t.reviews.workspaceId, workspaceId), eq(t.reviews.agentId, agentId)));
+
+    const findingsTotal = findingRows.length;
+    const accepted = findingRows.filter((f) => f.acceptedAt != null).length;
+    const dismissed = findingRows.filter((f) => f.dismissedAt != null).length;
+    const pending = findingsTotal - accepted - dismissed;
+    const actedDenom = accepted + dismissed;
+    const acceptRate = actedDenom > 0 ? accepted / actedDenom : null;
+    const dismissRate = actedDenom > 0 ? dismissed / actedDenom : null;
+    const avgFindingsPerRun = runs > 0 ? findingsTotal / runs : null;
+
+    const findingsBySeverity = { CRITICAL: 0, WARNING: 0, SUGGESTION: 0 };
+    const findingsByCategory: Record<string, number> = {};
+    for (const f of findingRows) {
+      if (f.severity === 'CRITICAL' || f.severity === 'WARNING' || f.severity === 'SUGGESTION') {
+        findingsBySeverity[f.severity] += 1;
+      }
+      findingsByCategory[f.category] = (findingsByCategory[f.category] ?? 0) + 1;
+    }
+
+    return {
+      agent_id: agentId,
+      agent_name: agentName,
+      runs,
+      findings_total: findingsTotal,
+      accepted,
+      dismissed,
+      pending,
+      accept_rate: acceptRate,
+      dismiss_rate: dismissRate,
+      avg_findings_per_run: avgFindingsPerRun,
+      total_cost_usd: totalCostUsd,
+      avg_cost_usd: avgCostUsd,
+      avg_latency_ms: avgLatencyMs,
+      findings_by_severity: findingsBySeverity,
+      findings_by_category: findingsByCategory,
+      trend,
+    };
   }
 }

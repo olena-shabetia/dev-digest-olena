@@ -11,3 +11,8 @@ export const CI_FAIL_ON_VALUES: readonly CiFailOn[] = ["never", "critical", "war
 
 /** Output-schema options (only one supported in MVP). */
 export const OUTPUT_SCHEMA_VALUE = "Standard findings JSON";
+
+/** Soft authoring budget for the system-prompt text itself (Math.ceil(len/4)
+ *  rough token estimate) — NOT the model's context window
+ *  (`ModelInfo.contextLength`, a different, much larger number). */
+export const SYSTEM_PROMPT_TOKEN_BUDGET = 8000;

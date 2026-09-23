@@ -1,0 +1,69 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pnpm exec vitest *)",
+      "Bash(curl -s http://localhost:3001*)",
+      "Bash(curl -sS http://localhost:3001*)",
+      "Bash(echo)",
+      "Bash(pnpm typecheck)",
+      "Bash(pnpm typecheck*)",
+      "Bash(pnpm test*)",
+      "Bash(pnpm build*)",
+      "Bash(pnpm lint*)",
+      "Bash(pnpm arch*)",
+      "Bash(tail *)",
+      "Bash(pnpm install)",
+      "Bash(pnpm run arch)",
+      "Bash(ss -tlnp *)",
+      "Bash(ss -ltnp *)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git mv *)",
+      "Bash(git cherry-pick *)",
+      "Bash(git stash *)",
+      "Bash(git diff *)",
+      "Bash(which *)",
+      "Bash(pnpm install)",
+      "Bash(pnpm install --frozen-lockfile*)",
+      "Bash(echo *)",
+      "Bash(npm ci)",
+      "Bash(mkdir -p *)",
+      "Bash(cd *)",
+      "Bash(cat -n *)",
+      "Bash(grep *)",
+      "Bash(head *)",
+      "Bash(sed *)",
+      "Bash(ls *)",
+      "Bash(cat *)",
+      "Bash(cd * && pnpm exec vitest *)",
+      "Bash(cd * && pnpm typecheck*)",
+      "Bash(cd * && pnpm test*)",
+      "Bash(cd * && pnpm lint*)",
+      "Bash(cd * && pnpm build*)",
+      "Bash(cd * && pnpm arch*)",
+      "Bash(cd * && bash scripts/check-vendor-sync.sh*)",
+      "Bash(docker info*)",
+      "Bash(./scripts/pr-self-review-gates.sh*)",
+      "Bash(bash scripts/pr-self-review-gates.sh*)",
+      "Bash(chmod +x *)",
+      "Bash(bash -n *)",
+      "Bash(jq *)",
+      "Bash(agent-browser *)",
+      "Bash(sleep *)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/review-gate.sh",
+            "timeout": 15
+          }
+        ]
+      }
+    ]
+  }
+}

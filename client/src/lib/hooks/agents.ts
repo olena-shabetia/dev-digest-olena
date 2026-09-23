@@ -1,9 +1,9 @@
 /* hooks/agents.ts — React Query hooks for the A2 Agents tab + Agent Editor. */
 "use client";
 
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueries, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api";
-import type { Agent, ModelInfo, Provider, ReviewStrategy } from "@devdigest/shared";
+import type { Agent, AgentSkillLink, AgentStats, ModelInfo, Provider, ReviewStrategy, RunSummary } from "@devdigest/shared";
 
 export function useAgents() {
   return useQuery({
@@ -88,4 +88,63 @@ export function useProviderModels(provider: Provider | null | undefined) {
     enabled: !!provider,
     staleTime: 5 * 60_000,
   });
+}
+
+/** This agent's linked skills (ids + order only) — the Skills tab joins this
+ *  against `useSkills()` client-side. */
+export function useAgentSkillLinks(agentId: string | null | undefined) {
+  return useQuery({
+    queryKey: ["agent-skills", agentId],
+    queryFn: () => api.get<AgentSkillLink[]>(`/agents/${agentId}/skills`),
+    enabled: !!agentId,
+  });
+}
+
+/** Sets/reorders the full set of linked skills in one call — `order` is
+ *  assigned server-side from array index (`agents/repository.ts`). Used for
+ *  both attach/detach toggles and drag-to-reorder. */
+export function useSetAgentSkills(agentId: string | null | undefined) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (skillIds: string[]) =>
+      api.post<AgentSkillLink[]>(`/agents/${agentId}/skills`, { skill_ids: skillIds }),
+    onSuccess: (data) => qc.setQueryData(["agent-skills", agentId], data),
+  });
+}
+
+/** Quality/cost aggregates for the Stats tab (GET /agents/:id/stats, L02). */
+export function useAgentStats(agentId: string | null | undefined) {
+  return useQuery({
+    queryKey: ["agent-stats", agentId],
+    queryFn: () => api.get<AgentStats>(`/agents/${agentId}/stats`),
+    enabled: !!agentId,
+  });
+}
+
+/** Recent run history for the Stats tab's run table (GET /agents/:id/runs, L02). */
+export function useAgentRuns(agentId: string | null | undefined, limit?: number) {
+  const qs = limit ? `?limit=${limit}` : "";
+  return useQuery({
+    queryKey: ["agent-runs", agentId, limit],
+    queryFn: () => api.get<RunSummary[]>(`/agents/${agentId}/runs${qs}`),
+    enabled: !!agentId,
+  });
+}
+
+/** Batched per-agent linked-skill counts for the Agents grid/rail's
+ *  `AgentCard.skillCount` — one query per agent (cache-shared with
+ *  `useAgentSkillLinks`'s `["agent-skills", id]` key), read as a plain map. */
+export function useAgentsSkillCounts(agentIds: string[]): Record<string, number> {
+  const results = useQueries({
+    queries: agentIds.map((id) => ({
+      queryKey: ["agent-skills", id],
+      queryFn: () => api.get<AgentSkillLink[]>(`/agents/${id}/skills`),
+    })),
+  });
+  const counts: Record<string, number> = {};
+  agentIds.forEach((id, i) => {
+    const data = results[i]?.data;
+    if (data) counts[id] = data.length;
+  });
+  return counts;
 }

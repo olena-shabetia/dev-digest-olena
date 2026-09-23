@@ -74,5 +74,5 @@ cost independently of what the engine reports.
 Boot-time `reapStaleRunningRuns` (`run.repo.ts`, exposed via
 `ReviewService.reapStaleRuns`) flips orphaned `running` rows to `failed` on
 API startup. This assumes **one API instance per database** (see
-`../CLAUDE.md`) — multiple replicas would double-reap or race, and would need
+`../AGENTS.md`) — multiple replicas would double-reap or race, and would need
 per-instance scoping or heartbeats before that assumption could be relaxed.

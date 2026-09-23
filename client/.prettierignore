@@ -1,0 +1,4 @@
+src/vendor/**
+.next/**
+node_modules/**
+coverage/**

@@ -78,6 +78,27 @@
       "when": 1789722771434,
       "tag": "0010_young_radioactive_man",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1789993037795,
+      "tag": "0011_unique_earthquake",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1789998091122,
+      "tag": "0012_l02_skills_stats_indexes",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1790007148490,
+      "tag": "0013_nappy_tattoo",
+      "breakpoints": true
     }
   ]
 }

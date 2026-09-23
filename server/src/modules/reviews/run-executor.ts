@@ -2,6 +2,7 @@ import type { Container } from '../../platform/container.js';
 import type { Provider, Review, RunTrace, UnifiedDiff } from '@devdigest/shared';
 import { reviewPullRequest, countBlockers } from '@devdigest/reviewer-core';
 import { RunLogger } from '../../platform/run-logger.js';
+import { resolveSkillBodies } from '../../platform/prompt.js';
 import * as schema from '../../db/schema.js';
 import type { AgentRow } from '../../db/rows.js';
 import type { ReviewRepository, FindingRow, PullRow, ReviewRow } from './repository.js';
@@ -184,6 +185,18 @@ export class ReviewRunExecutor {
 
       const task = taskLine(pull) + rankNote;
 
+      // L02 — resolve this agent's ENABLED linked skills (in link order) to
+      // prompt-ready bodies. The trust rule (manual raw, imported_url/community
+      // wrapUntrusted) is applied by resolveSkillBodies; see platform/prompt.ts.
+      const linkedSkills = await this.agents.linkedSkills(agent.id);
+      const enabledSkills = linkedSkills.filter((l) => l.skill.enabled);
+      const skillBodies = resolveSkillBodies(enabledSkills);
+      runLog.info(
+        skillBodies.length
+          ? `Loaded ${enabledSkills.length} skill(s): ${enabledSkills.map((l) => l.skill.name).join(', ')}`
+          : 'No enabled skills linked to this agent',
+      );
+
       // ---- Engine: assemble → single-pass → grounding -----------------------
       // The pure review pipeline lives in @devdigest/reviewer-core (shared with
       // the CI runner). The service owns only I/O: repo-intel context resolution
@@ -196,6 +209,10 @@ export class ReviewRunExecutor {
         // Per-agent review strategy (configured in the Agent editor); falls back
         // to the studio default. single-pass = whole diff in one call.
         strategy: agent.strategy ?? REVIEW_STRATEGY,
+        // L02 — resolved skill bodies (NOT slugs), omitted entirely when empty
+        // to preserve the byte-identical-prompt invariant for agents with no
+        // enabled skills (server/AGENTS.md).
+        ...(skillBodies.length ? { skills: skillBodies } : {}),
         // T1.3 — pass the callers digest only when we built one. assemblePrompt
         // omits the section when this is empty/undefined.
         ...(callersDigest ? { callers: callersDigest } : {}),

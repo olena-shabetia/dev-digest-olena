@@ -82,7 +82,7 @@ summary, not the full finding.
 
 Counting and preview-ordering happen in JS (`toFindingsRollup`,
 `pulls/status.ts`) rather than in a `CASE`-ordered SQL query, per
-`server/CLAUDE.md`'s repository/helpers split (`repository.ts` = SQL,
+`server/AGENTS.md`'s repository/helpers split (`repository.ts` = SQL,
 `helpers`-shaped pure functions = transforms). The dataset per PR is at most a
 few dozen findings, so this costs nothing and keeps the ordering
 independently unit-testable (`server/test/pulls-status.test.ts`) without a

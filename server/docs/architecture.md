@@ -3,7 +3,7 @@
 How the API resolves the outside world (LLM providers, GitHub, secrets, git,
 repo-intel) without any service ever calling `new` on an adapter directly.
 For the module-internal layering convention (`routes → service → repository`),
-see `../CLAUDE.md`. For the full review-run lifecycle this container feeds
+see `../AGENTS.md`. For the full review-run lifecycle this container feeds
 into, see `specs/review-flow.md`.
 
 ## The container
@@ -25,7 +25,7 @@ Three kinds of fields, by resolution timing:
   `secrets.get('GITHUB_TOKEN')`), `llm(providerId)` (cached per provider id;
   builds `OpenAIProvider` / `AnthropicProvider` / the reviewer-core
   `OpenRouterProvider`), `embedder()` (throws before any OpenAI call when
-  `EMBEDDINGS_ENABLED=false` — see `../CLAUDE.md`).
+  `EMBEDDINGS_ENABLED=false` — see `../AGENTS.md`).
 
 Services always go through the container instance — `container.llm(id)`,
 `container.github()`, `container.repoIntel` — never `new SomeAdapter()`
@@ -68,7 +68,7 @@ between the studio and the CI runner (`container.ts`).
 ## Module layering, and where it's incomplete
 
 `routes.ts → service.ts → repository.ts → helpers.ts/constants.ts` (see
-`../CLAUDE.md`) is fully present in `src/modules/reviews/`: `routes.ts` →
+`../AGENTS.md`) is fully present in `src/modules/reviews/`: `routes.ts` →
 `service.ts` → `repository/{pull,review,run}.repo.ts`, plus
 `run-executor.ts`, `diff-loader.ts`, `findings.ts` as focused helpers.
 

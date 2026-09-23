@@ -1,0 +1,33 @@
+import type { CSSProperties } from "react";
+
+/** Co-located styles for the SkillEditor shell — mirrors AgentEditor/styles.ts
+ *  plus a header row (icon/name/type/version/enabled). */
+export const s = {
+  wrap: { flex: 1, display: "flex", flexDirection: "column", minWidth: 0, minHeight: 0 } satisfies CSSProperties,
+  header: { display: "flex", flexDirection: "column", gap: 6, padding: "16px 28px 0", flexShrink: 0 } satisfies CSSProperties,
+  headerRow: { display: "flex", alignItems: "center", gap: 12 } satisfies CSSProperties,
+  name: { fontSize: 18, fontWeight: 700 } satisfies CSSProperties,
+  description: {
+    fontSize: 13,
+    color: "var(--text-muted)",
+    lineHeight: 1.4,
+  } satisfies CSSProperties,
+  enabledLabel: {
+    marginLeft: "auto",
+    display: "flex",
+    alignItems: "center",
+    gap: 10,
+    fontSize: 13,
+    color: "var(--text-secondary)",
+  } satisfies CSSProperties,
+  tabsBar: { marginTop: 14 } satisfies CSSProperties,
+  body: { flex: 1, overflow: "auto", padding: 28 } satisfies CSSProperties,
+  openFullPage: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 5,
+    fontSize: 12.5,
+    color: "var(--text-secondary)",
+    textDecoration: "none",
+  } satisfies CSSProperties,
+} as const;

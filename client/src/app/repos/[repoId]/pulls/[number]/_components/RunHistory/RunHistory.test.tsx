@@ -20,6 +20,7 @@ function run(o: Partial<RunSummary>): RunSummary {
     run_id: "run-1",
     agent_id: "a1",
     agent_name: "Security Reviewer",
+    pr_number: 482,
     provider: "openrouter",
     model: "deepseek/deepseek-v4-flash",
     status: "done",

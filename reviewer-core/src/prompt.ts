@@ -129,6 +129,7 @@ export function assemblePrompt(parts: PromptParts): AssembledPrompt {
   const assembly: PromptAssembly = {
     system,
     skills: skillsBlock ?? null,
+    skills_tokens: skillsBlock ? Math.ceil(skillsBlock.length / 4) : null,
     memory: memoryBlock ?? null,
     specs: specsBlock ?? null,
     callers: parts.callers ?? null,

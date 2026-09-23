@@ -39,6 +39,9 @@ export type ToolCall = z.infer<typeof ToolCall>;
 export const PromptAssembly = z.object({
   system: z.string(),
   skills: z.string().nullish(),
+  /** Approx. token count of the rendered `skills` block (chars/4, ceil); null
+      when there is no skills block. Drives the run trace's `~N tok` chip. */
+  skills_tokens: z.number().int().nullish(),
   memory: z.string().nullish(),
   specs: z.string().nullish(),
   /** Callers-of-changed-symbols digest (T1.3); null when absent. */
@@ -97,6 +100,9 @@ export const RunSummary = z.object({
   run_id: z.string(),
   agent_id: z.string().nullable(),
   agent_name: z.string().nullable(),
+  /** PR number this run reviewed; used by the agent-level run-history table
+      (GET /agents/:id/runs, L02) to link back to the PR. Additive. */
+  pr_number: z.number().int().nullable(),
   provider: z.string().nullable(),
   model: z.string().nullable(),
   status: z.string().nullable(), // running | done | failed | cancelled
@@ -116,3 +122,17 @@ export const RunSummary = z.object({
   blockers: z.number().int().nullable(),
 });
 export type RunSummary = z.infer<typeof RunSummary>;
+
+/**
+ * One in-flight (status='running') run for a PR — the server-side source of
+ * truth for "which agents are running now" (`GET /pulls/:id/runs/active`).
+ * A `RunSummary` narrowed to what the UI needs while a run is live; once it
+ * finishes, the same run shows up in `RunSummary` instead.
+ */
+export const ActiveRun = z.object({
+  run_id: z.string(),
+  agent_id: z.string().nullable(),
+  agent_name: z.string().nullable(),
+  ran_at: z.string().nullable(),
+});
+export type ActiveRun = z.infer<typeof ActiveRun>;

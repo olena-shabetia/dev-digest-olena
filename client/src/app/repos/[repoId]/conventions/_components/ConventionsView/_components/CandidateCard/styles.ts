@@ -1,0 +1,42 @@
+import type { CSSProperties } from "react";
+
+export const s = {
+  card: (rejected: boolean): CSSProperties => ({
+    display: "flex",
+    gap: 16,
+    padding: 16,
+    borderRadius: 10,
+    border: "1px solid var(--border)",
+    background: "var(--bg-elevated)",
+    marginBottom: 12,
+    opacity: rejected ? 0.55 : 1,
+  }),
+  body: { flex: 1, minWidth: 0, cursor: "text" } satisfies CSSProperties,
+  ruleRow: { display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 8 } satisfies CSSProperties,
+  rule: { fontSize: 14.5, color: "var(--text-primary)", flex: 1, minWidth: 200 } satisfies CSSProperties,
+  evidenceRow: { display: "flex", alignItems: "center", gap: 10, marginBottom: 8 } satisfies CSSProperties,
+  evidencePath: { fontSize: 12.5, color: "var(--text-secondary)" } satisfies CSSProperties,
+  githubLink: { fontSize: 12.5, color: "var(--accent-text)", textDecoration: "none" } satisfies CSSProperties,
+  snippet: {
+    margin: "0 0 8px",
+    padding: "10px 12px",
+    fontSize: 12,
+    lineHeight: 1.5,
+    color: "var(--text-primary)",
+    background: "var(--code-bg)",
+    borderRadius: 6,
+    overflow: "auto",
+    whiteSpace: "pre",
+  } satisfies CSSProperties,
+  alsoSeenIn: { fontSize: 12, color: "var(--text-muted)", marginBottom: 10 } satisfies CSSProperties,
+  confidenceRow: { maxWidth: 260 } satisfies CSSProperties,
+  editActions: { display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 10 } satisfies CSSProperties,
+  actions: {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "flex-end",
+    gap: 8,
+    flexShrink: 0,
+    width: 128,
+  } satisfies CSSProperties,
+} as const;

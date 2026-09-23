@@ -23,7 +23,7 @@ with no evidence is a guess, not a finding.
 
 ## Don't record
 
-- Anything already stated in a `CLAUDE.md`, `README.md`, or `TESTING.md` —
+- Anything already stated in an `AGENTS.md`, `README.md`, or `TESTING.md` —
   that's documentation's job, not `INSIGHTS.md`'s.
 - One-off typo fixes or trivial config edits.
 - A replay of the conversation. Replaying old conversations adds noise without

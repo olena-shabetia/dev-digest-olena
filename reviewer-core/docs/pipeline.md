@@ -1,7 +1,7 @@
 # reviewer-core — pipeline architecture
 
 How `reviewPullRequest` turns a diff into grounded findings. For the
-invariants this pipeline must never break, see `../CLAUDE.md`. For the
+invariants this pipeline must never break, see `../AGENTS.md`. For the
 line-range grounding rules and the untrusted-input wrapping in detail, see
 `../specs/prompt-and-grounding.md`.
 
@@ -51,7 +51,7 @@ All stages run inside `reviewPullRequest` (`run.ts:123-219`):
 7. **Scoring** — `scoreFromFindings` (`reduce.ts:27`), called at
    `run.ts:208` against `ground.kept` — the post-grounding set, not the
    model's self-reported score. This is what keeps score, findings list, and
-   emitted event in agreement by construction (see `../CLAUDE.md`).
+   emitted event in agreement by construction (see `../AGENTS.md`).
 
 ## Cancellation
 

@@ -1,5 +1,6 @@
-/* AgentCard — model chip, skills count, enabled toggle. Stats are an A5 mount;
-   we render the provider/model + skill count here. */
+/* AgentCard — model chip, skills count, enabled toggle, delete (behind a
+   ConfirmDialog, not window.confirm). Stats are an A5 mount; we render the
+   provider/model + skill count here. */
 "use client";
 
 import React from "react";
@@ -7,6 +8,7 @@ import { useTranslations } from "next-intl";
 import { Icon, Badge, Toggle } from "@devdigest/ui";
 import type { Agent } from "@devdigest/shared";
 import { useDeleteAgent } from "../../../../lib/hooks/agents";
+import { ConfirmDialog } from "../../../../components/confirm-dialog";
 import { modelColor } from "./helpers";
 import { s } from "./styles";
 
@@ -25,9 +27,22 @@ export function AgentCard({
 }) {
   const t = useTranslations("agents");
   const del = useDeleteAgent();
+  const [confirming, setConfirming] = React.useState(false);
   const color = modelColor(ag.model);
   return (
     <div onClick={onClick} style={s.card(!!active, ag.enabled)}>
+      {confirming && (
+        <div onClick={(e) => e.stopPropagation()}>
+          <ConfirmDialog
+            title={t("card.deleteTitle")}
+            body={t("card.deleteBody", { name: ag.name })}
+            confirmLabel={t("card.deleteConfirm")}
+            loading={del.isPending}
+            onConfirm={() => del.mutate(ag.id, { onSuccess: () => setConfirming(false) })}
+            onClose={() => setConfirming(false)}
+          />
+        </div>
+      )}
       <div style={s.headerRow}>
         <div style={s.iconBox}>
           <Icon.Cpu size={15} />
@@ -41,11 +56,11 @@ export function AgentCard({
         <button
           onClick={(e) => {
             e.stopPropagation();
-            if (window.confirm(`Delete agent "${ag.name}"? This cannot be undone.`)) del.mutate(ag.id);
+            setConfirming(true);
           }}
           disabled={del.isPending}
-          title="Delete agent"
-          aria-label="Delete agent"
+          title={t("card.deleteTitle")}
+          aria-label={t("card.deleteTitle")}
           style={{
             background: "none",
             border: "none",

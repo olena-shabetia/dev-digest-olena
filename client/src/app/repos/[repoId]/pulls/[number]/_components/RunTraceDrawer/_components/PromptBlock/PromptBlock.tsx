@@ -5,6 +5,7 @@
 import React from "react";
 import { useTranslations } from "next-intl";
 import { Button, Icon, Modal } from "@devdigest/ui";
+import { formatTokenCount } from "@/lib/format";
 import { s } from "../../styles";
 import { PromptModalBody } from "../PromptModalBody";
 
@@ -20,7 +21,20 @@ const miniBtnStyle: React.CSSProperties = {
   cursor: "pointer",
 };
 
-export function PromptBlock({ label, text, color }: { label: string; text: string; color: string }) {
+export function PromptBlock({
+  label,
+  text,
+  color,
+  tokens,
+}: {
+  label: string;
+  text: string;
+  color: string;
+  /** Approx. token count chip (`~N tok`) shown in the header — passed only
+   *  for the Skills block today (`assembly.skills_tokens`, HW2 criterion 19).
+   *  Omitted (no chip) when `null`/`undefined`. */
+  tokens?: number | null;
+}) {
   const t = useTranslations("runs");
   const [open, setOpen] = React.useState(false);
   const [full, setFull] = React.useState(false);
@@ -35,6 +49,11 @@ export function PromptBlock({ label, text, color }: { label: string; text: strin
       <div onClick={() => setOpen((o) => !o)} style={s.promptHead}>
         <span style={s.promptDot(color)} />
         <span style={s.promptLabel}>{label}</span>
+        {tokens != null && (
+          <span className="mono tnum" style={s.promptTokens}>
+            {t("trace.prompt.tokens", { count: formatTokenCount(tokens) })}
+          </span>
+        )}
         <span style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8 }}>
           <button
             type="button"

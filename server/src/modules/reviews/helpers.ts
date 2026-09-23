@@ -2,36 +2,20 @@
  * Pure helpers for the review service (side-effect free; operate purely on
  * their arguments — no DB / network / `this`).
  */
-import type { Finding } from '@devdigest/shared';
+import type { Finding, FindingRecord, ReviewRecord, Verdict } from '@devdigest/shared';
 import type { FindingRow, PullRow, ReviewRow } from './repository.js';
 
 // reduceReviews + sliceDiff live in @devdigest/reviewer-core (pure engine logic
 // shared with the CI runner); re-exported here for backward-compatible imports.
 export { reduceReviews, sliceDiff } from '@devdigest/reviewer-core';
 
-export interface ReviewDtoFinding extends Finding {
-  review_id: string;
-  accepted_at: string | null;
-  dismissed_at: string | null;
-}
-
-export interface ReviewDto {
-  id: string;
-  pr_id: string;
-  agent_id: string | null;
-  run_id: string | null;
-  agent_name?: string | null;
-  kind: 'summary' | 'review';
-  verdict: string | null;
-  summary: string | null;
-  score: number | null;
-  model: string | null;
-  grounding?: string | null;
-  created_at: string;
-  findings: ReviewDtoFinding[];
-}
-
-export function findingRowToDto(row: FindingRow): ReviewDtoFinding {
+/**
+ * Map a persisted finding row to the public `FindingRecord` DTO. Typed
+ * against the canonical `@devdigest/shared` contract (not a hand-rolled
+ * mirror of it) so a shape drift here is a compile error, not a silent gap
+ * that only a `response:` schema at runtime would catch.
+ */
+export function findingRowToDto(row: FindingRow): FindingRecord {
   return {
     id: row.id,
     severity: row.severity as Finding['severity'],
@@ -52,11 +36,25 @@ export function findingRowToDto(row: FindingRow): ReviewDtoFinding {
   };
 }
 
+/**
+ * Map a persisted review row (+ its findings) to the public `ReviewRecord`
+ * DTO. `verdict` is `text('verdict')` with no DB-level enum constraint
+ * (unlike `kind`), so the domain invariant — only `Verdict`'s three values
+ * are ever written — is cast here rather than enforced by the column type,
+ * same pattern as `agents/helpers.ts:toAgentDto`.
+ *
+ * `ReviewRecord.grounding` is intentionally omitted: grounding is a run-level
+ * summary string, persisted on `agent_runs` (see `RunSummary.grounding` /
+ * `reviews/repository/run.repo.ts`), not on `reviews` — there is no
+ * `reviews.grounding` column to read. The contract field is `.nullish()`
+ * precisely because not every DTO that shares the `ReviewRecord` shape has
+ * a value for it.
+ */
 export function reviewToDto(
   review: ReviewRow,
   findings: FindingRow[],
   agentName?: string | null,
-): ReviewDto {
+): ReviewRecord {
   return {
     id: review.id,
     pr_id: review.prId,
@@ -64,7 +62,7 @@ export function reviewToDto(
     run_id: review.runId,
     agent_name: agentName ?? null,
     kind: review.kind as 'summary' | 'review',
-    verdict: review.verdict,
+    verdict: review.verdict as Verdict | null,
     summary: review.summary,
     score: review.score,
     model: review.model,

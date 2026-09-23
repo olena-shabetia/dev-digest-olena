@@ -1,7 +1,9 @@
 import type { FastifyInstance } from 'fastify';
+import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { eq } from 'drizzle-orm';
 import * as t from '../../db/schema.js';
 import { getContext } from '../_shared/context.js';
+import { WorkspaceInfo } from './schemas.js';
 
 /**
  * F1 — workspace manager: where clones live + a summary of cloned repos.
@@ -10,10 +12,11 @@ import { getContext } from '../_shared/context.js';
  * Cleanup/re-pull of individual repos is handled by the repos module
  * (refresh/delete); this surface gives the UI an overview.
  */
-export default async function workspaceRoutes(app: FastifyInstance) {
+export default async function workspaceRoutes(appBase: FastifyInstance) {
+  const app = appBase.withTypeProvider<ZodTypeProvider>();
   const { container } = app;
 
-  app.get('/workspace', async (req) => {
+  app.get('/workspace', { schema: { response: { 200: WorkspaceInfo } } }, async (req) => {
     const { workspaceId } = await getContext(container, req);
     const repos = await container.db
       .select()

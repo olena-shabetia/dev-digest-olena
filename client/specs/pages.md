@@ -2,7 +2,7 @@
 
 The route map and what each page depends on. If a route is renamed or its
 data source changes, update this file in the same change — this is what
-`../CLAUDE.md`'s "Read when" table points to for "what does this page show
+`../AGENTS.md`'s "Read when" table points to for "what does this page show
 and where does its data come from."
 
 | Route | File | Shows | Data source |
@@ -13,6 +13,7 @@ and where does its data come from."
 | `/repos/[repoId]/pulls/[number]` | `.../pulls/[number]/page.tsx` | PR detail: overview / findings / diff tabs, run-review dropdown, live run status over SSE, run-trace drawer | `usePullDetail`, `usePulls`, `usePrReviews`, `useCancelRun` |
 | `/agents` | `src/app/agents/page.tsx` | List of reviewer agents | `AgentsListView` (client view rendered by a thin Server Component page) |
 | `/agents/[id]` | `src/app/agents/[id]/page.tsx` | Agent editor — model + system prompt, tabs via `?tab=` | client-side hooks inside the editor view |
+| `/skills` | `src/app/skills/page.tsx` | Skills master-detail shell — list + a 5-tab skill editor (Config/Preview/Evals/Stats/Versions) in the right pane; no nested route per skill, tab state lives in the client view | `SkillsListView` (client view rendered by a thin Server Component page) |
 | `/settings/[section]` | `src/app/settings/[section]/page.tsx` | Settings sections (API Keys, Feature Models, …) | `SettingsView` (client view rendered by a thin Server Component page) |
 
 Root layout: `src/app/layout.tsx` — Server Component, resolves i18n
@@ -31,7 +32,7 @@ Root layout: `src/app/layout.tsx` — Server Component, resolves i18n
 - `/repos/[repoId]/pulls/[number]` is the one page with a live/streaming
   dependency (SSE run status via `useCancelRun`/run hooks) — a change here
   needs manual testing against an in-progress run, not just a static-data
-  check, because vitest + jsdom (per `../CLAUDE.md`) mocks `fetch`, not SSE.
+  check, because vitest + jsdom (per `../AGENTS.md`) mocks `fetch`, not SSE.
 - `e2e/specs/*.flow.json` hardcode these routes against seeded fixture data
   (`acme/payments-api`, PR #482) — renaming a route or changing what a page
   requires as a precondition will silently break flows in `../../e2e`; check
