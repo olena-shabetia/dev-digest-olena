@@ -51,6 +51,11 @@ export const PromptAssembly = z.object({
   repo_map: z.string().nullish(),
   /** PR author's description/body (truncated); null when absent. */
   pr_description: z.string().nullish(),
+  /** Derived PR intent block (L03); null when absent. */
+  intent: z.string().nullish(),
+  /** Approx. token count of the rendered `intent` block (chars/4, ceil); null
+      when there is no intent block. Drives the run trace's `~N tok` chip. */
+  intent_tokens: z.number().int().nullish(),
   user: z.string(),
 });
 export type PromptAssembly = z.infer<typeof PromptAssembly>;

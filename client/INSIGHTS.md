@@ -11,7 +11,15 @@ _None yet._
 
 ## What Doesn't Work
 
-_None yet._
+### 2026-09-22 — a shared component's "never a literal, always pre-translated" contract is a docstring, not a check — nothing stops a literal from being written anyway
+
+**Symptom:** `DiffFindingsApi` and `DiffGroupView` (`client/src/components/diff-viewer/{findings,groups}.ts`) each carry an explicit field-level comment — "Pre-translated ... (never a literal in diff-viewer)" — yet the first implementation of `GroupSection.tsx` and `FileCard.tsx` (Smart Diff, L03) wrote real hardcoded `aria-label`/`title` template-literal strings (`` `${count} files with findings` ``, `` `${count} findings` ``) directly in the shared `diff-viewer` layer. `pnpm typecheck` and `eslint` both passed clean — neither catches a string literal in JSX. Only a manual review pass (two independent reviewers, run in parallel) caught it.
+
+**Cause:** the "no literal, pre-translated only" rule lives in a `/** ... */` comment on the interface field, which is documentation, not a compiler constraint — TypeScript accepts any `string` for `label`/`lineLabels`, and nothing forces the *consumer* of a `DiffFindingsApi`/`DiffGroupView` prop to actually source every displayed string from it instead of writing a new one inline.
+
+**Fix:** added `filesWithFindingsLabel: string` to `DiffGroupView` and `fileFindingsLabel: (count: number) => string` to `DiffFindingsApi`, both filled by `DiffTab.tsx` via `useTranslations("prReview")`, and rewired `GroupSection.tsx`/`FileCard.tsx` to read the prop instead of building the string themselves.
+
+**Rule:** after adding a "pre-translated, never a literal" field to a shared component's props contract, grep the actual consuming JSX (`aria-label=`, `title=`, and template-literal string interpolations) for hand-written copy before considering the field's contract satisfied — the docstring alone does not enforce it, and typecheck/lint will not catch the violation.
 
 ## Codebase Patterns
 
@@ -134,6 +142,21 @@ its own dependency array), and removed the stale disable comment.
 lint config exists, re-run the linter after touching a file that carries one;
 if the disable no longer suppresses anything, delete it rather than assuming
 it's still needed.
+
+### 2026-09-22 — addendum: the same `exhaustive-deps` shape recurs whenever a derived `Map`/array feeds a `useMemo` dependency array directly
+
+**Context:** same family as the 2026-09-21 entry above, seen again in Smart Diff
+(L03): `FileCard.tsx`'s `fileFindings` and `DiffTab.tsx`'s `findingsByPath` each
+derive a `Map`/array from a prop or query result and pass that derived value
+straight into a sibling `useMemo`'s dependency array, rather than computing the
+dependency inside the same callback that reads it.
+
+**Rule:** when a `useMemo`/`useCallback` depends on a `Map`/array that was
+itself derived one step earlier (not the raw prop/query value), double check
+whether the dependency array should name the earlier value's own inputs
+instead — `react-hooks/exhaustive-deps` will pass either way if the derived
+value is referentially stable per render, but the pattern is worth flagging on
+sight since it recurs.
 
 ### 2026-09-18 — a hand-rolled severity color map drifted from the canonical `SEV` tokens
 

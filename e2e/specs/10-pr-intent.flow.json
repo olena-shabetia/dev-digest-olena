@@ -1,0 +1,24 @@
+{
+  "name": "Intent card renders the seeded PR intent and the out-of-scope disclosure",
+  "description": "L03 (intent layer). On PR #482's detail page the Intent card (rendered above the tabs, so it's visible regardless of the active tab) shows the seeded pr_intent row: the derived intent sentence, a 'Medium confidence' chip, a 'used' source ('Changed files') and an 'unavailable' source with its ref ('Linked issue · #412'), plus the 'Missing context' gap text that unavailable source triggers. Switching to the Agent runs tab then shows the seeded out-of-scope finding (the WARNING 'N+1 query in user list endpoint', seeded with in_scope: false) surfaced in the always-visible 'Outside stated scope' strip and counted in the FindingsPanel's scope disclosure. Entirely seeded data (server/src/db/seed.ts) — no LLM call, no API key, and the Re-derive button is never clicked.",
+  "steps": [
+    { "cmd": ["open", "{BASE}/"], "label": "load the app root" },
+    { "cmd": ["wait", "--url", "/pulls"], "label": "land on the PR list" },
+    { "cmd": ["find", "text", "Add rate limiting to public API endpoints", "click"], "label": "open the PR row" },
+    { "cmd": ["wait", "--url", "/pulls/482"], "label": "navigate to the PR detail route" },
+    { "cmd": ["wait", "--load", "networkidle"], "label": "PR detail data settles" },
+    { "cmd": ["wait", "--text", "PR INTENT"], "label": "Intent card heading is visible" },
+    { "cmd": ["wait", "--text", "Add token-bucket rate limiting to public API endpoints to prevent abuse from unauthenticated clients."], "label": "derived intent sentence is visible" },
+    { "cmd": ["wait", "--text", "Medium confidence"], "label": "clamped confidence chip is visible" },
+    { "cmd": ["wait", "--text", "Changed files"], "label": "a 'used' source chip is visible" },
+    { "cmd": ["wait", "--text", "Linked issue · #412"], "label": "the 'unavailable' issue source chip with its ref is visible" },
+    { "cmd": ["wait", "--text", "MISSING CONTEXT"], "label": "context-gaps section is shown because a source is unavailable" },
+    { "cmd": ["wait", "--text", "Linked issue #412 could not be fetched."], "label": "the recorded context gap text is visible" },
+    { "cmd": ["find", "role", "button", "click", "--name", "Agent runs"], "label": "switch to the Agent runs tab" },
+    { "cmd": ["wait", "--url", "tab=findings"], "label": "findings tab is active in the URL" },
+    { "cmd": ["wait", "--load", "networkidle"], "label": "findings data settles" },
+    { "cmd": ["wait", "--text", "OUTSIDE STATED SCOPE"], "label": "the out-of-scope strip label is visible" },
+    { "cmd": ["wait", "--text", "N+1 query in user list endpoint"], "label": "the seeded out-of-scope finding is surfaced by the strip" },
+    { "cmd": ["wait", "--text", "1 findings outside the stated scope"], "label": "the scope disclosure reports the seeded out-of-scope count" }
+  ]
+}

@@ -1,5 +1,5 @@
 import type { Container } from '../../platform/container.js';
-import type { Provider, Review, RunTrace, UnifiedDiff } from '@devdigest/shared';
+import type { PrIntentRecord, Provider, Review, RunTrace, UnifiedDiff } from '@devdigest/shared';
 import { reviewPullRequest, countBlockers } from '@devdigest/reviewer-core';
 import { RunLogger } from '../../platform/run-logger.js';
 import { resolveSkillBodies } from '../../platform/prompt.js';
@@ -7,7 +7,7 @@ import * as schema from '../../db/schema.js';
 import type { AgentRow } from '../../db/rows.js';
 import type { ReviewRepository, FindingRow, PullRow, ReviewRow } from './repository.js';
 import { REVIEW_STRATEGY } from './constants.js';
-import { taskLine } from './helpers.js';
+import { renderIntent, summarizeIntentSources, taskLine } from './helpers.js';
 import { loadDiff } from './diff-loader.js';
 
 /** Thrown by a run when the user cancels it mid-flight (between map files). */
@@ -106,14 +106,67 @@ export class ReviewRunExecutor {
     }
     runLog.info(`Diff ready — ${diff.files.length} changed file(s); starting ${jobs.length} agent run(s)`);
 
-    for (const { agent, runId } of jobs) {
+    // ---- L03: derive PR intent once, shared pre-work like the diff above --
+    // An intent failure must NEVER fail the run (server/AGENTS.md:38-40) —
+    // `IntentService#ensureIntent` already degrades internally (never
+    // throws), but this try/catch is a second line of defence against a
+    // container-level failure (e.g. resolving the provider) escaping it.
+    const beforeIntentCall = Date.now();
+    let intentRecord: PrIntentRecord | undefined;
+    try {
+      intentRecord = await runLog.step(
+        'Deriving PR intent',
+        () => this.container.intentService.ensureIntent(workspaceId, pull.id, pull.headSha, { diff }),
+        { kind: 'tool' },
+      );
+      if (intentRecord?.sources.length) {
+        runLog.info(`intent sources: ${summarizeIntentSources(intentRecord.sources)}`);
+      }
+    } catch (err) {
+      runLog.info(`Deriving PR intent failed — continuing without intent: ${(err as Error).message}`);
+      intentRecord = undefined;
+    }
+
+    // Omit-when-empty (mirrors `prDescription`): no key at all when there is
+    // no usable intent, never `intent: undefined`.
+    const renderedIntent =
+      intentRecord && !intentRecord.error && intentRecord.intent.trim().length > 0
+        ? renderIntent(intentRecord)
+        : undefined;
+
+    // The derivation LLM call (when one happened — NOT on a cache hit) is
+    // shared pre-work benefiting every queued job this batch; attribute its
+    // cost to exactly ONE run (the first) so the PR's aggregate cost badge
+    // stays truthful without multiplying a single spend across N agents. A
+    // cache hit returns the ORIGINAL row's (older) `generated_at`, which is
+    // how a fresh derivation is told apart from a cache hit here.
+    const freshIntentCost =
+      intentRecord?.generated_at && Date.parse(intentRecord.generated_at) >= beforeIntentCall
+        ? {
+            tokensIn: intentRecord.tokens_in ?? 0,
+            tokensOut: intentRecord.tokens_out ?? 0,
+            costUsd: intentRecord.cost_usd,
+          }
+        : undefined;
+
+    for (const [index, { agent, runId }] of jobs.entries()) {
       const agentStart = Date.now();
       logger?.info(
         { runId, agent: agent.name, provider: agent.provider, model: agent.model, prId: pull.id },
         `review: agent "${agent.name}" started (${agent.provider}/${agent.model})`,
       );
       try {
-        const outcome = await this.runOneAgent(workspaceId, pull, repo, diff, agent, runId, runLog);
+        const outcome = await this.runOneAgent(
+          workspaceId,
+          pull,
+          repo,
+          diff,
+          agent,
+          runId,
+          runLog,
+          renderedIntent,
+          index === 0 ? freshIntentCost : undefined,
+        );
         logger?.info(
           {
             runId,
@@ -145,6 +198,12 @@ export class ReviewRunExecutor {
     agent: AgentRow,
     runId: string,
     parentLog: RunLogger,
+    /** Rendered PR intent (L03), shared pre-work; omit-when-empty. */
+    intent?: string,
+    /** The shared intent derivation's own cost, attributed to exactly ONE
+     *  run in the batch (see `executeRuns`) so the PR's total cost badge
+     *  stays truthful without multiplying a single spend across N agents. */
+    intentCost?: { tokensIn: number; tokensOut: number; costUsd: number | null },
   ): Promise<RunOutcome> {
     const start = Date.now();
     // Narrow the fanned-out pre-work logger to THIS run; the shared diff/intent
@@ -221,6 +280,10 @@ export class ReviewRunExecutor {
         // PR author's description/body — untrusted; assemblePrompt wraps +
         // truncates it. Omitted when the PR has no body.
         ...(pull.body ? { prDescription: pull.body } : {}),
+        // L03 — derived PR intent, shared pre-work; same omit-when-empty
+        // idiom, so a run with no usable intent produces a byte-identical
+        // prompt to the pre-L03 shape.
+        ...(intent ? { intent } : {}),
         task,
         sessionId: `${repo.owner}/${repo.name}#${pull.number}:${agent.name}`,
         onEvent: (e) => runLog.event(e.kind, e.msg, e.data),
@@ -257,13 +320,23 @@ export class ReviewRunExecutor {
       // the timeline colors on, NOT the model's self-reported verdict.
       const blockers = countBlockers(keptFindings, agent.ciFailOn);
 
+      // L03 — fold in the shared intent derivation's own cost (attributed to
+      // this one run only, see `executeRuns`) so the L01 cost badge tells the
+      // truth about what this PR's review actually cost.
+      const totalTokensIn = tokensIn + (intentCost?.tokensIn ?? 0);
+      const totalTokensOut = tokensOut + (intentCost?.tokensOut ?? 0);
+      const totalCostUsd =
+        costUsd == null && intentCost?.costUsd == null
+          ? null
+          : (costUsd ?? 0) + (intentCost?.costUsd ?? 0);
+
       // ---- Observability: agent_runs + ONE run_traces document --------------
       await this.repo.completeAgentRun(runId, {
         status: 'done',
         durationMs,
-        tokensIn,
-        tokensOut,
-        costUsd,
+        tokensIn: totalTokensIn,
+        tokensOut: totalTokensOut,
+        costUsd: totalCostUsd,
         findingsCount: findingRows.length,
         grounding,
         score: outcome.review.score,
@@ -282,9 +355,9 @@ export class ReviewRunExecutor {
         },
         stats: {
           duration_ms: durationMs,
-          tokens_in: tokensIn,
-          tokens_out: tokensOut,
-          cost_usd: costUsd,
+          tokens_in: totalTokensIn,
+          tokens_out: totalTokensOut,
+          cost_usd: totalCostUsd,
           findings: findingRows.length,
           grounding,
         },

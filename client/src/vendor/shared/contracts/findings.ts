@@ -59,6 +59,11 @@ export const Finding = z.object({
   // Lethal-trifecta variant fields (present only when kind === 'lethal_trifecta')
   trifecta_components: z.array(TrifectaComponent).nullish(),
   evidence: z.array(TrifectaEvidence).nullish(),
+  in_scope: z.boolean().nullish().describe(
+    'true when this finding falls inside the PR\'s stated scope, false when it ' +
+    'falls outside it. Label it honestly; an out-of-scope finding MUST still be ' +
+    'reported at its true severity. Omit when no PR intent was provided.',
+  ),
 });
 export type Finding = z.infer<typeof Finding>;
 

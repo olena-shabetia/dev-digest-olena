@@ -4,14 +4,20 @@
 
 import React from "react";
 import { useTranslations } from "next-intl";
-import { Toggle, EmptyState } from "@devdigest/ui";
+import { Toggle, EmptyState, SeverityBadge, Icon } from "@devdigest/ui";
 import type { FindingRecord, Severity } from "@devdigest/shared";
 import { severityBuckets } from "@/lib/severity";
-import { FindingCard } from "../FindingCard";
+import { FindingCard } from "@/components/finding-card";
 import { SeverityFilterBar } from "@/components/severity-filter-bar";
 import { useFindingAction } from "../../../../../../../lib/hooks/reviews";
 import { KEY_TO_ACTION } from "./constants";
-import { confidenceFiltered, visibleFindings } from "./helpers";
+import {
+  confidenceFiltered,
+  visibleFindings,
+  scopeCounts,
+  scopeFiltered,
+  mostSevereOutOfScope,
+} from "./helpers";
 import { s } from "./styles";
 
 export function FindingsPanel({
@@ -30,6 +36,7 @@ export function FindingsPanel({
   const [hideLow, setHideLow] = React.useState(false);
   const [severity, setSeverity] = React.useState<Severity | null>(null);
   const [focusIdx, setFocusIdx] = React.useState(0);
+  const [showOutOfScope, setShowOutOfScope] = React.useState(false);
 
   // Counts are derived AFTER the confidence filter and BEFORE the severity
   // filter, so a pill's number always equals the number of cards its own
@@ -39,11 +46,25 @@ export function FindingsPanel({
   // Self-heal: if hideLow (or a dismiss/delete) makes the active severity
   // disappear, fall back to the full list rather than stranding an empty one.
   const active = buckets.some((b) => b.severity === severity) ? severity : null;
-  const shown = React.useMemo(() => visibleFindings(byConfidence, active), [byConfidence, active]);
+  const bySeverityFiltered = React.useMemo(
+    () => visibleFindings(byConfidence, active),
+    [byConfidence, active],
+  );
+  // Scope counts/strip are derived at this SAME stage — after severity,
+  // before the scope filter itself — per client/INSIGHTS.md:43-62.
+  const scope = React.useMemo(() => scopeCounts(bySeverityFiltered), [bySeverityFiltered]);
+  const outOfScopeHighlight = React.useMemo(
+    () => mostSevereOutOfScope(bySeverityFiltered),
+    [bySeverityFiltered],
+  );
+  const shown = React.useMemo(
+    () => scopeFiltered(bySeverityFiltered, showOutOfScope),
+    [bySeverityFiltered, showOutOfScope],
+  );
 
   React.useEffect(() => {
     setFocusIdx(0);
-  }, [active, hideLow]);
+  }, [active, hideLow, showOutOfScope]);
 
   // j/k navigation + a/d shortcuts on the focused finding (keyboard).
   React.useEffect(() => {
@@ -74,6 +95,15 @@ export function FindingsPanel({
         </div>
       </div>
 
+      {outOfScopeHighlight && (
+        <div style={s.outOfScopeStrip}>
+          <Icon.AlertTriangle size={14} style={{ color: "var(--warn)", flexShrink: 0 }} />
+          <span style={s.outOfScopeStripLabel}>{t("panel.outOfScopeStrip")}</span>
+          <span style={s.outOfScopeStripTitle}>{outOfScopeHighlight.title}</span>
+          <SeverityBadge severity={outOfScopeHighlight.severity} compact />
+        </div>
+      )}
+
       <div style={s.list}>
         {shown.length === 0 ? (
           <EmptyState icon="Filter" title={t("panel.noMatchTitle")} body={t("panel.noMatchBody")} />
@@ -92,6 +122,22 @@ export function FindingsPanel({
           ))
         )}
       </div>
+
+      {scope.outOfScope > 0 && (
+        <button
+          type="button"
+          style={s.scopeDisclosure}
+          onClick={() => setShowOutOfScope((v) => !v)}
+        >
+          {showOutOfScope
+            ? t("panel.scopeDisclosureHide", { count: scope.outOfScope })
+            : t("panel.scopeDisclosureShow", {
+                shown: scope.inScope,
+                total: scope.total,
+                count: scope.outOfScope,
+              })}
+        </button>
+      )}
     </div>
   );
 }

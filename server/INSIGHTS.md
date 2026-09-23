@@ -11,6 +11,34 @@ _None yet._
 
 ## What Doesn't Work
 
+### 2026-09-22 — `seed.ts`'s `if (!pr)` guard silently no-ops a new field on a re-seed of an existing dev DB
+
+**Symptom:** L03 added a `pr_intent` insert and two `findings.inScope` values
+inside `seed.ts`'s PR-#482 block. Against a fresh DB this worked; against the
+long-running local dev DB (already had PR #482 from a prior session),
+`pnpm db:seed` printed `✓ seeded {...}` — a clean success, no error, no
+warning — but `SELECT * FROM pr_intent` came back empty and the two findings'
+`in_scope` stayed `null`.
+
+**Cause:** the whole PR-#482 fixture block, including every insert added to
+it since, lives inside a single `if (!pr) { ... }` (`db/seed.ts:172`) that
+only runs once per DB, the first time PR #482 doesn't exist yet. Any field
+added to that block *after* a dev DB was already seeded once is invisible on
+every subsequent `pnpm db:seed` — the guard makes the whole block, not just
+the top-level insert, an all-or-nothing "first run only" unit.
+
+**Fix:** for a persistent dev DB that predates the change, either
+`docker compose down -v && ./scripts/dev.sh` (full reset, per `README.md`'s
+troubleshooting section) or a one-off script that inserts exactly the new
+field(s) for the already-existing row, using the same values `seed.ts` would
+have inserted. The **isolated** e2e stack (`scripts/e2e.sh`) is unaffected —
+it seeds a fresh, empty DB every run, so `if (!pr)` is always true there.
+
+**Rule:** adding a field to an existing seed block is not exercised by a plain
+re-run of `pnpm db:seed` on a live dev DB — verify it against a fresh DB (or
+reset the dev one) before trusting that "seeded successfully" means the new
+data is actually present.
+
 ### 2026-09-22 — dependency-cruiser's `.dependency-cruiser-known-violations.json` baseline is pnpm-linker-specific
 
 **Symptom:** `pnpm arch` passes clean locally (`0 dependency violations`) but
@@ -66,6 +94,44 @@ outside the project (the code default is `~/.devdigest/workspace`).
 invisible to tooling.
 
 ## Codebase Patterns
+
+### 2026-09-22 — a Service class constructed with `container: Container` tripping `no-circular` is expected, not a bug to route around
+
+**Symptom:** `platform/container.ts` gained an `intentService` getter
+(`new IntentService(this)`, mirroring the existing `repoIntel` getter's
+`new RepoIntelService(this)`). `pnpm arch` immediately flagged a new
+`no-circular` violation: `intent/service.ts → container.ts → intent/service.ts`.
+
+**Cause:** any Service class that takes `container: Container` in its
+constructor — the standard pattern for a feature's business-logic tier, used
+by `RepoIntelService` and now `IntentService` — necessarily imports
+`Container`'s type. The moment `container.ts` also imports that Service class
+(to build the lazy getter), the two-node cycle is real, for the same
+`tsPreCompilationDeps: true` reason the 2026-09-21 entry below describes.
+
+**This is a different case from that entry, not a duplicate.** That entry's
+escape hatch ("read the underlying shared table directly instead of adding a
+`Container` wrapper") works for a thin repo/data-access wrapper, which has no
+business logic to bypass. It does **not** work here — you cannot skip a whole
+Service's logic by reading a table directly. The cycle is architecturally
+correct: `Container` is the DI root and must be able to construct every
+Service, and every Service needs `Container` to reach its own dependencies.
+
+**Fix:** `RepoIntelService`'s identical cycle is already accepted —
+`.dependency-cruiser-known-violations.json:15-30` has a `cycle` entry for
+`repo-intel/service.ts ↔ container.ts`. Add one matching entry for the new
+Service, copying that entry's exact shape (`type/from/to/unresolvedTo/
+dependencyTypes/rule/cycle[]`) with only the path swapped. **Never** run
+`pnpm run arch:baseline` to "fix" this — it regenerates the whole file under
+whatever pnpm layout is locally installed and silently drops unrelated real
+violations (see the 2026-09-22 baseline-drift entry above).
+
+**Rule:** a `no-circular` hit between a new Service and `container.ts` is
+expected the moment you register its container getter — don't restructure
+the Service to avoid it; add one hand-written baseline entry mirroring an
+existing Service's (e.g. `repoIntel`'s), and verify with `pnpm arch` that the
+count of *known* violations went up by exactly one and no new *unknown* one
+appeared.
 
 ### 2026-09-21 — fixing a `no-cross-module-imports` violation by wrapping the call as a `Container` method can trip `no-circular` instead
 

@@ -3,22 +3,32 @@
 "use client";
 
 import React from "react";
+import { SEV } from "@devdigest/ui";
+import type { FindingRecord } from "@devdigest/shared";
+import { FindingCard } from "@/components/finding-card";
 import { commentTargetFor, type CommentThread, type DiffCommentApi, cs } from "../comments";
 import { type Line } from "../helpers";
 import { s, lineRowFor, lineSignFor } from "../styles";
 import { CommentThreadView } from "../CommentThreadView";
 import { InlineComposer } from "../InlineComposer";
+import { highestSeverity, type DiffFindingsApi } from "../findings";
 
 export function CodeLine({
   ln,
   path,
   threads,
   commenting,
+  lineFindings,
+  findings,
 }: {
   ln: Line;
   path: string;
   threads: CommentThread[];
   commenting?: DiffCommentApi;
+  /** This line's findings, already matched via `RIGHT:<start_line>` (FileCard). */
+  lineFindings?: FindingRecord[];
+  /** Labels/callbacks/context shared by every finding card in this file. */
+  findings?: DiffFindingsApi;
 }) {
   const [hover, setHover] = React.useState(false);
   const [composing, setComposing] = React.useState(false);
@@ -34,6 +44,9 @@ export function CodeLine({
   const sign = ln.kind === "add" ? "+" : ln.kind === "del" ? "−" : "";
   const target = commenting?.canComment ? commentTargetFor(ln) : null;
   const showAdd = hover && !!target && !composing;
+  const anchored = lineFindings ?? [];
+  const severity = highestSeverity(anchored);
+  const sevBar = severity ? SEV[severity] : null;
 
   return (
     <div
@@ -41,7 +54,7 @@ export function CodeLine({
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
     >
-      <div style={lineRowFor(ln.kind)}>
+      <div style={{ ...lineRowFor(ln.kind), ...(sevBar ? { boxShadow: `inset 3px 0 0 ${sevBar.c}` } : {}) }}>
         <span className="mono tnum" style={{ ...s.lineNo, position: "relative" }}>
           {showAdd && target && (
             <button
@@ -62,6 +75,11 @@ export function CodeLine({
         <span className="mono" style={s.lineText}>
           {ln.text || " "}
         </span>
+        {severity && findings && (
+          <span className="mono" style={{ ...s.lineNo, width: "auto", color: sevBar?.c, textTransform: "uppercase", fontSize: 11 }}>
+            {findings.lineLabels[severity]}
+          </span>
+        )}
       </div>
 
       {commenting &&
@@ -79,6 +97,20 @@ export function CodeLine({
           onClose={() => setComposing(false)}
         />
       )}
+
+      {findings &&
+        anchored.map((f) => (
+          <div key={f.id} style={cs.thread}>
+            <FindingCard
+              f={f}
+              defaultExpanded
+              pending={findings.pendingFindingId === f.id}
+              repoFullName={findings.repoFullName}
+              headSha={findings.headSha}
+              onAction={(action, reply) => findings.onAction?.(f.id, action, reply)}
+            />
+          </div>
+        ))}
     </div>
   );
 }

@@ -67,6 +67,41 @@ will start failing — verify this specifically before bumping that pin.
 
 ## Recurring Errors & Fixes
 
+### 2026-09-22 — a `git diff` cannot tell you which of two interleaved, uncommitted features a shared file's edit belongs to; isolate with `git stash -u` on your own paths, not eyeballing the diff
+
+**Symptom:** while verifying the Smart Diff feature (L03), `pnpm test` in
+`server/` failed 3 pre-existing tests (`test/reviews.it.test.ts`,
+`test/routes-response.it.test.ts` — `GET /pulls/:id/reviews` returning empty
+after a run). `git diff server/src/modules/index.ts` showed two new lines
+(`intent` and `smartDiff` registrations) added together in one hunk, making it
+impossible to tell by inspection alone whether the failure was caused by the
+feature under test or by the *other* uncommitted feature (`intent`-layer) also
+mid-flight on the same branch.
+
+**Cause:** this branch (`Lab3+HW3`) had two lesson features — intent-layer and
+Smart Diff — landing uncommitted at the same time, sharing several files
+(`server/src/modules/index.ts`, both `vendor/shared/contracts/brief.ts`
+copies, `.dependency-cruiser-known-violations.json`). `git diff` shows the
+union of both features' changes in one hunk per file; it cannot attribute a
+single line to "the feature I'm currently verifying" vs. "the other one."
+
+**Fix:** `git stash push -u -- <only the new feature's own paths>` (include
+`-u` — new files are untracked, a plain `git stash` skips them), re-run the
+failing test to see if it still fails with that feature fully absent, then
+`git stash pop`. If a shared file like a module registry needs to be
+"restored minus just the new feature," `git checkout -- <file>` (back to
+HEAD) then hand-add back the other feature's own lines is more reliable than
+trying to `git apply` a partial hunk.
+
+**Rule:** never attribute a test failure to "my change" or "not my change"
+by reading `git diff` on a branch known to carry more than one uncommitted
+feature — isolate by stashing (with `-u`) exactly the new feature's owned
+paths and re-running, especially when a shared registry/composition-root file
+(module index, DI container, vendored contract) is edited by more than one
+feature in the same session.
+
+## Session Notes
+
 _None yet._
 
 ## Session Notes

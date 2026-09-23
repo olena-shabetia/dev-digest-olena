@@ -9,11 +9,13 @@ import { notify } from "../toast";
 import type {
   ActiveRun,
   FindingActionKind,
+  PrIntentRecord,
   PrReviewComment,
   ReviewRecord,
   ReviewRunResponse,
   RunEvent,
   RunSummary,
+  SmartDiffResponse,
 } from "@devdigest/shared";
 
 // ---- Active (in-flight) runs — server-side source of truth ----
@@ -50,6 +52,43 @@ export function usePrReviews(prId: string | null | undefined) {
   });
 }
 
+// ---- Smart Diff (L03) — server-derived grouping of a PR's changed files ----
+/** The grouped Files-changed view for a PR. Best-effort enrichment — the tab
+ *  must keep working (falling back to the flat view) while this is loading
+ *  or has errored. */
+export function useSmartDiff(prId: string | null | undefined) {
+  return useQuery({
+    queryKey: ["pr-smart-diff", prId],
+    queryFn: () => api.get<SmartDiffResponse>(`/pulls/${prId}/smart-diff`),
+    enabled: !!prId,
+  });
+}
+
+// ---- PR intent (L03) — derived scope, shown on the Intent card ----
+/** The persisted intent record for a PR, or `null` if never derived. No
+ *  polling — it only changes on an explicit Re-derive or a review run
+ *  (invalidated there via the same `["pr-intent", prId]` key). */
+export function usePrIntent(prId: string | null | undefined) {
+  return useQuery({
+    queryKey: ["pr-intent", prId],
+    queryFn: () => api.get<PrIntentRecord | null>(`/pulls/${prId}/intent`),
+    enabled: !!prId,
+  });
+}
+
+/** Force a (re-)derivation of the PR's intent. Does NOT invalidate
+ *  `["reviews", prId]` — re-deriving intent never re-labels already-persisted
+ *  findings, so showing that as "fresh" would be dishonest. */
+export function useDeriveIntent(prId: string | null | undefined) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.post<PrIntentRecord>(`/pulls/${prId}/intent`, { force: true }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["pr-intent", prId] });
+    },
+  });
+}
+
 /** Delete one run from the PR's run history (+ its trace). */
 export function useDeleteRun(prId: string | null | undefined) {
   const qc = useQueryClient();
@@ -76,7 +115,10 @@ export function useDeleteReview(prId: string | null | undefined) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (reviewId: string) => api.del<{ ok: boolean }>(`/reviews/${reviewId}`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["reviews", prId] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["reviews", prId] });
+      qc.invalidateQueries({ queryKey: ["pr-smart-diff", prId] });
+    },
   });
 }
 
@@ -125,6 +167,7 @@ export function useRunReview() {
       }),
     onSuccess: (_d, { prId }) => {
       qc.invalidateQueries({ queryKey: ["reviews", prId] });
+      qc.invalidateQueries({ queryKey: ["pr-smart-diff", prId] });
     },
   });
 }

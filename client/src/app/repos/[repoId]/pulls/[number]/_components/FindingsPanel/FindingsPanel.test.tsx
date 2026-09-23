@@ -42,6 +42,24 @@ const MIXED: FindingRecord[] = [
   finding({ id: "f3", severity: "SUGGESTION", title: "Magic number", confidence: 0.4 }),
 ];
 
+const WITH_OUT_OF_SCOPE: FindingRecord[] = [
+  finding({ id: "f1", severity: "WARNING", title: "N+1 query", confidence: 0.86, in_scope: true }),
+  finding({
+    id: "f2",
+    severity: "CRITICAL",
+    title: "Unrelated hardcoded secret",
+    confidence: 0.9,
+    in_scope: false,
+  }),
+  finding({
+    id: "f3",
+    severity: "SUGGESTION",
+    title: "Unrelated style nit",
+    confidence: 0.7,
+    in_scope: false,
+  }),
+];
+
 function renderWithIntl(ui: React.ReactElement) {
   return render(
     <NextIntlClientProvider locale="en" messages={{ prReview: messages }}>
@@ -106,5 +124,33 @@ describe("FindingsPanel severity pills", () => {
     expect(screen.queryByText("No findings match")).not.toBeInTheDocument();
     expect(screen.getByText("Hardcoded secret")).toBeInTheDocument();
     expect(screen.getByText("N+1 query")).toBeInTheDocument();
+  });
+});
+
+describe("FindingsPanel scope disclosure (L03)", () => {
+  it("collapses out-of-scope findings behind a disclosure, always surfaces the most severe one, and expands on click", () => {
+    renderWithIntl(<FindingsPanel findings={WITH_OUT_OF_SCOPE} prId="pr1" />);
+
+    // in-scope finding always visible
+    expect(screen.getByText("N+1 query")).toBeInTheDocument();
+    // both out-of-scope findings collapse behind the disclosure by default...
+    expect(screen.queryByText("Unrelated style nit")).not.toBeInTheDocument();
+    // ...except the single most severe one (CRITICAL beats SUGGESTION), which
+    // is always surfaced as its own strip.
+    expect(screen.getByText("Unrelated hardcoded secret")).toBeInTheDocument();
+
+    // disclosure names the count honestly, never claims findings are "hidden"
+    const disclosure = screen.getByText(/2 findings outside the stated scope/i);
+    expect(disclosure).toBeInTheDocument();
+
+    fireEvent.click(disclosure);
+    expect(screen.getByText("Unrelated style nit")).toBeInTheDocument();
+  });
+
+  it("treats in_scope === null as in-scope by default (never swept behind the disclosure)", () => {
+    const findings = [finding({ id: "f1", title: "No intent derived for this run", in_scope: null })];
+    renderWithIntl(<FindingsPanel findings={findings} prId="pr1" />);
+    expect(screen.getByText("No intent derived for this run")).toBeInTheDocument();
+    expect(screen.queryByText(/outside the stated scope/i)).not.toBeInTheDocument();
   });
 });

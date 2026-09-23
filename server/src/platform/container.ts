@@ -26,6 +26,8 @@ import { ConfigError } from './errors.js';
 import { AgentsRepository } from '../modules/agents/repository.js';
 import { ReviewRepository } from '../modules/reviews/repository.js';
 import { SkillsRepository } from '../modules/skills/repository.js';
+import { IntentRepository } from '../modules/intent/repository.js';
+import { IntentService } from '../modules/intent/service.js';
 import type { RepoIntel } from '../modules/repo-intel/types.js';
 import { RepoIntelService } from '../modules/repo-intel/service.js';
 import { type DepGraph, DepCruiseGraph } from '../adapters/depgraph/index.js';
@@ -52,6 +54,8 @@ export interface ContainerOverrides {
   /** repo-intel T3 adapters — only the indexer pipeline reads these. */
   depgraph?: DepGraph;
   tokenizer?: Tokenizer;
+  /** L03 — intent data-access (tests swap it via ContainerOverrides). */
+  intentRepo?: IntentRepository;
 }
 
 export class Container {
@@ -78,6 +82,8 @@ export class Container {
   private _depgraph?: DepGraph;
   private _tokenizer?: Tokenizer;
   private _priceBook?: PriceBook;
+  private _intentRepo?: IntentRepository;
+  private _intentService?: IntentService;
 
   constructor(config: AppConfig, db: Db, private overrides: ContainerOverrides = {}) {
     this.config = config;
@@ -108,6 +114,23 @@ export class Container {
    *  `no-cross-module-imports` (server/INSIGHTS.md) — go through this getter. */
   get skillsRepo(): SkillsRepository {
     return (this._skillsRepo ??= new SkillsRepository(this.db));
+  }
+
+  /** L03 — intent data-access, for cross-module reads (e.g. `reviews`
+   *  reading/writing `pr_intent` as shared pre-work). Even an `import type`
+   *  of `IntentRepository` from `modules/intent/repository.ts` trips
+   *  `no-cross-module-imports` (server/INSIGHTS.md) — go through this
+   *  getter. */
+  get intentRepo(): IntentRepository {
+    if (this.overrides.intentRepo) return this.overrides.intentRepo;
+    return (this._intentRepo ??= new IntentRepository(this.db));
+  }
+
+  /** L03 — intent classification (shared pre-work in `reviews/run-executor.ts`).
+   *  Same cross-module rule as `intentRepo` above: go through this getter,
+   *  never import `IntentService` directly from `modules/reviews/**`. */
+  get intentService(): IntentService {
+    return (this._intentService ??= new IntentService(this));
   }
 
   get codeIndex(): CodeIndex {
