@@ -1,6 +1,6 @@
 import type { Container } from '../../platform/container.js';
 import type { PrIntentRecord, UnifiedDiff, Provider } from '@devdigest/shared';
-import { IntentRepository } from './repository.js';
+import type { IntentRepository } from './repository.js';
 import {
   buildIntentSources,
   reconstructHunkHeader,
@@ -34,11 +34,11 @@ export interface EnsureIntentOpts {
  * (server/AGENTS.md:38-40).
  */
 export class IntentService {
-  private repo: IntentRepository;
-
-  constructor(private container: Container) {
-    this.repo = new IntentRepository(container.db);
+  private get repo(): IntentRepository {
+    return this.container.intentRepo;
   }
+
+  constructor(private container: Container) {}
 
   /** GET /pulls/:id/intent — pure DB read. `undefined` PR ⇒ 404 (route). */
   async getIntent(workspaceId: string, prId: string): Promise<PrIntentRecord | null> {
