@@ -113,6 +113,21 @@ convention `FileCard`/`CodeLine` already use for comment threading — a pure
 findings with the exact same key it already uses for comments, without
 re-deriving a line number anywhere.
 
+**Clustering (observed after multi-agent runs, corrected post-plan):**
+independent agents flagging the same underlying defect frequently disagree on
+its exact `start_line` by a line or two (e.g. three agents each anchoring one
+`RegExp`-construction finding to lines 77/78/79 of the same function) — sorted
+by `start_line`, a finding starts a new cluster only when it's more than
+`FINDING_CLUSTER_MAX_GAP` (`diff-viewer/constants.ts`, currently 2) lines past
+the previous one in the current cluster; every finding in a cluster anchors to
+the cluster's lowest line, so they render as one group instead of scattering
+across adjacent lines. This is a display-only heuristic with a known
+trade-off: two genuinely unrelated findings landing within the gap also
+cluster together. It does not change what line an agent reports, and does not
+affect `unanchoredFindings` (findings-outside-the-patch, see below) — a
+cluster's member findings are still all present in `anchorFindings`'s output,
+just under a shared key.
+
 ## FindingCard promotion, and why
 
 `FindingCard` moves from the route-local

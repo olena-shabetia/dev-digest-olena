@@ -118,7 +118,7 @@ function makeCommenting(): DiffCommentApi {
 }
 
 describe("DiffViewer — grouped rendering with inline findings", () => {
-  it("shows a findings dot only on the file that has one — counting FILES, not total findings — distinct from the comment-count icon, and renders both finding cards under their anchored lines", () => {
+  it("shows a findings dot only on the file that has one — counting FILES, not total findings — distinct from the comment-count icon, and renders both finding cards", () => {
     renderWithMessages(
       <DiffViewer
         files={[]}
@@ -144,11 +144,73 @@ describe("DiffViewer — grouped rendering with inline findings", () => {
     const commentIcon = document.querySelector(".lucide-message-square");
     expect(commentIcon?.parentElement).toHaveTextContent("1");
 
-    // Both finding cards render, anchored under their correct lines
-    // (start_line 2 and 1, matched via RIGHT:2 / RIGHT:1).
+    // Both finding cards render (start_line 1 and 2 — one line apart, so
+    // FINDING_CLUSTER_MAX_GAP clusters them under the same anchor; see the
+    // dedicated clustering test below for that behaviour itself).
     expect(screen.getByText("Off-by-one in loop bound")).toBeInTheDocument();
     expect(screen.getByText(/This loop iterates one time too many/)).toBeInTheDocument();
     expect(screen.getByText("Missing null check")).toBeInTheDocument();
+  });
+
+  it("clusters findings a couple of lines apart under one anchor — independent agents flagging the same defect routinely disagree on its exact start_line", () => {
+    // Same underlying issue, reported by three different agents at lines
+    // 5/6/7 of the SAME file (mirrors the real ReDoS-in-matchesTitleQuery
+    // report: three agents, three adjacent lines, one defect).
+    const THREE_LINE_FILE: PrFile = {
+      path: "src/query.ts",
+      additions: 4,
+      deletions: 0,
+      patch: "@@ -1,1 +1,5 @@\n ctx line\n+line four\n+line five\n+line six\n+line seven",
+    };
+    const clusterFinding = (id: string, title: string, line: number): FindingRecord => ({
+      ...FINDING,
+      id,
+      title,
+      file: "src/query.ts",
+      start_line: line,
+    });
+    const groups: DiffGroupView[] = [
+      {
+        role: "core",
+        label: "Core",
+        description: "The substance of the change — review closely",
+        files: [THREE_LINE_FILE],
+        filesWithFindings: 1,
+        filesWithFindingsLabel: "1 files with findings",
+        filesCountLabel: "1 files",
+        defaultCollapsed: false,
+      },
+    ];
+    const findingsApi: DiffFindingsApi = {
+      ...makeFindingsApi(),
+      byPath: new Map([
+        [
+          "src/query.ts",
+          [
+            clusterFinding("c1", "ReDoS via unescaped regex (agent A)", 5),
+            clusterFinding("c2", "ReDoS in matchesTitleQuery (agent B)", 6),
+            clusterFinding("c3", "Regex injection in query param (agent C)", 7),
+          ],
+        ],
+      ]),
+    };
+
+    renderWithMessages(
+      <DiffViewer files={[]} groups={groups} findings={findingsApi} commenting={makeCommenting()} />,
+    );
+
+    // All three still render...
+    expect(screen.getByText("ReDoS via unescaped regex (agent A)")).toBeInTheDocument();
+    expect(screen.getByText("ReDoS in matchesTitleQuery (agent B)")).toBeInTheDocument();
+    expect(screen.getByText("Regex injection in query param (agent C)")).toBeInTheDocument();
+    // ...but anchored under the SAME code line (one CodeLine row wraps all
+    // three cards), not scattered across lines 5/6/7 as three separate rows.
+    const anchors = document.querySelectorAll("[data-finding-id]");
+    expect(anchors).toHaveLength(3);
+    // Each card sits in its own `cs.thread` div; the row that HOSTS them
+    // (the card's grandparent) must be the same element for all three.
+    const rows = new Set(Array.from(anchors).map((el) => el.parentElement?.parentElement));
+    expect(rows.size).toBe(1);
   });
 
   it("falls back to the flat file list, byte-identical, when groups is omitted", () => {

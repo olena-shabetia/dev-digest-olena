@@ -6,6 +6,7 @@
 import type { FindingActionKind, FindingRecord, Severity } from "@devdigest/shared";
 import { lineKey } from "./comments";
 import { SEVERITY_ORDER } from "@/lib/severity";
+import { FINDING_CLUSTER_MAX_GAP } from "./constants";
 
 /** What the viewer needs to render inline findings under diff lines. */
 export interface DiffFindingsApi {
@@ -27,19 +28,29 @@ export interface DiffFindingsApi {
 }
 
 /**
- * Anchor a file's findings to the same `RIGHT:<line>` keys `keysForLine`
- * already produces for comment threading, so CodeLine can look them up
- * without re-deriving a line number. Multiple findings on one line are kept
- * in a list, in the order they were given.
+ * Anchor a file's findings to `RIGHT:<line>` keys `keysForLine` already
+ * produces for comment threading, so CodeLine can look them up without
+ * re-deriving a line number. Findings within `FINDING_CLUSTER_MAX_GAP` lines
+ * of each other are clustered under ONE key — the cluster's lowest line —
+ * instead of each rendering separately, so independent agents that flag the
+ * same defect a couple of lines apart still show up together.
  */
 export function anchorFindings(findings: FindingRecord[]): Map<string, FindingRecord[]> {
   const out = new Map<string, FindingRecord[]>();
-  for (const f of findings) {
+  const sorted = [...findings].sort((a, b) => a.start_line - b.start_line);
+
+  let clusterKey: string | null = null;
+  let clusterLastLine = -Infinity;
+  for (const f of sorted) {
     const key = lineKey("RIGHT", f.start_line);
     if (!key) continue;
-    const list = out.get(key) ?? [];
+    if (clusterKey === null || f.start_line - clusterLastLine > FINDING_CLUSTER_MAX_GAP) {
+      clusterKey = key; // starts a new cluster, anchored at this finding's own line
+    }
+    const list = out.get(clusterKey) ?? [];
     list.push(f);
-    out.set(key, list);
+    out.set(clusterKey, list);
+    clusterLastLine = f.start_line;
   }
   return out;
 }
