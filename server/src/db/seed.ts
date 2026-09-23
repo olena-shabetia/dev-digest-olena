@@ -11,6 +11,7 @@ import {
   UNCOVERED_BRANCHES_SKILL,
   CORNER_CASES_SKILL,
   MOCK_OVERUSE_SKILL,
+  API_CONTRACT_GATE_SKILL,
 } from './seed-skills.js';
 
 /** Default provider/model for the built-in reviewer agents. */
@@ -77,17 +78,69 @@ empty findings list; NEVER approve while reporting a CRITICAL.
   test). Zero findings is a valid and good answer.`;
 
 /**
+ * API Contract Reviewer's system prompt (HW2). Mirrors
+ * `TEST_QUALITY_REVIEWER_PROMPT`'s style and, like it, leans on its one
+ * seeded skill (`api-contract-gate`) for the bulk of its instructions. Seeded
+ * (unlike the Wave-3-only client UI) so the skill-on/skill-off control
+ * experiment for a breaking API change is reproducible from `pnpm db:seed`
+ * alone, without a manual UI import first.
+ */
+const API_CONTRACT_REVIEWER_PROMPT = `# Role
+You are a senior engineer reviewing a pull-request diff specifically for
+BREAKING API CHANGES, not general code quality. You receive the full PR diff
+in one pass. Your job is to catch a contract change — an HTTP route shape, an
+exported function signature, a nullability change, a status/error shape
+change — that would break an existing caller not touched by this diff.
+
+# What to look for
+The specifics of each check are governed by this agent's attached skills —
+apply them as written, in the order given.
+
+# How to analyze
+- Read the diff's changed route handlers and exported functions alongside
+  every caller of them visible in the diff or the surrounding codebase. A
+  contract change is only a finding if at least one caller was NOT updated
+  in the same diff.
+- Only flag contract changes introduced by THIS diff. Do not flag a
+  pre-existing inconsistency the diff does not touch.
+
+# Severity — use exactly these three levels
+- **CRITICAL** — a breaking change to a contract with at least one
+  unupdated caller visible in the codebase. This is the ONLY level that
+  blocks merge.
+- **WARNING** — a contract change that is likely breaking but whose callers
+  aren't fully visible in this diff (e.g. an external/public API).
+- **SUGGESTION** — a contract change that is backward-compatible but worth
+  flagging (e.g. a widened return type with no doc update).
+
+# Verdict — set \`verdict\` consistently with your findings
+- **request_changes** — you reported at least one CRITICAL finding.
+- **comment** — you reported only WARNING / SUGGESTION findings.
+- **approve** — no breaking contract change: return an EMPTY findings list.
+
+The verdict is a pure function of your findings. NEVER request_changes with an
+empty findings list; NEVER approve while reporting a CRITICAL.
+
+# Findings discipline
+- Report only DISTINCT issues, one per contract change. Every finding must
+  cite an exact file:line in the diff (the changed signature/route, or the
+  unupdated caller). Zero findings is a valid and good answer.`;
+
+/**
  * Seed the starter's demo data. Idempotent: re-running upserts the default
  * workspace/user and the demo fixtures.
  *
  * Seeds: default workspace + system user + membership, default settings,
  * demo repo (acme/payments-api), PR #482 with files/commits, a sample review
- * with a few findings, the four built-in agents (General + Security +
- * Performance + Test Quality), all on the default openrouter/deepseek-v4-flash
- * provider+model, and 3 of the 4 planned skills (`uncovered-branches`,
- * `corner-cases`, `mock-overuse`) linked to the Test Quality Reviewer in
- * order. `api-contract-gate` is deliberately not seeded — it's imported live
- * through the UI as a demo of the import flow (see specs/L02-skills.md).
+ * with a few findings, the five built-in agents (General + Security +
+ * Performance + Test Quality + API Contract), all on the default
+ * openrouter/deepseek-v4-flash provider+model, and all 4 planned skills
+ * (`uncovered-branches`, `corner-cases`, `mock-overuse` linked to Test
+ * Quality Reviewer in order; `api-contract-gate` linked to API Contract
+ * Reviewer) — seeding `api-contract-gate` keeps the skill-on/skill-off
+ * control experiment for a breaking API change reproducible from
+ * `pnpm db:seed` alone; the manual-import UI flow (see specs/L02-skills.md)
+ * is still exercisable by importing the same body under another name.
  *
  * Course lessons populate the other tables (conventions, memory, eval, …)
  * once their features are built — they start empty here.
@@ -346,6 +399,17 @@ export async function seed(db: Db): Promise<{ workspaceId: string; userId: strin
       version: 1,
       createdBy: userId,
     },
+    {
+      workspaceId,
+      name: 'API Contract Reviewer',
+      description: 'Catches breaking changes to route shapes and exported function signatures.',
+      provider: DEFAULT_PROVIDER,
+      model: DEFAULT_MODEL,
+      systemPrompt: API_CONTRACT_REVIEWER_PROMPT,
+      enabled: true,
+      version: 1,
+      createdBy: userId,
+    },
   ];
   const agentIdByName = new Map<string, string>();
   for (const a of seedAgents) {
@@ -361,11 +425,13 @@ export async function seed(db: Db): Promise<{ workspaceId: string; userId: strin
     }
   }
 
-  // ---- built-in skills (L02) ----
-  // Bodies live in ./seed-skills.ts. Only 3 of the 4 planned skills are
-  // seeded here — `api-contract-gate` is deliberately left out; it is
-  // imported live through the UI as a demo of the import flow instead (see
-  // specs/L02-skills.md).
+  // ---- built-in skills (L02 + HW2) ----
+  // Bodies live in ./seed-skills.ts. `api-contract-gate` IS seeded (and
+  // linked to the API Contract Reviewer below) so the skill-on/skill-off
+  // control experiment for a breaking API change is reproducible straight
+  // from `pnpm db:seed`. The manual-import UI flow (see specs/L02-skills.md)
+  // stays exercisable separately by re-importing the same skill body under a
+  // different name.
   const seedSkills: Array<typeof t.skills.$inferInsert> = [
     {
       workspaceId,
@@ -397,6 +463,16 @@ export async function seed(db: Db): Promise<{ workspaceId: string; userId: strin
       enabled: true,
       version: 1,
     },
+    {
+      workspaceId,
+      name: 'api-contract-gate',
+      description: 'Flags a route handler or exported function whose signature or contract changed in a breaking way.',
+      type: 'convention',
+      source: 'manual',
+      body: API_CONTRACT_GATE_SKILL,
+      enabled: true,
+      version: 1,
+    },
   ];
   const skillIdByName = new Map<string, string>();
   for (const s of seedSkills) {
@@ -424,6 +500,16 @@ export async function seed(db: Db): Promise<{ workspaceId: string; userId: strin
         .values({ agentId: testQualityReviewerId, skillId, order })
         .onConflictDoNothing();
     }
+  }
+
+  // ---- link api-contract-gate to the API Contract Reviewer ----
+  const apiContractReviewerId = agentIdByName.get('API Contract Reviewer');
+  const apiContractGateSkillId = skillIdByName.get('api-contract-gate');
+  if (apiContractReviewerId && apiContractGateSkillId) {
+    await db
+      .insert(t.agentSkills)
+      .values({ agentId: apiContractReviewerId, skillId: apiContractGateSkillId, order: 0 })
+      .onConflictDoNothing();
   }
 
   // ---- demo agent runs (L01 — run cost badge) ----

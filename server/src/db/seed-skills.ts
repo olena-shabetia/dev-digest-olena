@@ -12,11 +12,12 @@
  *   - `uncovered-branches` (type: rubric)
  *   - `corner-cases`       (type: rubric)
  *   - `mock-overuse`       (type: convention)
- *   - `api-contract-gate`  (type: convention) — NOT seeded by `seed.ts`; it is
- *     imported live through the UI as a demo of the import flow instead. The
- *     constant still lives here so the fixture under
- *     `server/test/fixtures/skills/` can be generated from the same source of
- *     truth if a parallel change wants to keep them in sync.
+ *   - `api-contract-gate`  (type: convention) — seeded by `seed.ts` and
+ *     linked to the API Contract Reviewer agent, so the skill-on/skill-off
+ *     control experiment for a breaking API change is reproducible straight
+ *     from `pnpm db:seed`. The constant is also reused by
+ *     `server/test/fixtures/skills/` to keep the manual-import-flow fixture
+ *     in sync with the same source of truth.
  */
 
 export const UNCOVERED_BRANCHES_SKILL = `# Uncovered branches
