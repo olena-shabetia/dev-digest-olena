@@ -99,7 +99,7 @@ export class ConventionsService {
 
     let rankedPaths: string[] = [];
     try {
-      rankedPaths = await this.container.repoIntel.getTopFilesByRank(
+      rankedPaths = await this.container.repoIntel.getConventionSamples(
         repoId,
         SAMPLE_FILE_COUNT * SAMPLE_POOL_MULTIPLIER,
       );

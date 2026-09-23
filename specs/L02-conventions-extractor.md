@@ -23,7 +23,7 @@ becomes a `repo-conventions` skill linked to an agent.
 
 1. **Deterministic sampling** — no LLM involvement in *which* files are
    shown: config files read straight from the clone, plus up to 12 code files
-   from `repoIntel.getTopFilesByRank`, diversified to at most 2 files per
+   from `repoIntel.getConventionSamples`, diversified to at most 2 files per
    top-level directory so one hot module can't dominate the sample.
 2. **One structured-output LLM call** proposing candidate rules, each citing
    exactly one sampled file + a 1-based line number.
