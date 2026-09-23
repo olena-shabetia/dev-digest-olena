@@ -20,15 +20,18 @@ export class SmartDiffService {
 
     const files = await this.container.reviewRepo.getPrFiles(prId);
 
-    // Findings come from the PR's LATEST review only — `reviewsForPull`
-    // returns newest-first, so element [0]. No review yet ⇒ every file's
-    // `finding_lines` is `[]` (D9).
+    // Findings are aggregated across EVERY review for the PR — matching how
+    // the Findings tab already does it (page.tsx's `allFindings`, a flatMap
+    // over all reviews). "Run all enabled agents" launches one review PER
+    // AGENT, each with its own `created_at`; restricting to reviewsForPull[0]
+    // ("the latest review") means whichever agent happened to finish last
+    // arbitrarily hides every other agent's findings on the same PR version.
+    // No review yet ⇒ every file's `finding_lines` is `[]` (D9).
     const reviews = await this.container.reviewRepo.reviewsForPull(prId);
-    const latest = reviews[0];
 
     const linesByPath = new Map<string, number[]>();
-    if (latest) {
-      for (const finding of latest.findings) {
+    for (const { findings } of reviews) {
+      for (const finding of findings) {
         const existing = linesByPath.get(finding.file);
         if (existing) {
           if (!existing.includes(finding.startLine)) existing.push(finding.startLine);
@@ -36,8 +39,8 @@ export class SmartDiffService {
           linesByPath.set(finding.file, [finding.startLine]);
         }
       }
-      for (const lines of linesByPath.values()) lines.sort((a, b) => a - b);
     }
+    for (const lines of linesByPath.values()) lines.sort((a, b) => a - b);
 
     const byRole = new Map<(typeof ROLE_ORDER)[number], (typeof files)[number][]>();
     for (const role of ROLE_ORDER) byRole.set(role, []);

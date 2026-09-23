@@ -65,7 +65,7 @@ d('GET /pulls/:id/smart-diff (DB-backed)', () => {
     });
   }
 
-  it('groups files into the 5 fixed roles, attaches finding_lines from the latest review, and sums total_lines', async () => {
+  it('groups files into the 5 fixed roles, attaches finding_lines from the review, and sums total_lines', async () => {
     const { pr } = await makeRepoAndPr(pg.handle.db, workspaceId);
 
     await pg.handle.db.insert(t.prFiles).values([
@@ -163,6 +163,57 @@ d('GET /pulls/:id/smart-diff (DB-backed)', () => {
 
     // 40+5 + 60+0 + 2+0 + 3+1 + 10+2 = 123
     expect(body.split_suggestion).toEqual({ too_big: false, total_lines: 123, proposed_splits: [] });
+
+    await app.close();
+  });
+
+  it('aggregates finding_lines across EVERY review, not just the most recently created one ("Run all enabled agents" creates one review per agent)', async () => {
+    const { pr } = await makeRepoAndPr(pg.handle.db, workspaceId);
+
+    await pg.handle.db.insert(t.prFiles).values({
+      prId: pr.id,
+      path: 'server/src/modules/smart-diff/service.ts',
+      additions: 10,
+      deletions: 0,
+    });
+
+    // Two reviews for the SAME PR version, as "Run all enabled agents"
+    // produces — one per agent. The earlier-inserted row found something;
+    // the later one (the "latest" by created_at) approved with 0 findings.
+    // Restricting to reviewsForPull(prId)[0] would silently drop the first
+    // agent's finding.
+    const [earlierReview] = await pg.handle.db
+      .insert(t.reviews)
+      .values({ workspaceId, prId: pr.id, kind: 'review', verdict: 'comment', model: 'seed' })
+      .returning();
+    await pg.handle.db.insert(t.findings).values({
+      reviewId: earlierReview!.id,
+      file: 'server/src/modules/smart-diff/service.ts',
+      startLine: 7,
+      endLine: 7,
+      severity: 'CRITICAL',
+      category: 'correctness',
+      title: 'Off-by-one',
+      rationale: 'x',
+      confidence: 0.9,
+    });
+
+    const [laterReview] = await pg.handle.db
+      .insert(t.reviews)
+      .values({ workspaceId, prId: pr.id, kind: 'review', verdict: 'approve', model: 'seed' })
+      .returning();
+    void laterReview; // approved, zero findings — intentionally contributes nothing
+
+    const app = await makeApp();
+    const res = await app.inject({ method: 'GET', url: `/pulls/${pr.id}/smart-diff` });
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+
+    const coreGroup = body.groups.find((g: { role: string }) => g.role === 'core');
+    const file = coreGroup.files.find(
+      (f: { path: string }) => f.path === 'server/src/modules/smart-diff/service.ts',
+    );
+    expect(file.finding_lines).toEqual([7]);
 
     await app.close();
   });

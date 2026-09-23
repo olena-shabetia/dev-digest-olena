@@ -23,8 +23,8 @@ The contracts and i18n keys already exist, unused, before this plan:
 | `server/src/modules/index.ts:24` registry comment | names "intent/smart-diff" as an expected lesson module | not yet registered |
 
 This plan (a) widens `SmartDiffRole` to 5 values, (b) adds the server module
-that actually computes a `SmartDiff` from a PR's persisted files and latest
-review, and (c) builds the client tab that renders it. No new table, no new
+that actually computes a `SmartDiff` from a PR's persisted files and its
+reviews, and (c) builds the client tab that renders it. No new table, no new
 top-level contract, no new namespace file.
 
 ## Problem
@@ -46,8 +46,11 @@ refers to.
    `docs`, `boilerplate`.
 2. **One new read route**, `GET /pulls/:id/smart-diff`, grouping a PR's
    persisted `pr_files` by role and attaching each file's finding line
-   numbers from the PR's latest review. Always 5 groups, always in the same
-   order, empty groups included as `files: []`.
+   numbers, aggregated across every review the PR has (not just the most
+   recently created one — "Run all enabled agents" launches one review per
+   agent, and restricting to a single "latest" row arbitrarily hides
+   sibling agents' findings on the same PR version). Always 5 groups,
+   always in the same order, empty groups included as `files: []`.
 3. **A minimal split-suggestion shape** — `too_big: false`,
    `proposed_splits: []`, `total_lines` summed across every file. No
    splitting heuristic and no LLM call in this plan; the shape exists so a
@@ -86,7 +89,8 @@ flowchart LR
   fetched — including a PR with zero files (`total_lines: 0`, all groups
   empty).
 - Every file in the response carries `finding_lines` sorted ascending and
-  deduplicated, sourced from the PR's latest review only.
+  deduplicated, sourced from ALL of the PR's reviews (not only its most
+  recently created one).
 - The classifier's path→role table (server spec, §"Path → role test table")
   is the contract — `server/test/smart-diff-classify.test.ts` transcribes it
   before any implementation exists and never has a row edited to match the

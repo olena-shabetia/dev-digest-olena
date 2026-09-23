@@ -40,9 +40,14 @@ owns no table of its own — **no `repository.ts` file in this module at all**.
 Every query stays scoped by `workspace_id` exactly as it already is in
 `reviews/repository.ts`; `smart-diff/service.ts` issues **zero SQL** directly.
 
-Findings come from the PR's **latest** review only: `reviewsForPull` returns
-newest-first, so `reviewsForPull(prId)[0]`. No review yet ⇒ every file's
-`finding_lines` is `[]`.
+Findings are aggregated across **every** review the PR has —
+`reviewsForPull(prId)` flatmapped, matching how the Findings tab already
+aggregates (`page.tsx`'s `allFindings`). "Run all enabled agents" creates one
+`reviews` row per agent, all with nearly the same `created_at`; restricting to
+a single "latest" row (the original D9 design) means whichever agent's review
+happens to sort last arbitrarily hides every sibling agent's findings on the
+same PR version — this was corrected after being observed against seeded
+multi-agent data. No review yet ⇒ every file's `finding_lines` is `[]`.
 
 `pr_files` is populated by a prior `GET /pulls/:id` (`pulls/routes.ts:175-190`
 already persists/refreshes it). Smart Diff never calls GitHub itself; a PR
@@ -83,7 +88,7 @@ SmartDiff` and its inferred type (`contracts/review-api.ts:75-76`).
   a later lesson that tightens this field to required-nullable would then
   break silently on an omitted key; writing `null` explicitly is the only
   form that is correct under both.
-- `finding_lines`: the latest review's findings whose `file === path`, mapped
+- `finding_lines`: every review's findings whose `file === path`, mapped
   to `start_line`, de-duplicated, sorted ascending. `[]` when there is no
   review for the PR yet.
 - `split_suggestion`: `{ too_big: false, total_lines: <sum of additions +

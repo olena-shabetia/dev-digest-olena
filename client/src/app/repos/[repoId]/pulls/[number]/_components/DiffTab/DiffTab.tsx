@@ -80,10 +80,13 @@ export function DiffTab({ prId, filesCount, files, canComment, repoFullName, hea
   // that distinction explicitly instead of leaving it to silent absence.
   const noReviewYet = canRenderGrouped && !reviewsLoading && (reviews?.length ?? 0) === 0;
 
-  const findingsByPath = React.useMemo(
-    () => computeFindingsByPath(reviews?.[0]?.findings ?? []),
-    [reviews],
-  );
+  // Aggregated across EVERY review, matching page.tsx's `allFindings` (the
+  // Findings tab) — "Run all enabled agents" creates one review per agent, so
+  // restricting to reviews[0] ("the latest") would arbitrarily hide every
+  // sibling agent's findings whenever the most-recently-created review
+  // happened to be a clean one.
+  const allFindings = React.useMemo(() => (reviews ?? []).flatMap((r) => r.findings), [reviews]);
+  const findingsByPath = React.useMemo(() => computeFindingsByPath(allFindings), [allFindings]);
 
   const findingsApi: DiffFindingsApi = {
     byPath: findingsByPath,
@@ -104,7 +107,7 @@ export function DiffTab({ prId, filesCount, files, canComment, repoFullName, hea
   };
 
   const commentCount = comments?.length ?? 0;
-  const findingsCount = reviews?.[0]?.findings.length ?? 0;
+  const findingsCount = allFindings.length;
   // Same toggle hides both, so its visibility and its count cover both kinds.
   const annotationsCount = commentCount + findingsCount;
 
