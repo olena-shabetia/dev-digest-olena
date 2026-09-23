@@ -74,6 +74,17 @@ export function reviewToDto(
 }
 
 /**
+ * Case-insensitive title filter for the PR list's upcoming `q=` search
+ * parameter (`GET /repos/:id/pulls?q=`). Kept pure/side-effect-free per this
+ * file's contract.
+ */
+export function matchesTitleQuery(title: string, query: string): boolean {
+  if (!query) return true;
+  const pattern = new RegExp(query, 'i');
+  return pattern.test(title);
+}
+
+/**
  * Build the per-run task instruction line for a PR.
  *
  * The TRUSTED part (ours) states the task and the non-negotiable rule: review
