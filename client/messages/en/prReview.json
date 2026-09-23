@@ -91,6 +91,10 @@
     "findings": "{count} finding(s)",
     "blockers": " · {count} blockers"
   },
+  "diffTab": {
+    "showComments": "Show comments ({count})",
+    "hideComments": "Hide comments ({count})"
+  },
   "smartDiff": {
     "coreLabel": "Core",
     "coreDescription": "The substance of the change — review closely",
@@ -113,7 +117,9 @@
     "originalOrderToggle": "Original order",
     "smartOrderToggle": "Smart Diff",
     "filesWithFindings": "{count} files with findings",
-    "findingsCount": "{count} findings"
+    "findingsCount": "{count} findings",
+    "outsidePatchTitle": "{count} finding(s) outside this diff",
+    "noReviewYet": "No review run yet — findings will show here once one completes."
   },
   "list": {
     "breadcrumb": "Pull Requests",

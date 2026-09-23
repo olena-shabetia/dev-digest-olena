@@ -70,6 +70,12 @@ export default function PRDetailPage() {
   const invalidateIntent = () => {
     if (prId) qc.invalidateQueries({ queryKey: ["pr-intent", prId] });
   };
+  // A run changes finding_lines, so the Files tab's per-group "files with
+  // findings" counter is stale until this fires too — it must not depend on
+  // the user being on the Findings tab when the run finishes.
+  const invalidateSmartDiff = () => {
+    if (prId) qc.invalidateQueries({ queryKey: ["pr-smart-diff", prId] });
+  };
 
   const tab = search.get("tab") ?? "overview";
   const traceRunId = search.get("trace");
@@ -177,6 +183,7 @@ export default function PRDetailPage() {
               invalidateRunHistory();
               invalidatePulls();
               invalidateIntent();
+              invalidateSmartDiff();
               refetchReviews();
             }}
           />

@@ -15,6 +15,11 @@ export interface DiffFindingsApi {
   lineLabels: { CRITICAL: string; WARNING: string; SUGGESTION: string };
   /** Pre-translated "{count} findings" a11y label for the file-header dot. */
   fileFindingsLabel: (count: number) => string;
+  /** Pre-translated footer title for findings whose line isn't in this patch. */
+  outsidePatchLabel: (count: number) => string;
+  /** Same on/off state as `DiffCommentApi.showComments` — one toggle clears
+   *  both GitHub comment threads and finding cards for a clean diff. */
+  showFindings: boolean;
   repoFullName?: string | null;
   headSha?: string | null;
   onAction?: (findingId: string, action: FindingActionKind, reply?: string) => void;
@@ -37,6 +42,23 @@ export function anchorFindings(findings: FindingRecord[]): Map<string, FindingRe
     out.set(key, list);
   }
   return out;
+}
+
+/**
+ * A file's findings whose `start_line` never matched a rendered `RIGHT:<line>`
+ * key — the line isn't in this patch (outside the fetched hunk range, or the
+ * file's patch is unavailable). These must still surface somewhere rather
+ * than silently vanishing (client/specs/L03-smart-diff.ui.md's inline
+ * anchoring only covers lines that ARE in the diff) — `FileCard` renders them
+ * as a fallback block at the end of the file.
+ */
+export function unanchoredFindings(
+  findings: FindingRecord[],
+  anchored: Map<string, FindingRecord[]>,
+): FindingRecord[] {
+  const anchoredIds = new Set<string>();
+  for (const list of anchored.values()) for (const f of list) anchoredIds.add(f.id);
+  return findings.filter((f) => !anchoredIds.has(f.id));
 }
 
 /**

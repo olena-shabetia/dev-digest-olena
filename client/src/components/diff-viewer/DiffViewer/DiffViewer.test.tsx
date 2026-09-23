@@ -82,6 +82,8 @@ function makeFindingsApi(): DiffFindingsApi {
     byPath: new Map([["src/core.ts", [FINDING, SECOND_FINDING]]]),
     lineLabels: { CRITICAL: "blocker", WARNING: "warning", SUGGESTION: "suggestion" },
     fileFindingsLabel: (count) => `${count} findings`,
+    outsidePatchLabel: (count) => `${count} finding(s) outside this diff`,
+    showFindings: true,
     repoFullName: "acme/widgets",
     headSha: "abc123",
     pendingFindingId: null,

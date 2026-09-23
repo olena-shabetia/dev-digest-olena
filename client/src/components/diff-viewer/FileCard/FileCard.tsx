@@ -19,7 +19,8 @@ import {
 import { s, chevronFor } from "../styles";
 import { CodeLine } from "../CodeLine";
 import { OutdatedComments } from "../OutdatedComments";
-import { anchorFindings, type DiffFindingsApi } from "../findings";
+import { anchorFindings, unanchoredFindings, type DiffFindingsApi } from "../findings";
+import { OutdatedFindings } from "../OutdatedFindings";
 
 /** Threads anchored to a given parsed line (RIGHT=new, LEFT=old). */
 function threadsForLine(ln: Line, matched: Map<string, CommentThread[]>): CommentThread[] {
@@ -83,6 +84,10 @@ export function FileCard({
     [findingsByPath, file.path],
   );
   const findingsByKey = React.useMemo(() => anchorFindings(fileFindings), [fileFindings]);
+  const outsidePatchFindings = React.useMemo(
+    () => unanchoredFindings(fileFindings, findingsByKey),
+    [fileFindings, findingsByKey],
+  );
 
   return (
     <div style={s.fileCard}>
@@ -134,6 +139,9 @@ export function FileCard({
             ))
           )}
           {commenting && commenting.showComments && <OutdatedComments threads={outdated} />}
+          {findings && findings.showFindings && (
+            <OutdatedFindings findings={outsidePatchFindings} api={findings} />
+          )}
         </div>
       )}
     </div>

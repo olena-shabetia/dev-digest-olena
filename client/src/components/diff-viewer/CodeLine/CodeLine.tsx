@@ -44,7 +44,7 @@ export function CodeLine({
   const sign = ln.kind === "add" ? "+" : ln.kind === "del" ? "−" : "";
   const target = commenting?.canComment ? commentTargetFor(ln) : null;
   const showAdd = hover && !!target && !composing;
-  const anchored = lineFindings ?? [];
+  const anchored = findings?.showFindings ? (lineFindings ?? []) : [];
   const severity = highestSeverity(anchored);
   const sevBar = severity ? SEV[severity] : null;
 
@@ -99,6 +99,7 @@ export function CodeLine({
       )}
 
       {findings &&
+        findings.showFindings &&
         anchored.map((f) => (
           <div key={f.id} style={cs.thread}>
             <FindingCard

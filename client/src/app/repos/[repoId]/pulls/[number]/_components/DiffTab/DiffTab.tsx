@@ -2,7 +2,7 @@
 
 import React from "react";
 import { useTranslations } from "next-intl";
-import { SectionLabel, Button } from "@devdigest/ui";
+import { SectionLabel, Button, Icon } from "@devdigest/ui";
 import { DiffViewer, type DiffCommentApi, type DiffFindingsApi } from "@/components/diff-viewer";
 import { usePrComments, useCreatePrComment, useSmartDiff, usePrReviews, useFindingAction } from "@/lib/hooks/reviews";
 import { notify } from "@/lib/toast";
@@ -23,14 +23,16 @@ export function DiffTab({ prId, filesCount, files, canComment, repoFullName, hea
   const t = useTranslations("prReview");
   const { data: comments } = usePrComments(prId);
   const create = useCreatePrComment(prId);
-  // Comments start hidden so the diff is clean by default — toggle to reveal.
-  const [showComments, setShowComments] = React.useState(false);
+  // One toggle for both GitHub comment threads and finding cards. Findings
+  // must be visible without any interaction (client/specs/L03-smart-diff.ui.md),
+  // so the shared flag starts true; toggling off clears both for a clean diff.
+  const [showComments, setShowComments] = React.useState(true);
 
   // Smart Diff (L03) — best-effort enrichment. While loading or errored, the
   // flat view below renders unchanged; the tab must never break on a
   // smart-diff fetch failure.
   const { data: smartDiff, isLoading: smartDiffLoading, isError: smartDiffErrored } = useSmartDiff(prId);
-  const { data: reviews } = usePrReviews(prId);
+  const { data: reviews, isLoading: reviewsLoading } = usePrReviews(prId);
   const findingAction = useFindingAction();
   const [smartOrder, setSmartOrder] = React.useState(true);
 
@@ -72,6 +74,11 @@ export function DiffTab({ prId, filesCount, files, canComment, repoFullName, hea
   );
 
   const canRenderGrouped = smartOrder && !smartDiffLoading && !smartDiffErrored && groups.length > 0;
+  // No review has ever run for this PR — the group/file finding dots simply
+  // never appear (D-item: `filesWithFindings > 0` gates each one), which
+  // reads as "nothing to review" rather than "not reviewed yet". Surface
+  // that distinction explicitly instead of leaving it to silent absence.
+  const noReviewYet = canRenderGrouped && !reviewsLoading && (reviews?.length ?? 0) === 0;
 
   const findingsByPath = React.useMemo(
     () => computeFindingsByPath(reviews?.[0]?.findings ?? []),
@@ -86,6 +93,8 @@ export function DiffTab({ prId, filesCount, files, canComment, repoFullName, hea
       SUGGESTION: t("smartDiff.suggestionLabel"),
     },
     fileFindingsLabel: (count) => t("smartDiff.findingsCount", { count }),
+    outsidePatchLabel: (count) => t("smartDiff.outsidePatchTitle", { count }),
+    showFindings: showComments,
     repoFullName,
     headSha,
     pendingFindingId: findingAction.isPending ? (findingAction.variables?.findingId ?? null) : null,
@@ -95,6 +104,9 @@ export function DiffTab({ prId, filesCount, files, canComment, repoFullName, hea
   };
 
   const commentCount = comments?.length ?? 0;
+  const findingsCount = reviews?.[0]?.findings.length ?? 0;
+  // Same toggle hides both, so its visibility and its count cover both kinds.
+  const annotationsCount = commentCount + findingsCount;
 
   const commenting: DiffCommentApi = {
     comments: comments ?? [],
@@ -124,14 +136,14 @@ export function DiffTab({ prId, filesCount, files, canComment, repoFullName, hea
                 {smartOrder ? t("smartDiff.originalOrderToggle") : t("smartDiff.smartOrderToggle")}
               </Button>
             )}
-            {commentCount > 0 && (
+            {annotationsCount > 0 && (
               <Button
                 kind="ghost"
                 size="sm"
                 icon={showComments ? "EyeOff" : "Eye"}
                 onClick={() => setShowComments((v) => !v)}
               >
-                {showComments ? "Hide comments" : "Show comments"} ({commentCount})
+                {t(showComments ? "diffTab.hideComments" : "diffTab.showComments", { count: annotationsCount })}
               </Button>
             )}
           </div>
@@ -139,6 +151,21 @@ export function DiffTab({ prId, filesCount, files, canComment, repoFullName, hea
       >
         Files changed · {filesCount} files
       </SectionLabel>
+      {noReviewYet && (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            padding: "8px 4px 14px",
+            fontSize: 12.5,
+            color: "var(--text-muted)",
+          }}
+        >
+          <Icon.Info size={14} />
+          {t("smartDiff.noReviewYet")}
+        </div>
+      )}
       <DiffViewer
         files={files}
         commenting={commenting}
