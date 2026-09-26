@@ -8,7 +8,7 @@ description: >-
   unit must load, and its verification command. Writes plans and specs only;
   never touches feature code. Use for any change spanning more than one file.
 model: opus
-tools: Read, Glob, Grep, Bash, Skill, Write, Edit
+tools: Read, Glob, Grep, Bash, Skill, Write
 disallowedTools: Agent
 skills:
   - onion-architecture
