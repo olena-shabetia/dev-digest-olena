@@ -297,6 +297,9 @@ export async function seed(db: Db): Promise<{ workspaceId: string; userId: strin
         rationale: 'Loop issues one query per user → N+1.',
         suggestion: 'Use a single IN query and group in memory.',
         confidence: 0.86,
+        // L03: outside the PR's stated scope (rate limiting) — demoted for
+        // display, not deleted; still reported at true severity.
+        inScope: false,
       },
       {
         reviewId: review!.id,
@@ -309,8 +312,44 @@ export async function seed(db: Db): Promise<{ workspaceId: string; userId: strin
         rationale: 'The literal 3600 means "seconds in an hour" without explanation.',
         suggestion: 'Extract to a named constant, e.g. `WINDOW_SECONDS = 3600`.',
         confidence: 0.62,
+        inScope: true,
       },
     ]);
+
+    // ---- pr_intent (L03) ----
+    // Deterministic, LLM-free intent row for PR #482 so the e2e flow (and the
+    // Intent card in dev) has real data without a live LLM key. `sources`
+    // includes at least one `used` and one `unavailable` entry per the plan.
+    await db.insert(t.prIntent).values({
+      prId: pr!.id,
+      workspaceId,
+      intent: 'Add token-bucket rate limiting to public API endpoints to prevent abuse from unauthenticated clients.',
+      inScope: [
+        'Rate-limiting middleware for public endpoints',
+        'Config for limiter thresholds',
+      ],
+      outOfScope: [
+        'Refactoring the user-list endpoint query pattern',
+      ],
+      sources: [
+        { kind: 'title', status: 'used', ref: null, chars: 42 },
+        { kind: 'body', status: 'used', ref: null, chars: 96 },
+        { kind: 'issue', status: 'unavailable', ref: '#412', chars: null },
+        { kind: 'files', status: 'used', ref: null, chars: null },
+        { kind: 'hunks', status: 'used', ref: null, chars: null },
+        { kind: 'commits', status: 'used', ref: null, chars: null },
+      ],
+      confidence: 'medium',
+      contextGaps: ['Linked issue #412 could not be fetched.'],
+      headSha: pr!.headSha,
+      provider: DEFAULT_PROVIDER,
+      model: DEFAULT_MODEL,
+      tokensIn: 812,
+      tokensOut: 96,
+      costUsd: 0.0001,
+      error: null,
+      generatedAt: new Date(),
+    });
   }
 
   // ---- built-in agents (the three starter presets) ----

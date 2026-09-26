@@ -4,7 +4,8 @@
 
 import React from "react";
 import { useTranslations } from "next-intl";
-import { Icon } from "@devdigest/ui";
+import { Icon, SEV } from "@devdigest/ui";
+import type { FindingRecord } from "@devdigest/shared";
 import type { PrFile } from "@/lib/types";
 import { AUTO_EXPAND_MAX_LINES } from "../constants";
 import { parsePatch, type Line } from "../helpers";
@@ -18,6 +19,8 @@ import {
 import { s, chevronFor } from "../styles";
 import { CodeLine } from "../CodeLine";
 import { OutdatedComments } from "../OutdatedComments";
+import { anchorFindings, unanchoredFindings, type DiffFindingsApi } from "../findings";
+import { OutdatedFindings } from "../OutdatedFindings";
 
 /** Threads anchored to a given parsed line (RIGHT=new, LEFT=old). */
 function threadsForLine(ln: Line, matched: Map<string, CommentThread[]>): CommentThread[] {
@@ -30,7 +33,26 @@ function threadsForLine(ln: Line, matched: Map<string, CommentThread[]>): Commen
   return out;
 }
 
-export function FileCard({ file, commenting }: { file: PrFile; commenting?: DiffCommentApi }) {
+/** Findings anchored to a given parsed line, via the same `RIGHT:<line>` key. */
+function findingsForLine(ln: Line, byKey: Map<string, FindingRecord[]>): FindingRecord[] {
+  if (byKey.size === 0) return [];
+  const out: FindingRecord[] = [];
+  for (const key of keysForLine(ln)) {
+    const list = byKey.get(key);
+    if (list) out.push(...list);
+  }
+  return out;
+}
+
+export function FileCard({
+  file,
+  commenting,
+  findings,
+}: {
+  file: PrFile;
+  commenting?: DiffCommentApi;
+  findings?: DiffFindingsApi;
+}) {
   const t = useTranslations("shell");
   const [open, setOpen] = React.useState(
     (file.additions ?? 0) + (file.deletions ?? 0) <= AUTO_EXPAND_MAX_LINES
@@ -52,6 +74,21 @@ export function FileCard({ file, commenting }: { file: PrFile; commenting?: Diff
     ? commenting.comments.filter((c) => c.path === file.path).length
     : 0;
 
+  // This file's findings (unfiltered), anchored to the same RIGHT:<line> keys
+  // CodeLine already uses for comment threading — a SEPARATE indicator from
+  // the comment count above (client/specs/L03-smart-diff.ui.md: the two
+  // answer different questions and must never be merged into one icon).
+  const findingsByPath = findings?.byPath;
+  const fileFindings = React.useMemo(
+    () => findingsByPath?.get(file.path) ?? [],
+    [findingsByPath, file.path],
+  );
+  const findingsByKey = React.useMemo(() => anchorFindings(fileFindings), [fileFindings]);
+  const outsidePatchFindings = React.useMemo(
+    () => unanchoredFindings(fileFindings, findingsByKey),
+    [fileFindings, findingsByKey],
+  );
+
   return (
     <div style={s.fileCard}>
       <div onClick={() => setOpen((o) => !o)} style={s.fileHeader}>
@@ -72,6 +109,17 @@ export function FileCard({ file, commenting }: { file: PrFile; commenting?: Diff
             {commentCount}
           </span>
         )}
+        {fileFindings.length > 0 && (
+          <span
+            data-testid="file-findings-dot"
+            aria-label={findings?.fileFindingsLabel(fileFindings.length)}
+            title={findings?.fileFindingsLabel(fileFindings.length)}
+            style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 12, color: SEV.CRITICAL.c }}
+          >
+            <Icon.AlertOctagon size={12} />
+            {fileFindings.length}
+          </span>
+        )}
       </div>
       {open && (
         <div style={s.fileBody}>
@@ -85,10 +133,15 @@ export function FileCard({ file, commenting }: { file: PrFile; commenting?: Diff
                 path={file.path}
                 threads={threadsForLine(ln, matched)}
                 commenting={commenting}
+                lineFindings={findingsForLine(ln, findingsByKey)}
+                findings={findings}
               />
             ))
           )}
           {commenting && commenting.showComments && <OutdatedComments threads={outdated} />}
+          {findings && findings.showFindings && (
+            <OutdatedFindings findings={outsidePatchFindings} api={findings} />
+          )}
         </div>
       )}
     </div>

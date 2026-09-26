@@ -7,8 +7,10 @@ import {
   jsonb,
   timestamp,
   doublePrecision,
+  boolean,
   index,
 } from 'drizzle-orm/pg-core';
+import type { IntentSource } from '@devdigest/shared';
 import { now } from './_shared';
 import { workspaces } from './core';
 import { pullRequests } from './pulls';
@@ -67,6 +69,9 @@ export const findings = pgTable(
     trifectaComponents: jsonb('trifecta_components').$type<string[]>(),
     acceptedAt: timestamp('accepted_at', { withTimezone: true }),
     dismissedAt: timestamp('dismissed_at', { withTimezone: true }),
+    // L03: true = classified in-scope, false = out-of-scope, null = not
+    // classified (no intent was derived for this review's run).
+    inScope: boolean('in_scope'),
   },
   (t) => ({
     // Every findings-by-review lookup (reviews/helpers.ts's reviewToDto,
@@ -76,20 +81,47 @@ export const findings = pgTable(
   }),
 );
 
-export const prIntent = pgTable('pr_intent', {
-  prId: uuid('pr_id')
-    .primaryKey()
-    .references(() => pullRequests.id, { onDelete: 'cascade' }),
-  intent: text('intent').notNull(),
-  inScope: jsonb('in_scope')
-    .$type<string[]>()
-    .notNull()
-    .default(sql`'[]'::jsonb`),
-  outOfScope: jsonb('out_of_scope')
-    .$type<string[]>()
-    .notNull()
-    .default(sql`'[]'::jsonb`),
-});
+// L03: provenance block mirrors convention_scans (db/schema/knowledge.ts) —
+// the established shape for "a non-review LLM feature's run record".
+export const prIntent = pgTable(
+  'pr_intent',
+  {
+    prId: uuid('pr_id')
+      .primaryKey()
+      .references(() => pullRequests.id, { onDelete: 'cascade' }),
+    // Added after the table predated server/AGENTS.md's workspace_id rule;
+    // it scoped only transitively through pr_id before. Backfilled in the
+    // migration's hand-written UPDATE before the NOT NULL is applied.
+    workspaceId: uuid('workspace_id')
+      .notNull()
+      .references(() => workspaces.id, { onDelete: 'cascade' }),
+    intent: text('intent').notNull(),
+    inScope: jsonb('in_scope')
+      .$type<string[]>()
+      .notNull()
+      .default(sql`'[]'::jsonb`),
+    outOfScope: jsonb('out_of_scope')
+      .$type<string[]>()
+      .notNull()
+      .default(sql`'[]'::jsonb`),
+    sources: jsonb('sources').$type<IntentSource[]>().notNull().default(sql`'[]'::jsonb`),
+    confidence: text('confidence').notNull().default('low'),
+    contextGaps: jsonb('context_gaps').$type<string[]>().notNull().default(sql`'[]'::jsonb`),
+    headSha: text('head_sha'),
+    provider: text('provider'),
+    model: text('model'),
+    tokensIn: integer('tokens_in'),
+    tokensOut: integer('tokens_out'),
+    costUsd: doublePrecision('cost_usd'),
+    error: text('error'),
+    generatedAt: timestamp('generated_at', { withTimezone: true }),
+  },
+  (t) => ({
+    // Postgres does not auto-index FK columns, and every intent query filters
+    // by workspace_id.
+    wsIdx: index('pr_intent_ws_idx').on(t.workspaceId),
+  }),
+);
 
 export const prBrief = pgTable('pr_brief', {
   prId: uuid('pr_id')

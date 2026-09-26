@@ -104,6 +104,67 @@ describe('reviewPullRequest (engine)', () => {
     ).rejects.toThrow('cancelled');
   });
 
+  it('an out-of-scope finding stays in review.findings, counts toward score, and is exposed as a view', async () => {
+    const outOfScopeFixture = {
+      verdict: 'request_changes',
+      summary: 'secret key committed',
+      score: 38,
+      findings: [
+        {
+          id: 'f1',
+          severity: 'CRITICAL',
+          category: 'security',
+          title: 'Hardcoded Stripe secret key',
+          file: 'src/config.ts',
+          start_line: 11,
+          end_line: 11,
+          rationale: 'sk_live in diff',
+          confidence: 0.98,
+          kind: 'finding',
+          in_scope: false,
+        },
+      ],
+    };
+    const llm = new MockLLMProvider('openai', { structured: outOfScopeFixture });
+    const diff = await new MockGitClient().diff();
+    const events: string[] = [];
+
+    const outcome = await reviewPullRequest({
+      systemPrompt: 'security reviewer',
+      model: 'gpt-4.1',
+      diff,
+      llm,
+      intent: 'Fix the login redirect bug.',
+      onEvent: (e) => events.push(e.msg),
+    });
+
+    // Still in review.findings — a demoted label never deletes a real finding.
+    expect(outcome.review.findings).toHaveLength(1);
+    expect(outcome.review.findings[0]!.in_scope).toBe(false);
+    // Exposed as a view (subset), not a partition.
+    expect(outcome.outOfScope).toHaveLength(1);
+    expect(outcome.outOfScope[0]!.id).toBe('f1');
+    // Still counts toward score: one CRITICAL survives grounding ⇒ 65, same as
+    // the in-scope case.
+    expect(outcome.review.score).toBe(65);
+    expect(events.some((m) => m.includes('out of stated scope'))).toBe(true);
+  });
+
+  it('a run with no intent yields outOfScope: [] and leaves in_scope null on every finding', async () => {
+    const llm = new MockLLMProvider('openai', { structured: fixture });
+    const diff = await new MockGitClient().diff();
+
+    const outcome = await reviewPullRequest({
+      systemPrompt: 'security reviewer',
+      model: 'gpt-4.1',
+      diff,
+      llm,
+    });
+
+    expect(outcome.outOfScope).toEqual([]);
+    expect(outcome.review.findings.every((f) => f.in_scope == null)).toBe(true);
+  });
+
   it('forwards sessionId to every LLM call (OpenRouter session grouping)', async () => {
     const seen: (string | undefined)[] = [];
     const recorder: LLMProvider = {

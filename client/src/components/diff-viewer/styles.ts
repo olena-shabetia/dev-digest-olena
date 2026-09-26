@@ -29,6 +29,43 @@ export const s = {
     whiteSpace: "nowrap",
   } satisfies CSSProperties,
   fileStat: { fontSize: 12 } satisfies CSSProperties,
+  /* Smart Diff group header — deliberately NOT `fileCard`/`fileHeader`: a
+     group is a section title one level above a file, not a sibling file
+     row, so it gets no card border/background and a bolder, uppercase
+     label to read as a heading. */
+  groupHeader: {
+    display: "flex",
+    alignItems: "center",
+    gap: 10,
+    padding: "6px 4px 10px",
+    cursor: "pointer",
+    borderBottom: "1px solid var(--border)",
+  } satisfies CSSProperties,
+  groupLabel: {
+    fontSize: 12,
+    fontWeight: 700,
+    letterSpacing: "0.04em",
+    textTransform: "uppercase",
+    color: "var(--text-secondary)",
+  } satisfies CSSProperties,
+  groupDescription: {
+    fontSize: 12,
+    fontWeight: 400,
+    color: "var(--text-muted)",
+    flex: 1,
+    minWidth: 0,
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+  } satisfies CSSProperties,
+  groupBody: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 10,
+    padding: "12px 0 4px 18px",
+    borderLeft: "1px solid var(--border)",
+    marginLeft: 6,
+  } satisfies CSSProperties,
   addText: { color: "var(--code-add-text)" } satisfies CSSProperties,
   delText: { color: "var(--code-del-text)" } satisfies CSSProperties,
   fileBody: {

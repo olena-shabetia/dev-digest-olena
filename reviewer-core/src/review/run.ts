@@ -71,6 +71,12 @@ export interface ReviewInput {
   /** PR author's description/body (untrusted; truncated + delimiter-wrapped in
       the prompt). Empty/undefined → section omitted. */
   prDescription?: string;
+  /**
+   * Derived PR intent (L03). Untrusted; delimiter-wrapped downstream. No
+   * transformation or truncation here — the caller owns length budgeting, as
+   * it does for `prDescription`. Empty/undefined → section omitted.
+   */
+  intent?: string;
   /** Task framing line, e.g. "Review PR #482 …". */
   task?: string;
   /** Override the structured-output retry budget. */
@@ -99,6 +105,9 @@ export interface ReviewOutcome {
   grounding: string;
   /** Findings dropped by grounding, with reasons (for logs / "never go silent"). */
   dropped: { finding: Finding; reason: string }[];
+  /** Findings kept by grounding but labelled outside the PR's stated scope.
+      A SUBSET of `review.findings`, never removed from it. */
+  outOfScope: Finding[];
   /** Which path ran. */
   mode: ReviewMode;
   /** Prompt assembly (for the run trace). Single-pass: the one call; map-reduce: the whole-diff assembly. */
@@ -135,6 +144,7 @@ export async function reviewPullRequest(input: ReviewInput): Promise<ReviewOutco
     callers: input.callers,
     repoMap: input.repoMap,
     prDescription: input.prDescription,
+    intent: input.intent,
     task: input.task,
   };
 
@@ -201,13 +211,23 @@ export async function reviewPullRequest(input: ReviewInput): Promise<ReviewOutco
   }
   emit('result', `Citation grounding: ${grounding}`);
 
+  // Out-of-scope label (L03) — a VIEW of ground.kept, never a partition: every
+  // element also stays in review.findings. Reported, never silently dropped.
+  const outOfScope = ground.kept.filter((f) => f.in_scope === false);
+  for (const f of outOfScope) {
+    emit('info', `out of stated scope: "${f.title}"`);
+  }
+
   // Score is derived from the findings that SURVIVED grounding (not the model's
   // self-reported number, and not the pre-grounding set) so the score, the
-  // findings list, and the deterministic event always agree.
+  // findings list, and the deterministic event always agree. Out-of-scope
+  // findings still count — a demoted label never turns a real defect into
+  // zero findings (INJECTION_GUARD).
   return {
     review: { ...merged, findings: ground.kept, score: scoreFromFindings(ground.kept) },
     grounding,
     dropped: ground.dropped,
+    outOfScope,
     mode,
     assembly,
     chunks: chunks.map((c) => ({ label: c.label })),

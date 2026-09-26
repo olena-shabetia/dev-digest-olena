@@ -48,6 +48,9 @@ export async function insertFindings(
         confidence: f.confidence,
         kind: f.kind ?? 'finding',
         trifectaComponents: f.trifecta_components ?? null,
+        // L03 — null when no intent was available (not classified), distinct
+        // from `false` (classified as outside the PR's stated scope).
+        inScope: f.in_scope ?? null,
       })),
     )
     .returning();

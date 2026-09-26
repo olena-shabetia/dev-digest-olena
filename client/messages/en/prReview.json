@@ -29,7 +29,37 @@
   "panel": {
     "hideLowConfidence": "Hide low confidence",
     "noMatchTitle": "No findings match",
-    "noMatchBody": "Adjust the filters above, or run a review to generate findings."
+    "noMatchBody": "Adjust the filters above, or run a review to generate findings.",
+    "outOfScopeStrip": "Outside stated scope",
+    "scopeDisclosureShow": "Showing {shown} of {total} — {count} findings outside the stated scope",
+    "scopeDisclosureHide": "Hide the {count} findings outside the stated scope"
+  },
+  "intent": {
+    "heading": "PR Intent",
+    "rederive": "Re-derive",
+    "emptyTitle": "Intent not derived yet",
+    "emptyBody": "Derive the PR's intent and scope to help ground the review.",
+    "error": "Intent derivation failed: {message}",
+    "inScope": "In scope",
+    "outOfScope": "Out of scope",
+    "none": "—",
+    "contextGapsTitle": "Missing context",
+    "confidence": {
+      "high": "High confidence",
+      "medium": "Medium confidence",
+      "low": "Low confidence"
+    },
+    "sourceKind": {
+      "title": "Title",
+      "body": "Description",
+      "issue": "Linked issue",
+      "issue_unkeyworded": "Referenced issue",
+      "spec": "Spec",
+      "plan": "Plan",
+      "files": "Changed files",
+      "hunks": "Diff hunks",
+      "commits": "Commits"
+    }
   },
   "severity": {
     "CRITICAL": "Critical",
@@ -61,15 +91,35 @@
     "findings": "{count} finding(s)",
     "blockers": " · {count} blockers"
   },
+  "diffTab": {
+    "showComments": "Show comments ({count})",
+    "hideComments": "Hide comments ({count})"
+  },
   "smartDiff": {
     "coreLabel": "Core",
+    "coreDescription": "The substance of the change — review closely",
     "wiringLabel": "Wiring",
+    "wiringDescription": "Hooks the core into the app",
     "boilerplateLabel": "Boilerplate",
+    "boilerplateDescription": "Generated / mechanical — skim",
+    "testsDescription": "Verifies the core logic behaves as expected",
+    "docsDescription": "Explains the change for humans, not the app",
     "largeTitle": "This PR is large ({lines} changed lines)",
     "largeBody": "Consider splitting it into smaller, focused PRs for easier review:",
     "filesCount": "{count} files",
     "findingLines": "{count} finding-lines",
-    "groupedByRole": "Smart Diff · grouped by role"
+    "groupedByRole": "Smart Diff · grouped by role",
+    "testsLabel": "Tests",
+    "docsLabel": "Docs",
+    "blockerLabel": "blocker",
+    "warningLabel": "warning",
+    "suggestionLabel": "suggestion",
+    "originalOrderToggle": "Original order",
+    "smartOrderToggle": "Smart Diff",
+    "filesWithFindings": "{count} files with findings",
+    "findingsCount": "{count} findings",
+    "outsidePatchTitle": "{count} finding(s) outside this diff",
+    "noReviewYet": "No review run yet — findings will show here once one completes."
   },
   "list": {
     "breadcrumb": "Pull Requests",

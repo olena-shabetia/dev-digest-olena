@@ -64,3 +64,42 @@ describe('assemblePrompt — ## PR description', () => {
     expect((assembly.pr_description as string).length).toBe(4000);
   });
 });
+
+describe('assemblePrompt — ## PR intent (derived) (L03)', () => {
+  it('renders the section (untrusted-wrapped) between PR description and Skills', () => {
+    const { messages, assembly } = assemblePrompt({
+      system: 'sys',
+      diff: 'DIFF',
+      prDescription: 'Adds rate limiting.',
+      skills: ['SKILL-BODY'],
+      intent: 'Add rate limiting to the public API endpoints.',
+    });
+    const user = messages[1]!.content;
+    expect(user).toContain('## PR intent (derived)');
+    expect(user).toContain('<untrusted source="derived-intent">');
+    expect(user).toContain('Add rate limiting to the public API endpoints.');
+    expect(user.indexOf('## PR description')).toBeLessThan(user.indexOf('## PR intent (derived)'));
+    expect(user.indexOf('## PR intent (derived)')).toBeLessThan(user.indexOf('## Skills / rules'));
+    expect(assembly.intent).toBe('Add rate limiting to the public API endpoints.');
+    expect(assembly.intent_tokens).toBe(Math.ceil('Add rate limiting to the public API endpoints.'.length / 4));
+  });
+
+  it('omits the section when intent is undefined or blank (no behaviour change)', () => {
+    expect(userOf({ system: 'sys', diff: 'DIFF' })).not.toContain('## PR intent (derived)');
+    expect(assemblePrompt({ system: 'sys', diff: 'DIFF' }).assembly.intent ?? null).toBeNull();
+    expect(assemblePrompt({ system: 'sys', diff: 'DIFF' }).assembly.intent_tokens ?? null).toBeNull();
+    expect(userOf({ system: 'sys', diff: 'DIFF', intent: '   ' })).not.toContain(
+      '## PR intent (derived)',
+    );
+  });
+
+  it('produces byte-identical system/user strings to the pre-L03 shape when intent is absent', () => {
+    const base = { system: 'sys', diff: 'DIFF', prDescription: 'body', skills: ['S'] };
+    const withoutIntentKey = assemblePrompt(base);
+    const withUndefinedIntent = assemblePrompt({ ...base, intent: undefined });
+    const withBlankIntent = assemblePrompt({ ...base, intent: '   ' });
+    expect(withUndefinedIntent.messages[0]!.content).toBe(withoutIntentKey.messages[0]!.content);
+    expect(withUndefinedIntent.messages[1]!.content).toBe(withoutIntentKey.messages[1]!.content);
+    expect(withBlankIntent.messages[1]!.content).toBe(withoutIntentKey.messages[1]!.content);
+  });
+});
