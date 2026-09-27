@@ -93,7 +93,11 @@ export class ReviewService {
     this.container.runBus.complete(runId);
   }
 
-  /** Reap runs left 'running' by a previous (now-dead) process. Called on boot. */
+  /**
+   * Reap runs left 'running' by a previous (now-dead) process, or by a hung
+   * call in the current one. Called once on boot, and periodically after that
+   * via the 'stale-run-sweep' scheduled job (see app.ts).
+   */
   async reapStaleRuns(): Promise<number> {
     return this.repo.reapStaleRunningRuns();
   }
