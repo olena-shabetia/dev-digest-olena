@@ -10,6 +10,7 @@ import type {
   ReviewRecord,
   FindingRecord,
   ActiveRun,
+  BlastRadiusResponse,
 } from '@devdigest/shared';
 
 export const REPO_ID = '11111111-1111-4111-8111-111111111111';
@@ -124,6 +125,28 @@ export function findingFixture(overrides: Partial<FindingRecord> = {}): FindingR
     review_id: REVIEW_ID,
     accepted_at: null,
     dismissed_at: null,
+    ...overrides,
+  };
+}
+
+export function blastFixture(overrides: Partial<BlastRadiusResponse> = {}): BlastRadiusResponse {
+  return {
+    changed_symbols: [{ name: 'rateLimit', file: 'src/limits.ts', kind: 'function' }],
+    downstream: [
+      {
+        symbol: 'rateLimit',
+        callers: [{ name: 'publicRouter', file: 'src/routes/public.ts', line: 23 }],
+        endpoints_affected: ['GET /api/public/items'],
+        crons_affected: [],
+      },
+    ],
+    summary: '1 changed symbol(s), 1 caller(s), 1 endpoint(s), 0 cron job(s)',
+    endpoints: ['GET /api/public/items'],
+    crons: [],
+    facts_by_file: { 'src/routes/public.ts': { endpoints: ['GET /api/public/items'], crons: [] } },
+    stats: { symbols: 1, callers: 1, endpoints: 1, crons: 0 },
+    degraded: false,
+    reason: null,
     ...overrides,
   };
 }

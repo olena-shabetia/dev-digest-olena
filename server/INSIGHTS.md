@@ -11,6 +11,35 @@ _None yet._
 
 ## What Doesn't Work
 
+### 2026-09-27 — copying a whole `factsByFile`-shaped record forward leaks facts for callers the facade already dropped
+
+**Symptom:** the L04 Blast Radius mapping (`blast/helpers.ts`) built
+`facts_by_file` by copying every entry of the facade's `factsByFile` record
+verbatim. It type-checked, and the helper tests (which used a fixture where
+every `factsByFile` key was also a caller) all passed. An independent
+plan-verifier pass caught that this doesn't match the frozen spec, which
+says `facts_by_file` must be "restricted to caller files."
+
+**Cause:** `repo-intel/service.ts` builds `factsByFile` from the full set of
+caller files *before* truncating `callers` to `MAX_CALLERS_PER_SYMBOL` (20).
+So whenever a symbol has more than 20 callers, `factsByFile` legitimately
+contains entries for files whose callers never made it into the truncated
+list — copying the whole record forward exposes endpoint/cron facts for
+callers the response otherwise claims not to know about.
+
+**Fix:** filter to the caller files actually present in the (already
+truncated) `callers` list before copying:
+`const callerFiles = new Set(input.callers.map(r => r.file))`, then skip any
+`factsByFile` entry whose key isn't in that set (`blast/helpers.ts:76-82`).
+Added a test case with an extra non-caller-file entry in `factsByFile` to
+catch a regression (`server/test/blast-helpers.test.ts`).
+
+**Rule:** when mapping a facade result that has both a *truncated* list
+(callers, symbols, …) and a separate *file-keyed* side table (facts, ranks,
+…), never copy the side table forward untouched — always re-derive its key
+set from the truncated list, and write a test fixture where the side table
+has strictly more entries than the truncated list to catch the leak.
+
 ### 2026-09-22 — `seed.ts`'s `if (!pr)` guard silently no-ops a new field on a re-seed of an existing dev DB
 
 **Symptom:** L03 added a `pr_intent` insert and two `findings.inScope` values

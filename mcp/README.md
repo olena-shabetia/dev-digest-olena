@@ -61,7 +61,7 @@ Exactly five, all flat-primitive inputs, no `outputSchema`:
 | `run_agent_on_pr`  | `repo`, `pr`, `agent`, `severity?`, `limit?`                | review result, or `status:"running"` + `run_id` on timeout | creates a run (visible live in the DevDigest UI), spends LLM money |
 | `get_findings`     | `run_id?` or `repo`+`pr` (+`agent?`), `severity?`, `limit?` | review result of a finished run                            | none                                                               |
 | `get_conventions`  | `repo`, `status?`, `limit?`                                 | extracted house conventions                                | none                                                               |
-| `get_blast_radius` | `repo`, `pr`                                                | `{status:"not_implemented"}`                               | none (stub; real implementation is later coursework)               |
+| `get_blast_radius` | `repo`, `pr`                                                | changed symbols, their callers, and impacted endpoints/crons | none (read-only)                                                    |
 
 `run_agent_on_pr` and `get_findings` share one response shape: verdict,
 score, blockers, and up to `limit` (default 10, max 50) findings, most severe

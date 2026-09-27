@@ -8,6 +8,11 @@ export const MAX_FINDINGS_LIMIT = 50;
 export const DEFAULT_CONVENTIONS_LIMIT = 20;
 export const MAX_CONVENTIONS_LIMIT = 50;
 
+/** L04 — `get_blast_radius` shaping caps (plan §3 MCP surface). */
+export const MAX_BLAST_SYMBOLS = 10;
+export const MAX_BLAST_CALLERS_PER_SYMBOL = 10;
+export const MAX_BLAST_FACTS = 20;
+
 /** Max characters kept for each PR-/repo-derived text field (untrusted input). */
 export const TEXT_CAPS = {
   title: 120,
@@ -15,6 +20,9 @@ export const TEXT_CAPS = {
   summary: 300,
   rule: 200,
   agentDescription: 100,
+  symbol: 120,
+  path: 200,
+  fact: 120,
 } as const;
 
 /** `tools/list` character budget and per-tool description cap (plan §2 D11). */

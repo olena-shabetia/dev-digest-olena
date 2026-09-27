@@ -14,6 +14,7 @@ import {
   RunSummary,
   ReviewRecord,
   ApiErrorBody,
+  BlastRadiusResponse,
 } from '@devdigest/shared';
 import { ConventionsListResponse } from './schemas.js';
 import { ApiHttpError, ApiUnreachableError, ToolError } from '../errors.js';
@@ -131,5 +132,11 @@ export class DevDigestApi {
 
   async getConventions(repoId: string): Promise<ConventionsListResponse> {
     return this.request('GET', `/repos/${repoId}/conventions`, ConventionsListResponse);
+  }
+
+  async getBlastRadius(prId: string): Promise<BlastRadiusResponse> {
+    return this.request('GET', `/pulls/${prId}/blast`, BlastRadiusResponse, {
+      timeoutMs: this.timeoutMs * 2,
+    });
   }
 }

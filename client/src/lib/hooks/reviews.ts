@@ -8,6 +8,7 @@ import { api, API_BASE } from "../api";
 import { notify } from "../toast";
 import type {
   ActiveRun,
+  BlastRadiusResponse,
   FindingActionKind,
   PrIntentRecord,
   PrReviewComment,
@@ -61,6 +62,18 @@ export function useSmartDiff(prId: string | null | undefined) {
     queryKey: ["pr-smart-diff", prId],
     queryFn: () => api.get<SmartDiffResponse>(`/pulls/${prId}/smart-diff`),
     enabled: !!prId,
+  });
+}
+
+// ---- Blast radius (L04) — server-shaped downstream-impact of a PR's changes ----
+/** The precomputed blast radius for a PR (changed symbols, callers, impacted
+ *  endpoints/crons). No invalidation wiring — a review run never changes it. */
+export function useBlastRadius(prId: string | null | undefined) {
+  return useQuery({
+    queryKey: ["pr-blast", prId],
+    queryFn: () => api.get<BlastRadiusResponse>(`/pulls/${prId}/blast`),
+    enabled: !!prId,
+    staleTime: 60_000,
   });
 }
 

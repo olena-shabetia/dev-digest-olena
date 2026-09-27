@@ -5,6 +5,7 @@
  */
 import type {
   Agent,
+  BlastRadiusResponse,
   ConventionCandidate,
   ConventionScan,
   FindingCategory,
@@ -18,6 +19,9 @@ import type {
 import {
   DEFAULT_CONVENTIONS_LIMIT,
   DEFAULT_FINDINGS_LIMIT,
+  MAX_BLAST_CALLERS_PER_SYMBOL,
+  MAX_BLAST_FACTS,
+  MAX_BLAST_SYMBOLS,
   MAX_CONVENTIONS_LIMIT,
   MAX_FINDINGS_LIMIT,
   TEXT_CAPS,
@@ -96,6 +100,34 @@ export interface ConventionsView {
   total: number;
   shown: number;
   conventions: ConventionView[];
+  note?: string;
+}
+
+export interface BlastCallerView {
+  name: string;
+  location: string;
+}
+
+export interface BlastDownstreamView {
+  symbol: string;
+  callers_total: number;
+  callers: BlastCallerView[];
+  endpoints: string[];
+  crons: string[];
+}
+
+export interface BlastRadiusView {
+  repo: string;
+  pr: number;
+  degraded: boolean;
+  reason: string | null;
+  summary: string;
+  counts: { symbols: number; callers: number; endpoints: number; crons: number };
+  total: number;
+  shown: number;
+  downstream: BlastDownstreamView[];
+  endpoints: string[];
+  crons: string[];
   note?: string;
 }
 
@@ -296,6 +328,70 @@ export function formatConventions(input: {
     view.note = `${counts.pending} pending candidates; review them in the DevDigest UI or pass status='all'.`;
   } else if (shown < total) {
     view.note = `showing ${shown} of ${total}; pass limit to see more`;
+  }
+
+  return view;
+}
+
+function blastLocation(file: string, line: number): string {
+  return `${sanitizeText(file, TEXT_CAPS.path)}:${line}`;
+}
+
+export function formatBlastRadius(input: {
+  repo: string;
+  pr: number;
+  data: BlastRadiusResponse;
+}): BlastRadiusView {
+  const { repo, pr, data } = input;
+
+  const total = data.downstream.length;
+  const shown = Math.min(total, MAX_BLAST_SYMBOLS);
+  let anyCallersCapped = false;
+
+  const downstream: BlastDownstreamView[] = data.downstream.slice(0, shown).map((d) => {
+    const callersTotal = d.callers.length;
+    if (callersTotal > MAX_BLAST_CALLERS_PER_SYMBOL) anyCallersCapped = true;
+    return {
+      symbol: sanitizeText(d.symbol, TEXT_CAPS.symbol),
+      callers_total: callersTotal,
+      callers: d.callers.slice(0, MAX_BLAST_CALLERS_PER_SYMBOL).map((c) => ({
+        name: sanitizeText(c.name, TEXT_CAPS.symbol),
+        location: blastLocation(c.file, c.line),
+      })),
+      endpoints: d.endpoints_affected.map((e) => sanitizeText(e, TEXT_CAPS.fact)),
+      crons: d.crons_affected.map((c) => sanitizeText(c, TEXT_CAPS.fact)),
+    };
+  });
+
+  const view: BlastRadiusView = {
+    repo,
+    pr,
+    degraded: data.degraded,
+    reason: data.reason,
+    summary: sanitizeText(data.summary, TEXT_CAPS.summary),
+    counts: { ...data.stats },
+    total,
+    shown,
+    downstream,
+    endpoints: data.endpoints.slice(0, MAX_BLAST_FACTS).map((e) => sanitizeText(e, TEXT_CAPS.fact)),
+    crons: data.crons.slice(0, MAX_BLAST_FACTS).map((c) => sanitizeText(c, TEXT_CAPS.fact)),
+  };
+
+  const noteParts: string[] = [];
+  if (data.degraded) {
+    noteParts.push(
+      `Repo index degraded (${data.reason}): results are best-effort and may miss callers. Re-index the repo in the DevDigest UI for complete results.`,
+    );
+  } else if (total === 0) {
+    noteParts.push(`No downstream callers found for the ${data.stats.symbols} changed symbol(s).`);
+  }
+  if (shown < total || anyCallersCapped) {
+    noteParts.push(
+      `showing ${shown} of ${total} symbols (most callers first), max ${MAX_BLAST_CALLERS_PER_SYMBOL} callers each.`,
+    );
+  }
+  if (noteParts.length > 0) {
+    view.note = noteParts.join(' ');
   }
 
   return view;

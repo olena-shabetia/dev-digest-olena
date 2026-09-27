@@ -46,9 +46,9 @@ describe('tools/list budget', () => {
 
     const serialized = JSON.stringify(tools);
     // Measured on the frozen §3.4 descriptions/annotations at time of writing:
-    // 4182 chars total (budget 6000); per-tool description lengths were 156
+    // 4358 chars total (budget 6000); per-tool description lengths were 156
     // (list_agents), 318 (run_agent_on_pr), 243 (get_findings), 196
-    // (get_conventions), 170 (get_blast_radius) — all under the 450 cap.
+    // (get_conventions), 348 (get_blast_radius) — all under the 450 cap.
     expect(serialized.length).toBeLessThanOrEqual(TOOLS_LIST_CHAR_BUDGET);
 
     for (const tool of tools) {

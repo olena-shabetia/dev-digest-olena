@@ -23,6 +23,7 @@ import {
   runFixture,
   activeRunFixture,
   reviewFixture,
+  blastFixture,
 } from './helpers/fixtures.js';
 
 function makeDeps(routes: RouteTable): {
@@ -364,8 +365,12 @@ describe('get_conventions', () => {
 });
 
 describe('get_blast_radius', () => {
-  it('always returns the not_implemented stub without calling the API', async () => {
-    const { deps, calls } = makeDeps({});
+  it('returns counts and caller locations for a resolved PR', async () => {
+    const { deps } = makeDeps({
+      'GET /repos': () => jsonResponse([repoFixture()]),
+      'GET /repos/:id/pulls': () => jsonResponse([prFixture()]),
+      'GET /pulls/:id/blast': () => jsonResponse(blastFixture()),
+    });
     const client = await connectClient(deps);
 
     const { isError, view } = await call(client, 'get_blast_radius', {
@@ -373,7 +378,38 @@ describe('get_blast_radius', () => {
       pr: 482,
     });
     expect(isError).toBe(false);
-    expect(view.status).toBe('not_implemented');
-    expect(calls).toHaveLength(0);
+    expect(view.counts).toEqual({ symbols: 1, callers: 1, endpoints: 1, crons: 0 });
+    expect(view.downstream[0].callers[0].location).toBe('src/routes/public.ts:23');
+  });
+
+  it('is never isError when the index is degraded, and says so in the note', async () => {
+    const { deps } = makeDeps({
+      'GET /repos': () => jsonResponse([repoFixture()]),
+      'GET /repos/:id/pulls': () => jsonResponse([prFixture()]),
+      'GET /pulls/:id/blast': () =>
+        jsonResponse(blastFixture({ degraded: true, reason: 'index_partial' })),
+    });
+    const client = await connectClient(deps);
+
+    const { isError, view } = await call(client, 'get_blast_radius', {
+      repo: 'acme/payments-api',
+      pr: 482,
+    });
+    expect(isError).toBe(false);
+    expect(view.note).toMatch(/^Repo index degraded/);
+  });
+
+  it('rejects an unknown repo with repo_not_found', async () => {
+    const { deps } = makeDeps({
+      'GET /repos': () => jsonResponse([repoFixture()]),
+    });
+    const client = await connectClient(deps);
+
+    const { isError, text } = await call(client, 'get_blast_radius', {
+      repo: 'acme/unknown',
+      pr: 482,
+    });
+    expect(isError).toBe(true);
+    expect(text).toContain('not added in DevDigest');
   });
 });

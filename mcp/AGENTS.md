@@ -25,8 +25,8 @@ feature contract: `../specs/L04-devdigest-mcp.md`.
   model should reason about (unknown repo, disabled agent, unreachable API,
   …) comes back as `{isError:true, content:[{type:'text', text:'Error: …'}]}`
   with an actionable next step — never a thrown `McpError`. `get_blast_radius`
-  is never `isError`; it is a stub that always returns
-  `{status:"not_implemented"}`.
+  is never `isError` for a degraded or empty result; resolver/API failures use
+  the standard error table like every other read tool.
 - **Inputs are flat primitives only.** No `object`/`array` properties in any
   tool's input schema — enums are static, and a test enforces this plus a
   `tools/list` character budget (6,000 chars) and a per-description cap (450

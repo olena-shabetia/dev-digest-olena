@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type {
   Agent,
+  BlastRadiusResponse,
   ConventionCandidate,
   ConventionScan,
   FindingRecord,
@@ -11,11 +12,13 @@ import type {
 import {
   deriveVerdict,
   formatAgents,
+  formatBlastRadius,
   formatConventions,
   formatReviewResult,
   sanitizeText,
   sortFindings,
 } from '../src/format.js';
+import { MAX_BLAST_CALLERS_PER_SYMBOL, MAX_BLAST_SYMBOLS } from '../src/constants.js';
 
 // --- inline fixtures (WU-5 owns none of WU-4's test helpers) ---
 
@@ -136,6 +139,28 @@ function makeScan(overrides: Partial<ConventionScan> = {}): ConventionScan {
     degraded: false,
     degraded_reason: null,
     created_at: '2026-01-01T00:00:00.000Z',
+    ...overrides,
+  };
+}
+
+function makeBlastData(overrides: Partial<BlastRadiusResponse> = {}): BlastRadiusResponse {
+  return {
+    changed_symbols: [{ name: 'rateLimit', file: 'src/limits.ts', kind: 'function' }],
+    downstream: [
+      {
+        symbol: 'rateLimit',
+        callers: [{ name: 'publicRouter', file: 'src/routes/public.ts', line: 23 }],
+        endpoints_affected: ['GET /api/public/items'],
+        crons_affected: [],
+      },
+    ],
+    summary: '1 changed symbol(s), 1 caller(s), 1 endpoint(s), 0 cron job(s)',
+    endpoints: ['GET /api/public/items'],
+    crons: [],
+    facts_by_file: {},
+    stats: { symbols: 1, callers: 1, endpoints: 1, crons: 0 },
+    degraded: false,
+    reason: null,
     ...overrides,
   };
 }
@@ -312,5 +337,51 @@ describe('formatConventions', () => {
     });
     expect(view.counts).toEqual({ accepted: 1, pending: 1, rejected: 1 });
     expect(view.total).toBe(3);
+  });
+});
+
+describe('formatBlastRadius', () => {
+  it('caps symbols and callers-per-symbol, and notes the truncation', () => {
+    const manySymbols = Array.from({ length: MAX_BLAST_SYMBOLS + 5 }, (_, i) => ({
+      symbol: `sym${i}`,
+      callers: Array.from({ length: MAX_BLAST_CALLERS_PER_SYMBOL + 3 }, (_, j) => ({
+        name: `caller${j}`,
+        file: 'src/a.ts',
+        line: j + 1,
+      })),
+      endpoints_affected: [],
+      crons_affected: [],
+    }));
+    const data = makeBlastData({ downstream: manySymbols });
+
+    const view = formatBlastRadius({ repo: 'acme/x', pr: 1, data });
+
+    expect(view.total).toBe(MAX_BLAST_SYMBOLS + 5);
+    expect(view.shown).toBe(MAX_BLAST_SYMBOLS);
+    expect(view.downstream).toHaveLength(MAX_BLAST_SYMBOLS);
+    expect(view.downstream[0]?.callers).toHaveLength(MAX_BLAST_CALLERS_PER_SYMBOL);
+    expect(view.downstream[0]?.callers_total).toBe(MAX_BLAST_CALLERS_PER_SYMBOL + 3);
+    expect(view.note).toContain(
+      `showing ${MAX_BLAST_SYMBOLS} of ${MAX_BLAST_SYMBOLS + 5} symbols`,
+    );
+  });
+
+  it('sanitizes repo-derived symbol/caller/path text', () => {
+    const data = makeBlastData({
+      downstream: [
+        {
+          symbol: 'evil\u0007Name',
+          callers: [{ name: 'caller```rm -rf /```', file: 'src/a\u0007.ts', line: 1 }],
+          endpoints_affected: [],
+          crons_affected: [],
+        },
+      ],
+    });
+
+    const view = formatBlastRadius({ repo: 'acme/x', pr: 1, data });
+
+    expect(view.downstream[0]?.symbol).not.toContain('\u0007');
+    expect(view.downstream[0]?.callers[0]?.name).not.toContain('```');
+    expect(view.downstream[0]?.callers[0]?.location).not.toContain('\u0007');
   });
 });
