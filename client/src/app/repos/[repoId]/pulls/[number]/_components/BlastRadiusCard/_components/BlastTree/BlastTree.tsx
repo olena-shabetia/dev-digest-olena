@@ -9,7 +9,7 @@ import { Badge, Icon, MonoLink } from "@devdigest/ui";
 import type { BlastRadiusResponse } from "@devdigest/shared";
 import { githubBlobUrl } from "@/lib/github-urls";
 import { CRON_COLOR, ENDPOINT_COLOR } from "../../constants";
-import { showUnattributedEndpoints, uncalledCount } from "../../helpers";
+import { headerCronLabel, humanizeCron, showUnattributedEndpoints, uncalledCount } from "../../helpers";
 import { s } from "../../styles";
 
 export function BlastTree({
@@ -42,6 +42,7 @@ export function BlastTree({
     <div style={s.treeRoot}>
       {data.downstream.map((entry) => {
         const isOpen = expanded.has(entry.symbol);
+        const cronLabel = headerCronLabel(entry);
         return (
           <div key={entry.symbol} style={s.row}>
             <button
@@ -56,6 +57,9 @@ export function BlastTree({
                 <Icon.Code size={13} style={{ color: "var(--accent)" }} />
                 <span className="mono">{entry.symbol}</span>
               </span>
+              {cronLabel && (
+                <span style={s.rowHeaderCount}>{t(cronLabel.key, cronLabel.params)}</span>
+              )}
               <span style={s.rowHeaderCount}>
                 {t("callerCount", { count: entry.callers.length })}
               </span>
@@ -93,17 +97,14 @@ export function BlastTree({
                         {ep}
                       </Badge>
                     ))}
-                    {entry.crons_affected.map((cron) => (
-                      <Badge
-                        key={cron}
-                        mono
-                        icon="Clock"
-                        color={CRON_COLOR.color}
-                        bg={CRON_COLOR.bg}
-                      >
-                        {cron}
-                      </Badge>
-                    ))}
+                    {entry.crons_affected.map((cron) => {
+                      const label = humanizeCron(cron);
+                      return (
+                        <Badge key={cron} mono icon="Clock" color={CRON_COLOR.color} bg={CRON_COLOR.bg}>
+                          {t(label.key, label.params)}
+                        </Badge>
+                      );
+                    })}
                   </div>
                 )}
               </>

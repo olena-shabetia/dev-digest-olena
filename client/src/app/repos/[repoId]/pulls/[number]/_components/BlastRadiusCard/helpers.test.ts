@@ -2,6 +2,8 @@ import { describe, it, expect } from "vitest";
 import type { BlastRadiusResponse } from "@devdigest/shared";
 import {
   degradedKey,
+  headerCronLabel,
+  humanizeCron,
   layoutBlastGraph,
   showUnattributedEndpoints,
   uncalledCount,
@@ -112,5 +114,55 @@ describe("layoutBlastGraph", () => {
     const layout = layoutBlastGraph([], {});
     expect(layout.nodes).toHaveLength(0);
     expect(layout.edges).toHaveLength(0);
+  });
+});
+
+describe("humanizeCron", () => {
+  it("recognizes an every-N-minutes expression", () => {
+    expect(humanizeCron("*/5 * * * *")).toEqual({ key: "cron.everyNMinutes", params: { n: 5 } });
+  });
+
+  it("collapses */1 to the singular everyMinute key", () => {
+    expect(humanizeCron("*/1 * * * *")).toEqual({ key: "cron.everyMinute" });
+    expect(humanizeCron("* * * * *")).toEqual({ key: "cron.everyMinute" });
+  });
+
+  it("recognizes hourly, every-N-hours, daily and weekly shapes", () => {
+    expect(humanizeCron("0 * * * *")).toEqual({ key: "cron.hourly" });
+    expect(humanizeCron("0 */2 * * *")).toEqual({ key: "cron.everyNHours", params: { n: 2 } });
+    expect(humanizeCron("0 3 * * *")).toEqual({ key: "cron.daily" });
+    expect(humanizeCron("0 3 * * 1")).toEqual({ key: "cron.weekly" });
+  });
+
+  it("humanizes a job:<kind> fact into a name, no cadence", () => {
+    expect(humanizeCron("job:reset-rate-buckets")).toEqual({
+      key: "cron.job",
+      params: { name: "reset rate buckets" },
+    });
+  });
+
+  it("falls back to the raw expression for an unrecognized shape", () => {
+    expect(humanizeCron("@reboot")).toEqual({ key: "cron.raw", params: { expr: "@reboot" } });
+    expect(humanizeCron("15 2 1 * *")).toEqual({ key: "cron.raw", params: { expr: "15 2 1 * *" } });
+  });
+});
+
+describe("headerCronLabel", () => {
+  it("returns null when the symbol has no cron facts", () => {
+    expect(headerCronLabel({ crons_affected: [] })).toBeNull();
+  });
+
+  it("returns a plain count, not the cadence, for exactly one cron fact", () => {
+    expect(headerCronLabel({ crons_affected: ["*/5 * * * *"] })).toEqual({
+      key: "cronCount",
+      params: { count: 1 },
+    });
+  });
+
+  it("returns a plain count for more than one cron fact", () => {
+    expect(headerCronLabel({ crons_affected: ["*/5 * * * *", "job:x"] })).toEqual({
+      key: "cronCount",
+      params: { count: 2 },
+    });
   });
 });

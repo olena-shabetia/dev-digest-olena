@@ -105,7 +105,10 @@ describe("BlastRadiusCard", () => {
     expect(callerLink).toHaveAttribute("href", expectedHref);
 
     expect(screen.getByText("GET /api/public/items")).toBeInTheDocument();
-    expect(screen.getByText("job:reset-rate-buckets")).toBeInTheDocument();
+    // Row header shows a plain count, the expanded badge shows the humanized
+    // cadence/name — never the raw "job:reset-rate-buckets" fact.
+    expect(screen.getByText("1 cron")).toBeInTheDocument();
+    expect(screen.getByText("reset rate buckets")).toBeInTheDocument();
 
     fireEvent.click(collapseBtn);
     expect(screen.getByRole("button", { name: /expand rateLimit/i })).toHaveAttribute(

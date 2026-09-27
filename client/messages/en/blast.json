@@ -10,6 +10,17 @@
     "graph": "graph"
   },
   "callerCount": "{count} callers",
+  "cronCount": "{count} cron",
+  "cron": {
+    "everyMinute": "every minute",
+    "everyNMinutes": "every {n} min",
+    "hourly": "hourly",
+    "everyNHours": "every {n}h",
+    "daily": "daily",
+    "weekly": "weekly",
+    "job": "{name}",
+    "raw": "{expr}"
+  },
   "noDownstream": "{count} changed symbol(s), no downstream callers found.",
   "graph": {
     "empty": "No downstream callers to graph.",

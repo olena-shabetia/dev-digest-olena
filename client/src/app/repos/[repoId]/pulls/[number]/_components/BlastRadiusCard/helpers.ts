@@ -2,7 +2,7 @@
    counts, summary) already happened server-side (blast/helpers.ts) — these
    only derive small UI-local view values from the frozen BlastRadiusResponse
    shape, per frontend-ui-architecture's business-logic ladder rung 3. */
-import type { BlastRadiusResponse } from "@devdigest/shared";
+import type { BlastRadiusResponse, DownstreamImpact } from "@devdigest/shared";
 import {
   GRAPH_COLUMN_X,
   GRAPH_NODE_GAP,
@@ -36,6 +36,67 @@ export function showUnattributedEndpoints(data: BlastRadiusResponse): boolean {
     data.endpoints.length > 0 &&
     data.downstream.every((d) => d.endpoints_affected.length === 0)
   );
+}
+
+// ---- Cron display ----
+
+/** A translation key (relative to the "blast" namespace) plus its
+ *  interpolation params — pure helpers never render text themselves, per
+ *  the `degradedKey` pattern above. */
+export interface CronDisplay {
+  key: string;
+  params?: Record<string, number | string>;
+}
+
+const FIVE_FIELD_CRON = /^(\S+)\s+(\S+)\s+(\S+)\s+(\S+)\s+(\S+)$/;
+const EVERY_N = /^\*\/(\d+)$/;
+const DIGITS = /^\d+$/;
+
+/** Turns a raw repo-intel cron fact ("*\/5 * * * *", "job:reset-buckets")
+ *  into a translation key + params instead of showing the raw expression —
+ *  a bare cron string reads as noise in the UI (client/INSIGHTS.md 2026-09-27
+ *  "asterisks are strange" feedback). Falls back to `cron.raw` (the
+ *  expression verbatim) for any shape this doesn't recognize — it must never
+ *  throw or drop the fact silently. */
+export function humanizeCron(raw: string): CronDisplay {
+  if (raw.startsWith("job:")) {
+    const name = raw.slice(4).replace(/[-_]+/g, " ").trim();
+    return name ? { key: "cron.job", params: { name } } : { key: "cron.raw", params: { expr: raw } };
+  }
+
+  const m = raw.trim().match(FIVE_FIELD_CRON);
+  if (!m) return { key: "cron.raw", params: { expr: raw } };
+  const [, min, hour, dom, mon, dow] = m as unknown as [string, string, string, string, string, string];
+  const restStar = dom === "*" && mon === "*";
+
+  if (restStar && dow === "*") {
+    if (min === "*" && hour === "*") return { key: "cron.everyMinute" };
+    const everyMin = min.match(EVERY_N);
+    if (everyMin && hour === "*") {
+      const n = Number(everyMin[1]);
+      return n === 1 ? { key: "cron.everyMinute" } : { key: "cron.everyNMinutes", params: { n } };
+    }
+    if (DIGITS.test(min) && hour === "*") return { key: "cron.hourly" };
+    const everyHour = hour.match(EVERY_N);
+    if (DIGITS.test(min) && everyHour) {
+      return { key: "cron.everyNHours", params: { n: Number(everyHour[1]) } };
+    }
+    if (DIGITS.test(min) && DIGITS.test(hour)) return { key: "cron.daily" };
+  }
+  if (restStar && DIGITS.test(dow) && DIGITS.test(min) && DIGITS.test(hour)) {
+    return { key: "cron.weekly" };
+  }
+  return { key: "cron.raw", params: { expr: raw } };
+}
+
+/** What the row header's inline cron indicator should show, or null when the
+ *  symbol has no cron facts — a plain count ("1 cron", "2 cron"), same
+ *  principle as `callerCount`. The cadence/name itself is only shown once
+ *  expanded, via `humanizeCron` on each badge. */
+export function headerCronLabel(entry: Pick<DownstreamImpact, "crons_affected">): CronDisplay | null {
+  const crons = entry.crons_affected;
+  if (crons.length === 0) return null;
+  return { key: "cronCount", params: { count: crons.length } };
 }
 
 // ---- Graph layout ----
