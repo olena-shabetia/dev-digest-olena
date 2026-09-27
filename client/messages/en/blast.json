@@ -47,5 +47,12 @@
   "uncalled": "{count} other changed symbol(s) have no callers.",
   "expand": "Expand {symbol}",
   "collapse": "Collapse {symbol}",
-  "viewToggle": "Blast radius view"
+  "viewToggle": "Blast radius view",
+  "priorPrs": {
+    "title": "Prior PRs touching these files",
+    "expand": "Expand prior PRs touching these files",
+    "collapse": "Collapse prior PRs touching these files",
+    "empty": "No prior PRs found touching these files.",
+    "error": "Couldn't load prior PRs."
+  }
 }

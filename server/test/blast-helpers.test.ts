@@ -37,7 +37,9 @@ describe('toBlastRadiusResponse', () => {
       { name: 'bar', file: 'src/a.ts', kind: 'function' },
     ]);
 
-    // `foo` has 2 callers, `bar` has 1 -> foo sorts first (callers.length desc).
+    // `foo`'s max caller rank is 5, `bar`'s is 1 -> foo sorts first (rank desc).
+    // Also consistent with callers.length here (2 vs 1) — see the dedicated
+    // "sorts by rank over caller count" test below for a case where they disagree.
     expect(result.downstream.map((d) => d.symbol)).toEqual(['foo', 'bar']);
 
     const fooGroup = result.downstream.find((d) => d.symbol === 'foo')!;
@@ -66,6 +68,29 @@ describe('toBlastRadiusResponse', () => {
     expect(result.summary).toBe('2 changed symbol(s), 3 caller(s), 2 endpoint(s), 1 cron job(s)');
     expect(result.degraded).toBe(false);
     expect(result.reason).toBeNull();
+  });
+
+  it('sorts by rank over caller count: a high-rank single caller outranks a low-rank crowd', () => {
+    const input: BlastResultInput = {
+      changedSymbols: [
+        { file: 'src/a.ts', name: 'important', kind: 'function' },
+        { file: 'src/a.ts', name: 'popular', kind: 'function' },
+      ],
+      callers: [
+        // 'important' has only 1 caller, but it's a high-rank file.
+        { file: 'src/core/router.ts', symbol: 'mount', viaSymbol: 'important', line: 1, rank: 99 },
+        // 'popular' has 3 callers, all low-rank files.
+        { file: 'src/misc/a.ts', symbol: 'fnA', viaSymbol: 'popular', line: 1, rank: 1 },
+        { file: 'src/misc/b.ts', symbol: 'fnB', viaSymbol: 'popular', line: 1, rank: 1 },
+        { file: 'src/misc/c.ts', symbol: 'fnC', viaSymbol: 'popular', line: 1, rank: 1 },
+      ],
+      impactedEndpoints: [],
+      degraded: false,
+    };
+
+    const result = toBlastRadiusResponse(input);
+
+    expect(result.downstream.map((d) => d.symbol)).toEqual(['important', 'popular']);
   });
 
   it('excludes a caller row whose file is the same file the changed symbol is declared in', () => {

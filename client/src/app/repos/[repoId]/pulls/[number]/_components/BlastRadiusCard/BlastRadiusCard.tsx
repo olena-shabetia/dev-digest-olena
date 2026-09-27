@@ -8,26 +8,32 @@
 
 import React from "react";
 import { useTranslations } from "next-intl";
-import { Card, Chip, EmptyState, ErrorState, Icon, SectionLabel, Skeleton } from "@devdigest/ui";
+import { Button, Card, Chip, EmptyState, ErrorState, Icon, SectionLabel, Skeleton } from "@devdigest/ui";
 import { useBlastRadius } from "@/lib/hooks/reviews";
+import { useResyncRepoIntel } from "@/lib/hooks/repo-intel";
 import { BlastTree } from "./_components/BlastTree";
 import { BlastGraph } from "./_components/BlastGraph";
+import { PriorPrs } from "./_components/PriorPrs";
 import { BLAST_VIEWS, type BlastView } from "./constants";
 import { degradedKey } from "./helpers";
 import { s } from "./styles";
 
 export function BlastRadiusCard({
   prId,
+  repoId,
   repoFullName,
   headSha,
 }: {
   prId: string | null;
+  repoId: string | null;
   repoFullName: string | null;
   headSha: string;
 }) {
   const t = useTranslations("blast");
   const tBrief = useTranslations("brief");
+  const tContext = useTranslations("context");
   const { data, isLoading, isError, refetch } = useBlastRadius(prId);
+  const resync = useResyncRepoIntel(repoId);
   const [view, setView] = React.useState<BlastView>(BLAST_VIEWS[0]);
 
   if (isLoading) {
@@ -102,6 +108,19 @@ export function BlastRadiusCard({
           <div role="status" style={s.degradedRow}>
             <Icon.AlertTriangle size={14} />
             <span>{t(degradedKey(reason))}</span>
+            {repoId && (
+              <Button
+                kind="tertiary"
+                size="sm"
+                icon="RefreshCw"
+                loading={resync.isPending}
+                disabled={resync.isPending}
+                style={{ marginLeft: "auto" }}
+                onClick={() => resync.mutate()}
+              >
+                {resync.isPending ? tContext("resyncing") : tContext("resync")}
+              </Button>
+            )}
           </div>
         )}
 
@@ -112,6 +131,8 @@ export function BlastRadiusCard({
         ) : (
           <BlastGraph data={data} repoFullName={repoFullName} headSha={headSha} />
         )}
+
+        <PriorPrs prId={prId} repoFullName={repoFullName} />
       </div>
     </Card>
   );

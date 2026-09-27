@@ -65,6 +65,17 @@ export function toBlastRadiusResponse(input: BlastResultInput): BlastRadiusRespo
 
   const factsByFile = input.factsByFile ?? {};
 
+  // The facade's `rank` (repo-intel's file-importance percentile, attached
+  // per caller row) is the "most important on top" signal — a symbol's
+  // group rank is the highest rank among its (already self-file-excluded)
+  // callers. Not part of the public DownstreamImpact shape, so this stays a
+  // side map used only for sorting below (step 3).
+  const groupRank = new Map<string, number>();
+  for (const symbol of groupOrder) {
+    const rows = groups.get(symbol)!;
+    groupRank.set(symbol, Math.max(...rows.map((r) => r.rank)));
+  }
+
   const downstreamUnsorted: DownstreamImpact[] = groupOrder.map((symbol) => {
     const rows = groups.get(symbol)!;
     const endpoints_affected = sortedUnique(rows.flatMap((r) => factsByFile[r.file]?.endpoints ?? []));
@@ -77,8 +88,11 @@ export function toBlastRadiusResponse(input: BlastResultInput): BlastRadiusRespo
     };
   });
 
-  // Step 3: sort by callers.length descending, then symbol ascending.
+  // Step 3: sort by rank descending (most important caller file on top),
+  // then callers.length descending, then symbol ascending.
   const downstream = [...downstreamUnsorted].sort((a, b) => {
+    const rankDiff = groupRank.get(b.symbol)! - groupRank.get(a.symbol)!;
+    if (rankDiff !== 0) return rankDiff;
     if (b.callers.length !== a.callers.length) return b.callers.length - a.callers.length;
     return a.symbol.localeCompare(b.symbol);
   });

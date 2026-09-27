@@ -127,4 +127,73 @@ export const s = {
     borderRadius: 99,
     display: "inline-block",
   } satisfies CSSProperties,
+
+  // ---- PriorPrs ----
+  priorPrsHeader: {
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+    width: "100%",
+    background: "none",
+    border: "none",
+    borderTop: "1px solid var(--border)",
+    padding: "8px 0 0",
+    marginTop: 4,
+    cursor: "pointer",
+    color: "var(--text-secondary)",
+    fontSize: 13,
+  } satisfies CSSProperties,
+  priorPrsTitle: {
+    flex: 1,
+    fontWeight: 600,
+    color: "var(--text-primary)",
+  } satisfies CSSProperties,
+  priorPrsList: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 14,
+    paddingLeft: 4,
+    paddingTop: 10,
+  } satisfies CSSProperties,
+  priorPrItem: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 4,
+    fontSize: 12,
+    paddingBottom: 12,
+    borderBottom: "1px solid var(--border)",
+  } satisfies CSSProperties,
+  priorPrTitleRow: {
+    display: "flex",
+    alignItems: "flex-start",
+    gap: 8,
+    fontSize: 13,
+  } satisfies CSSProperties,
+  priorPrBullet: {
+    width: 6,
+    height: 6,
+    borderRadius: 99,
+    background: "var(--text-muted)",
+    flexShrink: 0,
+    marginTop: 6,
+  } satisfies CSSProperties,
+  priorPrTitleText: {
+    color: "var(--text-primary)",
+    fontWeight: 600,
+  } satisfies CSSProperties,
+  priorPrAuthorRow: {
+    display: "flex",
+    alignItems: "center",
+    gap: 6,
+    paddingLeft: 14,
+    color: "var(--text-secondary)",
+  } satisfies CSSProperties,
+  priorPrNotes: {
+    margin: 0,
+    paddingLeft: 14,
+    color: "var(--text-secondary)",
+  } satisfies CSSProperties,
+  priorPrMeta: {
+    color: "var(--text-muted)",
+  } satisfies CSSProperties,
 } as const;

@@ -10,6 +10,7 @@ import type {
   ActiveRun,
   BlastRadiusResponse,
   FindingActionKind,
+  PrHistory,
   PrIntentRecord,
   PrReviewComment,
   ReviewRecord,
@@ -73,6 +74,17 @@ export function useBlastRadius(prId: string | null | undefined) {
     queryKey: ["pr-blast", prId],
     queryFn: () => api.get<BlastRadiusResponse>(`/pulls/${prId}/blast`),
     enabled: !!prId,
+    staleTime: 60_000,
+  });
+}
+
+// ---- Prior PRs touching these files (P3) — live GitHub calls, so this is
+// fetched lazily: `enabled` stays false until the panel is expanded. ----
+export function usePrHistory(prId: string | null | undefined, enabled: boolean) {
+  return useQuery({
+    queryKey: ["pr-history", prId],
+    queryFn: () => api.get<PrHistory>(`/pulls/${prId}/history`),
+    enabled: !!prId && enabled,
     staleTime: 60_000,
   });
 }

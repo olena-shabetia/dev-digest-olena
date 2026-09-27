@@ -1,11 +1,12 @@
 import { describe, it, expect, afterEach, vi } from "vitest";
-import { render, screen, cleanup, fireEvent } from "@testing-library/react";
+import { render, screen, cleanup, fireEvent, waitFor } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import type { BlastRadiusResponse } from "@devdigest/shared";
+import type { BlastRadiusResponse, PrHistory } from "@devdigest/shared";
 import blastMessages from "../../../../../../../../messages/en/blast.json";
 import briefMessages from "../../../../../../../../messages/en/brief.json";
 import commonMessages from "../../../../../../../../messages/en/common.json";
+import contextMessages from "../../../../../../../../messages/en/context.json";
 import { BlastRadiusCard } from "./BlastRadiusCard";
 import { githubBlobUrl } from "@/lib/github-urls";
 
@@ -14,6 +15,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+const REPO_ID = "repo1";
 const REPO_FULL_NAME = "acme/payments-api";
 const HEAD_SHA = "abc123";
 
@@ -56,8 +58,25 @@ const EMPTY_DATA: BlastRadiusResponse = {
   reason: null,
 };
 
-function mockFetch(byPrId: Record<string, BlastRadiusResponse>) {
+function mockFetch(
+  byPrId: Record<string, BlastRadiusResponse>,
+  historyByPrId: Record<string, PrHistory> = {},
+) {
   const fn = vi.fn(async (url: string) => {
+    if (url.includes("/resync")) {
+      return new Response(JSON.stringify({ status: "accepted" }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    }
+    const historyMatch = url.match(/\/pulls\/([^/]+)\/history/);
+    if (historyMatch) {
+      const prId = historyMatch[1] ?? "";
+      return new Response(JSON.stringify(historyByPrId[prId] ?? { history: [] }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    }
     const match = url.match(/\/pulls\/([^/]+)\/blast/);
     const prId = match?.[1] ?? "";
     return new Response(JSON.stringify(byPrId[prId] ?? null), {
@@ -77,7 +96,13 @@ function renderWithProviders(ui: React.ReactElement) {
     <QueryClientProvider client={qc}>
       <NextIntlClientProvider
         locale="en"
-        messages={{ blast: blastMessages, brief: briefMessages, common: commonMessages }}
+        timeZone="UTC"
+        messages={{
+          blast: blastMessages,
+          brief: briefMessages,
+          common: commonMessages,
+          context: contextMessages,
+        }}
       >
         {ui}
       </NextIntlClientProvider>
@@ -89,7 +114,7 @@ describe("BlastRadiusCard", () => {
   it("renders stats, an expanded caller with a working link, endpoint/cron pills, collapses, and switches to the graph view", async () => {
     mockFetch({ pr1: HAPPY_DATA });
     renderWithProviders(
-      <BlastRadiusCard prId="pr1" repoFullName={REPO_FULL_NAME} headSha={HEAD_SHA} />,
+      <BlastRadiusCard prId="pr1" repoId={REPO_ID} repoFullName={REPO_FULL_NAME} headSha={HEAD_SHA} />,
     );
 
     expect(await screen.findByText("1 symbols")).toBeInTheDocument();
@@ -121,10 +146,10 @@ describe("BlastRadiusCard", () => {
     expect(await screen.findByRole("img", { name: "Blast radius graph" })).toBeInTheDocument();
   });
 
-  it("shows the degraded status alongside the tree data", async () => {
-    mockFetch({ pr2: DEGRADED_DATA });
+  it("shows the degraded status alongside the tree data, with a working resync button", async () => {
+    const fetchMock = mockFetch({ pr2: DEGRADED_DATA });
     renderWithProviders(
-      <BlastRadiusCard prId="pr2" repoFullName={REPO_FULL_NAME} headSha={HEAD_SHA} />,
+      <BlastRadiusCard prId="pr2" repoId={REPO_ID} repoFullName={REPO_FULL_NAME} headSha={HEAD_SHA} />,
     );
 
     expect(
@@ -132,12 +157,20 @@ describe("BlastRadiusCard", () => {
     ).toBeInTheDocument();
     expect(screen.getByRole("status")).toBeInTheDocument();
     expect(screen.getByText("rateLimit")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Resync" }));
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        expect.stringContaining(`/repos/${REPO_ID}/resync`),
+        expect.objectContaining({ method: "POST" }),
+      ),
+    );
   });
 
   it("shows the no-downstream-callers message and no tree rows when empty and not degraded", async () => {
     mockFetch({ pr3: EMPTY_DATA });
     renderWithProviders(
-      <BlastRadiusCard prId="pr3" repoFullName={REPO_FULL_NAME} headSha={HEAD_SHA} />,
+      <BlastRadiusCard prId="pr3" repoId={REPO_ID} repoFullName={REPO_FULL_NAME} headSha={HEAD_SHA} />,
     );
 
     expect(
@@ -145,5 +178,53 @@ describe("BlastRadiusCard", () => {
     ).toBeInTheDocument();
     expect(screen.queryByText("rateLimit")).not.toBeInTheDocument();
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
+  });
+
+  it("Prior PRs: collapsed by default (no fetch), expands to fetch and render, and links to GitHub", async () => {
+    const fetchMock = mockFetch(
+      { pr4: HAPPY_DATA },
+      {
+        pr4: {
+          history: [
+            {
+              pr_number: 471,
+              title: "Add the rate limiter middleware",
+              merged_at: "2026-01-15T00:00:00Z",
+              author: "marisa",
+              files_overlap: ["src/mw/rateLimit.ts"],
+              notes: "1 of 1 changed file(s) overlap",
+            },
+          ],
+        },
+      },
+    );
+    renderWithProviders(
+      <BlastRadiusCard prId="pr4" repoId={REPO_ID} repoFullName={REPO_FULL_NAME} headSha={HEAD_SHA} />,
+    );
+    await screen.findByText("1 symbols");
+
+    // Collapsed by default: no /history call yet.
+    expect(fetchMock).not.toHaveBeenCalledWith(expect.stringContaining("/history"), expect.anything());
+
+    fireEvent.click(screen.getByRole("button", { name: "Expand prior PRs touching these files" }));
+
+    const link = await screen.findByRole("link", { name: /#471 Add the rate limiter middleware/i });
+    expect(link).toHaveAttribute("href", "https://github.com/acme/payments-api/pull/471");
+    expect(screen.getByText("marisa")).toBeInTheDocument();
+    expect(screen.getByText("1 of 1 changed file(s) overlap")).toBeInTheDocument();
+    // The count badge only appears once the history has actually loaded.
+    expect(screen.getByText("1")).toBeInTheDocument();
+  });
+
+  it("Prior PRs: shows the empty state when nothing overlapped", async () => {
+    mockFetch({ pr5: HAPPY_DATA }, { pr5: { history: [] } });
+    renderWithProviders(
+      <BlastRadiusCard prId="pr5" repoId={REPO_ID} repoFullName={REPO_FULL_NAME} headSha={HEAD_SHA} />,
+    );
+    await screen.findByText("1 symbols");
+
+    fireEvent.click(screen.getByRole("button", { name: "Expand prior PRs touching these files" }));
+
+    expect(await screen.findByText("No prior PRs found touching these files.")).toBeInTheDocument();
   });
 });

@@ -84,7 +84,7 @@ export function BlastTree({
                   ))}
                 </div>
 
-                {(entry.endpoints_affected.length > 0 || entry.crons_affected.length > 0) && (
+                {entry.endpoints_affected.length > 0 && (
                   <div style={s.badgeRow}>
                     {entry.endpoints_affected.map((ep) => (
                       <Badge
@@ -97,6 +97,10 @@ export function BlastTree({
                         {ep}
                       </Badge>
                     ))}
+                  </div>
+                )}
+                {entry.crons_affected.length > 0 && (
+                  <div style={s.badgeRow}>
                     {entry.crons_affected.map((cron) => {
                       const label = humanizeCron(cron);
                       return (

@@ -162,7 +162,7 @@ export default function PRDetailPage() {
                 <IntentCard prId={prId} />
               </div>
               <div style={{ flex: "1 1 420px", minWidth: 0 }}>
-                <BlastRadiusCard prId={prId} repoFullName={repoFullName} headSha={pr.head_sha} />
+                <BlastRadiusCard prId={prId} repoId={repoId} repoFullName={repoFullName} headSha={pr.head_sha} />
               </div>
             </div>
             <OverviewTab prBody={pr.body} />
