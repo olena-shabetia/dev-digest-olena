@@ -68,6 +68,32 @@ describe('toBlastRadiusResponse', () => {
     expect(result.reason).toBeNull();
   });
 
+  it('excludes a caller row whose file is the same file the changed symbol is declared in', () => {
+    const input: BlastResultInput = {
+      changedSymbols: [{ file: 'src/a.ts', name: 'foo', kind: 'function' }],
+      callers: [
+        // same-file "caller" — must not appear as a downstream caller.
+        { file: 'src/a.ts', symbol: 'siblingInSameFile', viaSymbol: 'foo', line: 5, rank: 9 },
+        // genuine cross-file caller — must survive.
+        { file: 'src/routes/x.ts', symbol: 'handlerX', viaSymbol: 'foo', line: 10, rank: 5 },
+      ],
+      impactedEndpoints: [],
+      factsByFile: {
+        'src/a.ts': { endpoints: ['GET /should-not-appear'], crons: [] },
+        'src/routes/x.ts': { endpoints: ['GET /x'], crons: [] },
+      },
+      degraded: false,
+    };
+
+    const result = toBlastRadiusResponse(input);
+
+    expect(result.downstream).toHaveLength(1);
+    expect(result.downstream[0]!.callers).toEqual([{ name: 'handlerX', file: 'src/routes/x.ts', line: 10 }]);
+    expect(result.stats.callers).toBe(1);
+    // The declaring file's own facts must not leak in via facts_by_file either.
+    expect(result.facts_by_file).toEqual({ 'src/routes/x.ts': { endpoints: ['GET /x'], crons: [] } });
+  });
+
   it('excludes factsByFile entries for files that are not a caller of any changed symbol', () => {
     const input: BlastResultInput = {
       changedSymbols: [{ file: 'src/a.ts', name: 'foo', kind: 'function' }],

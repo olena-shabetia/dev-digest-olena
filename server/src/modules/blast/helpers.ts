@@ -32,11 +32,28 @@ export function buildBlastSummary(stats: BlastStats): string {
 export function toBlastRadiusResponse(input: BlastResultInput): BlastRadiusResponse {
   const changed_symbols = input.changedSymbols.map(({ name, file, kind }) => ({ name, file, kind }));
 
+  // The declaring file(s) of each changed symbol name — a caller row whose
+  // file matches is a same-file use, not a cross-file blast-radius impact.
+  // The facade already excludes these in practice (the persistent path's
+  // resolution requires an import edge, which a file never has to itself;
+  // the ripgrep fallback checks explicitly), but this module doesn't control
+  // that upstream behavior, so it re-asserts the invariant defensively.
+  const declFilesByName = new Map<string, Set<string>>();
+  for (const s of input.changedSymbols) {
+    let files = declFilesByName.get(s.name);
+    if (!files) {
+      files = new Set();
+      declFilesByName.set(s.name, files);
+    }
+    files.add(s.file);
+  }
+
   // Step 2: group callers by viaSymbol, keeping first-seen group order and
   // within-group input order (the facade already sorts by rank descending).
   const groupOrder: string[] = [];
   const groups = new Map<string, BlastResultInput['callers']>();
   for (const row of input.callers) {
+    if (declFilesByName.get(row.viaSymbol)?.has(row.file)) continue;
     let rows = groups.get(row.viaSymbol);
     if (!rows) {
       rows = [];
@@ -73,8 +90,11 @@ export function toBlastRadiusResponse(input: BlastResultInput): BlastRadiusRespo
   ]);
   const crons = sortedUnique(downstream.flatMap((d) => d.crons_affected));
 
-  // Step 5: facts_by_file restricted to distinct caller files present in factsByFile.
-  const callerFiles = new Set(input.callers.map((r) => r.file));
+  // Step 5: facts_by_file restricted to distinct caller files present in
+  // factsByFile — derived from `downstream` (post self-file exclusion), not
+  // the raw input, so a file that was only ever a same-file "caller" doesn't
+  // leak in here either.
+  const callerFiles = new Set(downstream.flatMap((d) => d.callers.map((c) => c.file)));
   const facts_by_file: BlastRadiusResponse['facts_by_file'] = {};
   for (const [file, facts] of Object.entries(factsByFile)) {
     if (!callerFiles.has(file)) continue;
