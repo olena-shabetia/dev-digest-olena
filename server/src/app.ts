@@ -85,6 +85,29 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
     app.log.warn({ err: (err as Error).message }, 'stale-run reaping failed (non-fatal)');
   }
 
+  // The boot-time reap above only catches runs orphaned by a PREVIOUS process —
+  // a run can also go stale while THIS process stays up (e.g. a hung LLM call
+  // that outlives its own run timeout). Sweep for that periodically too, on a
+  // cadence equivalent to schedule('*/5 * * * *') (every 5 minutes). Disabled
+  // under test: hermetic/integration suites build short-lived apps and don't
+  // want a live interval enqueuing DB jobs against them.
+  if (config.nodeEnv !== 'test') {
+    container.jobs.register('stale-run-sweep', async () => {
+      const reaped = await new ReviewService(container).reapStaleRuns();
+      if (reaped > 0) app.log.info({ reaped }, 'reaped stale running agent_runs (scheduled sweep)');
+    });
+    const workspace = await container.auth.currentWorkspace(undefined);
+    const sweepTimer = setInterval(() => {
+      container.jobs
+        .enqueue(workspace.id, 'stale-run-sweep', {})
+        .catch((err: unknown) =>
+          app.log.warn({ err: (err as Error).message }, 'scheduled stale-run sweep failed to enqueue'),
+        );
+    }, 5 * 60 * 1000);
+    sweepTimer.unref();
+    app.addHook('onClose', async () => clearInterval(sweepTimer));
+  }
+
   // Security headers (X-Content-Type-Options, X-Frame-Options, …). The API
   // serves JSON only, so the default CSP is fine.
   await app.register(helmet);
