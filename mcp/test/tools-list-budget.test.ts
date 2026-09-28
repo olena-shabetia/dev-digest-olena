@@ -45,10 +45,9 @@ describe('tools/list budget', () => {
     expect(tools.map((t) => t.name).sort()).toEqual([...EXPECTED_TOOL_NAMES].sort());
 
     const serialized = JSON.stringify(tools);
-    // Measured on the frozen §3.4 descriptions/annotations at time of writing:
-    // 4358 chars total (budget 6000); per-tool description lengths were 156
-    // (list_agents), 318 (run_agent_on_pr), 243 (get_findings), 196
-    // (get_conventions), 348 (get_blast_radius) — all under the 450 cap.
+    // Re-measure after get_findings' 2026-09-28 amendment (repo+pr with no
+    // agent now aggregates every agent's review) rather than trusting a
+    // stale count — just assert the frozen budget itself.
     expect(serialized.length).toBeLessThanOrEqual(TOOLS_LIST_CHAR_BUDGET);
 
     for (const tool of tools) {

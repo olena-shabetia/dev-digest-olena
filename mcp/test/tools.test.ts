@@ -304,6 +304,59 @@ describe('get_findings', () => {
     expect(isError).toBe(true);
     expect(text).toContain('not known to this MCP session');
   });
+
+  const OTHER_AGENT_ID = '77777777-7777-4777-8777-777777777777';
+  const OTHER_RUN_ID = '88888888-8888-4888-8888-888888888888';
+
+  it('aggregates every agent\'s latest review for repo+pr with no agent given', async () => {
+    const { deps } = makeDeps({
+      'GET /repos': () => jsonResponse([repoFixture()]),
+      'GET /repos/:id/pulls': () => jsonResponse([prFixture()]),
+      'GET /pulls/:id/runs': () =>
+        jsonResponse([
+          runFixture(),
+          runFixture({
+            run_id: OTHER_RUN_ID,
+            agent_id: OTHER_AGENT_ID,
+            agent_name: 'Style Reviewer',
+            status: 'running',
+          }),
+        ]),
+      'GET /pulls/:id/reviews': () => jsonResponse([reviewFixture()]),
+    });
+    const client = await connectClient(deps);
+
+    const { isError, view } = await call(client, 'get_findings', {
+      repo: 'acme/payments-api',
+      pr: 482,
+    });
+    expect(isError).toBe(false);
+    expect(view.reviews).toHaveLength(1);
+    expect(view.reviews[0].agent).toBe('Security Reviewer');
+    expect(view.agents_reviewed).toBe(1);
+    expect(view.total_findings).toBe(view.reviews[0].total);
+    expect(view.running).toEqual([
+      { agent: 'Style Reviewer', run_id: OTHER_RUN_ID, elapsed_s: expect.any(Number) },
+    ]);
+    expect(view.note).toContain('1 agent(s) still running');
+  });
+
+  it('returns no_completed_review when no agent has any run or review for the PR', async () => {
+    const { deps } = makeDeps({
+      'GET /repos': () => jsonResponse([repoFixture()]),
+      'GET /repos/:id/pulls': () => jsonResponse([prFixture()]),
+      'GET /pulls/:id/runs': () => jsonResponse([]),
+      'GET /pulls/:id/reviews': () => jsonResponse([]),
+    });
+    const client = await connectClient(deps);
+
+    const { isError, text } = await call(client, 'get_findings', {
+      repo: 'acme/payments-api',
+      pr: 482,
+    });
+    expect(isError).toBe(true);
+    expect(text).toContain('No completed review for acme/payments-api PR #482');
+  });
 });
 
 describe('get_conventions', () => {

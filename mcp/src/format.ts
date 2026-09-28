@@ -63,11 +63,30 @@ export interface ReviewResultView {
   attached?: boolean;
 }
 
+export interface RunningAgentSummary {
+  agent: string;
+  run_id: string;
+  elapsed_s: number;
+}
+
+/** Returned by `get_findings` when called with `repo`+`pr` and no `agent` —
+ *  every agent's latest review for the PR in one call, so a model doesn't
+ *  need to call list_agents + get_findings per agent to see the whole
+ *  picture. */
+export interface PrFindingsView {
+  repo: string;
+  pr: number;
+  reviews: ReviewResultView[];
+  total_findings: number;
+  agents_reviewed: number;
+  running?: RunningAgentSummary[];
+  note?: string;
+}
+
 export interface AgentView {
   id: string;
   name: string;
   model: string;
-  provider: string;
   enabled: boolean;
   description: string;
 }
@@ -271,7 +290,6 @@ export function formatAgents(agents: readonly Agent[]): AgentsView {
       id: a.id,
       name: a.name,
       model: a.model,
-      provider: a.provider,
       enabled: a.enabled,
       description: sanitizeText(a.description, TEXT_CAPS.agentDescription),
     })),
