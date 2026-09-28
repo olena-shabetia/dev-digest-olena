@@ -1,4 +1,54 @@
 {
   "schemaVersion": 1,
-  "waivers": []
+  "waivers": [
+    {
+      "file": "server/src/platform/jobs.ts",
+      "rule": "no-sql-outside-repository",
+      "reason": "Documented exception — server/INSIGHTS.md 2026-09-22: dependency-cruiser's known-violations baseline is pnpm-linker-specific. Already listed in .dependency-cruiser-known-violations.json under CI's hoisted-linker resolved path; a local pnpm 12 isolated store resolves drizzle-orm to a different path, so it re-appears as 'new' locally only.",
+      "addedBy": "olena",
+      "expires": "2026-12-31"
+    },
+    {
+      "file": "server/src/modules/workspace/routes.ts",
+      "rule": "no-sql-outside-repository",
+      "reason": "Documented exception — server/INSIGHTS.md 2026-09-22: dependency-cruiser's known-violations baseline is pnpm-linker-specific. Already listed in .dependency-cruiser-known-violations.json under CI's hoisted-linker resolved path; a local pnpm 12 isolated store resolves drizzle-orm to a different path, so it re-appears as 'new' locally only.",
+      "addedBy": "olena",
+      "expires": "2026-12-31"
+    },
+    {
+      "file": "server/src/modules/settings/routes.ts",
+      "rule": "no-sql-outside-repository",
+      "reason": "Documented exception — server/INSIGHTS.md 2026-09-22: dependency-cruiser's known-violations baseline is pnpm-linker-specific. Already listed in .dependency-cruiser-known-violations.json under CI's hoisted-linker resolved path; a local pnpm 12 isolated store resolves drizzle-orm to a different path, so it re-appears as 'new' locally only.",
+      "addedBy": "olena",
+      "expires": "2026-12-31"
+    },
+    {
+      "file": "server/src/modules/settings/feature-models.ts",
+      "rule": "no-sql-outside-repository",
+      "reason": "Documented exception — server/INSIGHTS.md 2026-09-22: dependency-cruiser's known-violations baseline is pnpm-linker-specific. Already listed in .dependency-cruiser-known-violations.json under CI's hoisted-linker resolved path; a local pnpm 12 isolated store resolves drizzle-orm to a different path, so it re-appears as 'new' locally only.",
+      "addedBy": "olena",
+      "expires": "2026-12-31"
+    },
+    {
+      "file": "server/src/modules/pulls/routes.ts",
+      "rule": "no-sql-outside-repository",
+      "reason": "Documented exception — server/INSIGHTS.md 2026-09-22: dependency-cruiser's known-violations baseline is pnpm-linker-specific. Already listed in .dependency-cruiser-known-violations.json under CI's hoisted-linker resolved path; a local pnpm 12 isolated store resolves drizzle-orm to a different path, so it re-appears as 'new' locally only.",
+      "addedBy": "olena",
+      "expires": "2026-12-31"
+    },
+    {
+      "file": "server/src/modules/polling/routes.ts",
+      "rule": "no-sql-outside-repository",
+      "reason": "Documented exception — server/INSIGHTS.md 2026-09-22: dependency-cruiser's known-violations baseline is pnpm-linker-specific. Already listed in .dependency-cruiser-known-violations.json under CI's hoisted-linker resolved path; a local pnpm 12 isolated store resolves drizzle-orm to a different path, so it re-appears as 'new' locally only.",
+      "addedBy": "olena",
+      "expires": "2026-12-31"
+    },
+    {
+      "file": "server/src/adapters/auth/local.ts",
+      "rule": "no-sql-outside-repository",
+      "reason": "Documented exception — server/INSIGHTS.md 2026-09-22: dependency-cruiser's known-violations baseline is pnpm-linker-specific. Already listed in .dependency-cruiser-known-violations.json under CI's hoisted-linker resolved path; a local pnpm 12 isolated store resolves drizzle-orm to a different path, so it re-appears as 'new' locally only.",
+      "addedBy": "olena",
+      "expires": "2026-12-31"
+    }
+  ]
 }

@@ -198,6 +198,7 @@ export const PrMeta = z.object({
   status: PrStatus,
   opened_at: z.string().nullish(),
   updated_at: z.string().nullish(),
+  merged_at: z.string().nullish(),
   // Latest-review score (list endpoint only; null/absent until reviewed).
   score: z.number().int().nullish(),
   // Sum of every run's cost for this PR (list endpoint only); null when no

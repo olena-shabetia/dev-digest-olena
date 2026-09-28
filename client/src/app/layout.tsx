@@ -25,7 +25,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           hydrates. This suppresses ONLY this element's own attribute mismatch
           (one level deep) — real mismatches in descendants are still reported. */}
       <body suppressHydrationWarning>
-        <NextIntlClientProvider locale={locale} messages={messages}>
+        <NextIntlClientProvider locale={locale} messages={messages} timeZone="UTC">
           <Suspense fallback={null}>
             <Providers>{children}</Providers>
           </Suspense>

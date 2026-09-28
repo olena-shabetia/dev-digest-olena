@@ -10,9 +10,49 @@
     "graph": "graph"
   },
   "callerCount": "{count} callers",
+  "cronCount": "{count} cron",
+  "cron": {
+    "everyMinute": "every minute",
+    "everyNMinutes": "every {n} min",
+    "hourly": "hourly",
+    "everyNHours": "every {n}h",
+    "daily": "daily",
+    "weekly": "weekly",
+    "job": "{name}",
+    "raw": "{expr}"
+  },
   "noDownstream": "{count} changed symbol(s), no downstream callers found.",
   "graph": {
     "empty": "No downstream callers to graph.",
-    "ariaLabel": "Blast radius graph"
+    "ariaLabel": "Blast radius graph",
+    "more": "+{count} more",
+    "legend": {
+      "changed": "changed symbol",
+      "callers": "callers",
+      "endpoints": "endpoints affected"
+    }
+  },
+  "degraded": {
+    "flag_off": "Repo indexing is turned off for this repo, so results may be incomplete.",
+    "index_failed": "The repo index lookup failed, so results may be incomplete.",
+    "index_partial": "The repo index is still building, so results may be incomplete.",
+    "repo_too_large": "This repo is too large to fully index, so results may be incomplete.",
+    "no_data": "These results are a best-effort text search and may be incomplete."
+  },
+  "error": {
+    "title": "Couldn't load the blast radius",
+    "body": "Something went wrong fetching downstream impact for this PR."
+  },
+  "endpointsUnattributed": "Endpoints affected (not attributed to a specific caller)",
+  "uncalled": "{count} other changed symbol(s) have no callers.",
+  "expand": "Expand {symbol}",
+  "collapse": "Collapse {symbol}",
+  "viewToggle": "Blast radius view",
+  "priorPrs": {
+    "title": "Prior PRs touching these files",
+    "expand": "Expand prior PRs touching these files",
+    "collapse": "Collapse prior PRs touching these files",
+    "empty": "No prior PRs found touching these files.",
+    "error": "Couldn't load prior PRs."
   }
 }

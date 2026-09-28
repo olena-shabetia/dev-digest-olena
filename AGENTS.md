@@ -26,10 +26,11 @@ attempted than after one is denied.
 
 ## Map
 
-Four independent packages, **not** a pnpm workspace: each has its own lockfile,
+Five independent packages, **not** a pnpm workspace: each has its own lockfile,
 and cross-package code resolves through tsconfig `paths` onto RAW TypeScript
 source, not build output. `repo-intel` (the indexer) lives INSIDE `server/`, not
-as its own package. Full folder/port/purpose table → `README.md`.
+as its own package. `mcp/` is a local, stdio-only MCP server — a thin HTTP
+client over the API, not a UI. Full folder/port/purpose table → `README.md`.
 
 `server/src/vendor/shared/` is the CANONICAL copy of the Zod contracts; the one
 under `client/src/vendor/shared/` is derived — edit the server one first, then
@@ -87,16 +88,16 @@ React **19** · Tailwind **4**
 - `*/src/vendor/**` — vendored, looks editable but is not.
 - Lock files — `server/pnpm-lock.yaml`, `client/pnpm-lock.yaml`,
   `reviewer-core/package-lock.json`, `e2e/package-lock.json`,
-  `skills-lock.json`. Never hand-edit any of them. Regenerate by running the
-  package's own install command (`pnpm install` for pnpm packages, `npm ci` /
-  `npm install` for the two npm packages — see `reviewer-core/AGENTS.md` and
-  `e2e/AGENTS.md` for why those two are npm, not pnpm) and commit the
-  resulting diff as-is.
+  `mcp/package-lock.json`, `skills-lock.json`. Never hand-edit any of them.
+  Regenerate by running the package's own install command (`pnpm install`
+  for pnpm packages, `npm ci` / `npm install` for the npm packages — see
+  `reviewer-core/AGENTS.md`, `e2e/AGENTS.md` and `mcp/AGENTS.md` for why
+  those are npm, not pnpm) and commit the resulting diff as-is.
 
 ## Read when
 
 - Working inside one package → `server/AGENTS.md` · `client/AGENTS.md` ·
-  `reviewer-core/AGENTS.md` · `e2e/AGENTS.md`
+  `reviewer-core/AGENTS.md` · `e2e/AGENTS.md` · `mcp/AGENTS.md`
 - Editing reviewer system prompts → `docs/agent-prompts/README.md`
 - Choosing a model for an agent → `docs/agent-prompts/choosing-a-model.md`
 - A test broke, or asking which suite covers what → `TESTING.md`

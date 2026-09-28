@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { Finding, Verdict } from './findings.js';
-import { Intent, SmartDiff } from './brief.js';
+import { Intent, SmartDiff, BlastRadius } from './brief.js';
+import { RepoIndexDegradedReason } from './platform.js';
 
 /**
  * A2 — Review-Core API surface contracts. These extend the core
@@ -74,3 +75,31 @@ export type PrIntentRecord = z.infer<typeof PrIntentRecord>;
 /** Smart-diff response for a PR (the SmartDiff). */
 export const SmartDiffResponse = SmartDiff;
 export type SmartDiffResponse = z.infer<typeof SmartDiffResponse>;
+
+/** L04 — per-caller-file precomputed facts (repo-intel `file_facts`). */
+export const BlastFileFacts = z.object({
+  endpoints: z.array(z.string()),
+  crons: z.array(z.string()),
+});
+export type BlastFileFacts = z.infer<typeof BlastFileFacts>;
+
+/** L04 — server-computed counts for the summary strip (never recomputed by a consumer). */
+export const BlastStats = z.object({
+  symbols: z.number().int(),
+  callers: z.number().int(),
+  endpoints: z.number().int(),
+  crons: z.number().int(),
+});
+export type BlastStats = z.infer<typeof BlastStats>;
+
+/** L04 — GET /pulls/:id/blast. A flat extension of BlastRadius: every
+ *  response is also a valid BlastRadius. `reason` is null iff `degraded` is false. */
+export const BlastRadiusResponse = BlastRadius.extend({
+  endpoints: z.array(z.string()),
+  crons: z.array(z.string()),
+  facts_by_file: z.record(z.string(), BlastFileFacts),
+  stats: BlastStats,
+  degraded: z.boolean(),
+  reason: RepoIndexDegradedReason.nullable(),
+});
+export type BlastRadiusResponse = z.infer<typeof BlastRadiusResponse>;

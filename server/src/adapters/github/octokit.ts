@@ -60,6 +60,7 @@ export class OctokitGitHubClient implements GitHubClient {
             status: mapStatus(pr.state, Boolean(pr.merged_at)) as PrStatus,
             opened_at: pr.created_at,
             updated_at: pr.updated_at,
+            merged_at: pr.merged_at ?? null,
           }));
         })(),
         TIMEOUT,
@@ -102,6 +103,7 @@ export class OctokitGitHubClient implements GitHubClient {
             status: mapStatus(pr.state, Boolean(pr.merged_at)) as PrStatus,
             opened_at: pr.created_at,
             updated_at: pr.updated_at,
+            merged_at: pr.merged_at ?? null,
             body: pr.body,
             files: files.map((f) => ({
               path: f.filename,

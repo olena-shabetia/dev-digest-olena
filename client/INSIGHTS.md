@@ -89,6 +89,12 @@ include `openrouter`, so nothing user-facing is affected today.
 `server/src/vendor/shared`. Change the server copy first, then sync here —
 otherwise the gap widens silently.
 
+**Superseded 2026-09-27:** `diff -rq server/src/vendor/shared
+client/src/vendor/shared` now returns zero differences — the 5 files named
+above (and everything else) are in sync as of the L04 Blast Radius session.
+Intervening work synced them. The **rule** above still stands (diff before
+editing); only the "currently drifted" claim above is stale.
+
 ## Tool & Library Notes
 
 ### 2026-09-18 — `next-intl`'s `{count}` interpolation does not add thousands separators
@@ -114,6 +120,29 @@ formatting (thousands separators, decimals, etc.), format it in code and pass
 a string — don't expect `{var}` alone to do it.
 
 ## Recurring Errors & Fixes
+
+### 2026-09-27 — two `next-intl` keys rendering identical text make `getByText` ambiguous in RTL tests
+
+**Symptom:** testing `BlastRadiusCard` (L04), a query for the text "N
+callers" matched two nodes and threw RTL's "found multiple elements" error —
+one from the card's stats-strip label (`blast.stat.callers`), one from a
+`BlastTree` row's per-symbol caller count (`blast.callerCount`). Two
+different i18n keys, coincidentally interpolating to the same literal string
+for a given fixture's counts.
+
+**Cause:** nothing enforces that two message keys render distinct text; RTL's
+`getByText` matches on rendered output, not on source, so it can't tell the
+two apart.
+
+**Fix:** scope the query to a container/role first (e.g. `within(statsStrip)`
+or `getByRole` on the specific row), or use `getAllByText` and assert on the
+element you actually mean, whenever two i18n keys can plausibly produce the
+same rendered string in the same tree.
+
+**Rule:** when a component renders the same domain concept (a count, a label)
+at more than one level — a summary strip and a per-row breakdown, for example
+— check whether their i18n keys can coincide on the same text for some input
+before writing a bare `getByText` in its test.
 
 ### 2026-09-21 — turning on ESLint for the first time found two real `react-hooks/exhaustive-deps` bugs
 

@@ -15,6 +15,7 @@ import { OverviewTab } from "./_components/OverviewTab";
 import { FindingsTab } from "./_components/FindingsTab";
 import { DiffTab } from "./_components/DiffTab";
 import { IntentCard } from "./_components/IntentCard";
+import { BlastRadiusCard } from "./_components/BlastRadiusCard";
 import RunTraceDrawer from "./_components/RunTraceDrawer";
 import { usePullDetail, usePulls } from "../../../../../lib/hooks";
 import { useQueryClient } from "@tanstack/react-query";
@@ -156,7 +157,14 @@ export default function PRDetailPage() {
       <div style={{ padding: "24px 32px 44px", display: "flex", flexDirection: "column", gap: 24, maxWidth: 1080, margin: "0 auto" }}>
         {tab === "overview" && (
           <>
-            <IntentCard prId={prId} />
+            <div style={{ display: "flex", gap: 24, alignItems: "flex-start", flexWrap: "wrap" }}>
+              <div style={{ flex: "1 1 420px", minWidth: 0 }}>
+                <IntentCard prId={prId} />
+              </div>
+              <div style={{ flex: "1 1 420px", minWidth: 0 }}>
+                <BlastRadiusCard prId={prId} repoId={repoId} repoFullName={repoFullName} headSha={pr.head_sha} />
+              </div>
+            </div>
             <OverviewTab prBody={pr.body} />
           </>
         )}

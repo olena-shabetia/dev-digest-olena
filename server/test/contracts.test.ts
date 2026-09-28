@@ -16,6 +16,7 @@ import {
   Repo,
   PrDetail,
   PrMeta,
+  BlastRadiusResponse,
 } from '@devdigest/shared';
 
 /**
@@ -246,5 +247,37 @@ describe('platform DTOs', () => {
       }),
     ).not.toThrow();
     expect(() => PrMeta.parse(base)).not.toThrow();
+  });
+
+  it('BlastRadiusResponse', () => {
+    const sample = {
+      changed_symbols: [{ name: 'rateLimit', file: 'a.ts', kind: 'function' }],
+      downstream: [
+        {
+          symbol: 'rateLimit',
+          callers: [{ name: 'publicRouter', file: 'b.ts', line: 23 }],
+          endpoints_affected: ['GET /x'],
+          crons_affected: ['job:reset'],
+        },
+      ],
+      summary: '1 changed symbol(s), 1 caller(s), 1 endpoint(s), 1 cron job(s)',
+      endpoints: ['GET /x'],
+      crons: ['job:reset'],
+      facts_by_file: {
+        'b.ts': { endpoints: ['GET /x'], crons: ['job:reset'] },
+      },
+      stats: { symbols: 1, callers: 1, endpoints: 1, crons: 1 },
+      degraded: false,
+      reason: null,
+    };
+
+    const parsed = BlastRadiusResponse.parse(sample);
+    expect(parsed.stats.callers).toBe(1);
+
+    // Flat-extension property: every BlastRadiusResponse is also a valid BlastRadius.
+    expect(() => BlastRadius.parse(sample)).not.toThrow();
+
+    expect(() => BlastRadiusResponse.parse({ ...sample, reason: undefined })).toThrow();
+    expect(() => BlastRadiusResponse.parse({ ...sample, reason: null })).not.toThrow();
   });
 });
