@@ -225,6 +225,17 @@ export interface GitClient {
   log(repo: RepoRef, path?: string): Promise<GitCommit[]>;
   readFile(repo: RepoRef, path: string): Promise<string>;
   clonePathFor(repo: RepoRef): string;
+  /**
+   * L05 — true iff `sha` resolves to a commit object in the local clone
+   * (`git cat-file -e <sha>^{commit}`). Never throws; false on any error.
+   */
+  hasCommit(repo: RepoRef, sha: string): Promise<boolean>;
+  /**
+   * L05 — file content at a ref (`git cat-file blob <ref>:<path>`), utf8.
+   * Resolves null when the path does not exist at that ref. Never reads the
+   * working tree. Callers validate `path` as a safe repo-relative path first.
+   */
+  readFileAt(repo: RepoRef, ref: string, path: string): Promise<string | null>;
 }
 
 // ---------- CodeIndex (ripgrep + tree-sitter) ----------

@@ -17,6 +17,7 @@ import {
   PrDetail,
   PrMeta,
   BlastRadiusResponse,
+  SetContextAttachments,
 } from '@devdigest/shared';
 
 /**
@@ -168,6 +169,48 @@ describe('AI contracts parse fixtures', () => {
       log: [{ t: '00.00', kind: 'info', msg: 'started' }],
     });
     expect(trace.tool_calls).toHaveLength(1);
+  });
+
+  it('RunTrace — pre-L05 fixture (no specs_tokens, no specs_read_detail) still parses', () => {
+    const trace = RunTrace.parse({
+      config: { agent: 'Security Reviewer', version: 'v7', model: 'gpt-4.1', pr: 482, source: 'local' },
+      stats: { duration_ms: 8200, tokens_in: 14820, tokens_out: 1240, cost_usd: 0.06, findings: 3, grounding: '3/3 passed' },
+      prompt_assembly: { system: 's', user: 'u' },
+      tool_calls: [],
+      raw_output: '{}',
+      memory_pulled: [],
+      specs_read: ['specs/security-baseline.md'],
+      log: [{ t: '00.00', kind: 'info', msg: 'started' }],
+    });
+    expect(trace.prompt_assembly.specs_tokens).toBeUndefined();
+    expect(trace.specs_read_detail).toBeUndefined();
+  });
+
+  it('RunTrace — L05 fixture with specs_tokens and specs_read_detail parses', () => {
+    const trace = RunTrace.parse({
+      config: { agent: 'Security Reviewer', version: 'v7', model: 'gpt-4.1', pr: 482, source: 'local' },
+      stats: { duration_ms: 8200, tokens_in: 14820, tokens_out: 1240, cost_usd: 0.06, findings: 3, grounding: '3/3 passed' },
+      prompt_assembly: { system: 's', user: 'u', specs: '## Project context\n...', specs_tokens: 42 },
+      tool_calls: [],
+      raw_output: '{}',
+      memory_pulled: [],
+      specs_read: ['specs/security-baseline.md'],
+      specs_read_detail: [{ path: 'specs/security-baseline.md', tokens: 42, truncated: false }],
+      log: [{ t: '00.00', kind: 'info', msg: 'started' }],
+    });
+    expect(trace.prompt_assembly.specs_tokens).toBe(42);
+    expect(trace.specs_read_detail).toHaveLength(1);
+  });
+
+  it('SetContextAttachments rejects duplicates and >50 paths, accepts []', () => {
+    expect(() => SetContextAttachments.parse({ paths: [] })).not.toThrow();
+    expect(() =>
+      SetContextAttachments.parse({ paths: ['specs/a.md', 'specs/a.md'] }),
+    ).toThrow();
+    const tooMany = Array.from({ length: 51 }, (_, i) => `specs/${i}.md`);
+    expect(() => SetContextAttachments.parse({ paths: tooMany })).toThrow();
+    const fifty = Array.from({ length: 50 }, (_, i) => `specs/${i}.md`);
+    expect(() => SetContextAttachments.parse({ paths: fifty })).not.toThrow();
   });
 });
 

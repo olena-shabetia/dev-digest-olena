@@ -26,3 +26,14 @@ export function formatSeconds(ms: number): string {
 export function formatTokens(tokensIn: number, tokensOut: number): string {
   return `${(tokensIn / 1000).toFixed(0)}k→${(tokensOut / 1000).toFixed(1)}k`;
 }
+
+/** L05 — presentation-only: drop the `<untrusted source="...">` /
+ *  `</untrusted>` wrapper lines from the Project-context prompt block before
+ *  display (D12). Everything else stays byte-identical; the persisted trace
+ *  is never modified. */
+export function stripUntrustedDelimiters(text: string): string {
+  return text
+    .split("\n")
+    .filter((line) => !/^<untrusted source="[^"\n]*">$/.test(line) && line !== "</untrusted>")
+    .join("\n");
+}

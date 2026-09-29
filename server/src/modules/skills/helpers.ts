@@ -2,6 +2,7 @@ import { unzipSync, strFromU8 } from 'fflate';
 import type { Skill, SkillImportPreview, SkillSource, SkillType } from '@devdigest/shared';
 import { ValidationError } from '../../platform/errors.js';
 import { DEFAULT_SKILL_TYPE, EXECUTABLE_EXTENSIONS } from './constants.js';
+import { isSafeDocPath } from '../../platform/project-context/index.js';
 
 // Re-exported for backwards compatibility / discoverability from this module —
 // implementation lives in platform/prompt.ts so the reviews module's
@@ -240,5 +241,20 @@ export function parseSkillArchive(filename: string, buffer: Uint8Array): SkillIm
     ignored_entries: ignoredEntries,
     executable_entries: executableEntries,
   };
+}
+
+// ---- project-context attachment validation (L05) ---------------------------
+
+/**
+ * True when every `path` is a safe doc path AND is a member of the repo's
+ * current discovered set (`discoveredPaths`). Pure — the caller resolves
+ * `discoveredPaths` via `listRepoDocs` first. Used by `setContextDocs` to
+ * reject a PUT (422, nothing persisted) before it reaches the repository.
+ */
+export function validateContextDocPaths(
+  paths: readonly string[],
+  discoveredPaths: ReadonlySet<string>,
+): boolean {
+  return paths.every((path) => isSafeDocPath(path) && discoveredPaths.has(path));
 }
 

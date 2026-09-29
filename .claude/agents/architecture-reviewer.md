@@ -7,7 +7,7 @@ description: >-
   drift. Runs the dependency-cruiser gate and returns severity-ranked
   findings, each pinned to a file:line it has actually opened. Use before
   a PR or after a structural change. Does not edit, fix, or run tests.
-model: opus
+model: sonnet
 tools: Read, Glob, Grep, Bash
 disallowedTools: Agent, Write, Edit, NotebookEdit
 skills:

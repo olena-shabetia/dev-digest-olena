@@ -2,6 +2,7 @@ import type { Agent, AgentVersion, CiFailOn, Provider, ReviewStrategy } from '@d
 import { AgentVersionConfig } from '@devdigest/shared';
 import type { AgentRow, AgentVersionRow } from './repository.js';
 import { ValidationError } from '../../platform/errors.js';
+import { isSafeDocPath } from '../../platform/project-context/index.js';
 
 /**
  * Pure helpers for the agents module — DB row ⇄ DTO mapping and the
@@ -93,4 +94,19 @@ export function isConfigChange(
     (patch.repoIntel !== undefined && patch.repoIntel !== existing.repoIntel) ||
     patch.outputSchema !== undefined
   );
+}
+
+// ---- project-context attachment validation (L05) ---------------------------
+
+/**
+ * True when every `path` is a safe doc path AND is a member of the repo's
+ * current discovered set (`discoveredPaths`). Pure — the caller resolves
+ * `discoveredPaths` via `listRepoDocs` first. Used by `setContextDocs` to
+ * reject a PUT (422, nothing persisted) before it reaches the repository.
+ */
+export function validateContextDocPaths(
+  paths: readonly string[],
+  discoveredPaths: ReadonlySet<string>,
+): boolean {
+  return paths.every((path) => isSafeDocPath(path) && discoveredPaths.has(path));
 }

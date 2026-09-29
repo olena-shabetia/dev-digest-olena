@@ -11,6 +11,7 @@ import {
 import { now } from './_shared';
 import { workspaces, users } from './core';
 import { skills } from './skills';
+import { repos } from './repos';
 
 // ============================================================ Agents & skills
 
@@ -77,4 +78,24 @@ export const agentSkills = pgTable(
     order: integer('order').notNull().default(0),
   },
   (t) => ({ pk: primaryKey({ columns: [t.agentId, t.skillId] }) }),
+);
+
+// L05 — an agent's attached project-context documents, per repo. Ordered by
+// `order`; no workspace_id — scoped through the parent agent/repo rows.
+export const agentContextDocs = pgTable(
+  'agent_context_docs',
+  {
+    agentId: uuid('agent_id')
+      .notNull()
+      .references(() => agents.id, { onDelete: 'cascade' }),
+    repoId: uuid('repo_id')
+      .notNull()
+      .references(() => repos.id, { onDelete: 'cascade' }),
+    path: text('path').notNull(),
+    order: integer('order').notNull().default(0),
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.agentId, t.repoId, t.path] }),
+    repoPathIdx: index('agent_context_docs_repo_path_idx').on(t.repoId, t.path),
+  }),
 );

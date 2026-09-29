@@ -249,14 +249,25 @@ export interface MockGitOptions {
   head?: string;
   /** Head `currentHead()` returns AFTER `sync()` runs — simulates fetch+reset advancing HEAD. */
   syncedHead?: string;
+  /** L05 — file content served by `readFileAt`, keyed by path. Missing key → null. */
+  filesAtRef?: Record<string, string>;
+  /** L05 — what `hasCommit` returns before any `fetchPullHead` call. Default true. */
+  headAvailable?: boolean;
+  /** L05 — whether `hasCommit` flips to true once `fetchPullHead` has been called. Default false. */
+  headAvailableAfterFetch?: boolean;
 }
 
 export class MockGitClient implements GitClient {
   public cloned: { repo: RepoRef; url: string }[] = [];
   public syncs: { repo: RepoRef; branch: string }[] = [];
+  /** L05 — PR numbers passed to `fetchPullHead`, in call order. */
+  public fetchedPulls: number[] = [];
   private syncedHead?: string;
+  private headAvailable: boolean;
 
-  constructor(private opts: MockGitOptions = {}) {}
+  constructor(private opts: MockGitOptions = {}) {
+    this.headAvailable = opts.headAvailable ?? true;
+  }
 
   clonePathFor(repo: RepoRef): string {
     return `/mock/clones/${repo.owner}/${repo.name}`;
@@ -265,7 +276,10 @@ export class MockGitClient implements GitClient {
     this.cloned.push({ repo, url });
     return { path: this.clonePathFor(repo) };
   }
-  async fetchPullHead(): Promise<void> {}
+  async fetchPullHead(_repo: RepoRef, n: number): Promise<void> {
+    this.fetchedPulls.push(n);
+    if (this.opts.headAvailableAfterFetch) this.headAvailable = true;
+  }
   async sync(repo: RepoRef, branch: string): Promise<{ head: string }> {
     this.syncs.push({ repo, branch });
     // After a sync, HEAD advances to syncedHead (or stays at head if unset).
@@ -292,6 +306,12 @@ export class MockGitClient implements GitClient {
   }
   async readFile(_repo: RepoRef, path: string): Promise<string> {
     return this.opts.files?.[path] ?? '';
+  }
+  async hasCommit(): Promise<boolean> {
+    return this.headAvailable;
+  }
+  async readFileAt(_repo: RepoRef, _ref: string, path: string): Promise<string | null> {
+    return this.opts.filesAtRef?.[path] ?? null;
   }
 }
 

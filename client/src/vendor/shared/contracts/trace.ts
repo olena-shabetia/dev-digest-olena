@@ -44,6 +44,8 @@ export const PromptAssembly = z.object({
   skills_tokens: z.number().int().nullish(),
   memory: z.string().nullish(),
   specs: z.string().nullish(),
+  /** L05 — ceil(len(specs)/4) of the whole rendered `## Project context` section; null when absent. */
+  specs_tokens: z.number().int().nullish(),
   /** Callers-of-changed-symbols digest (T1.3); null when absent. */
   callers: z.string().nullish(),
   /** Repo skeleton / map (T3); null when absent. Enables per-slot token
@@ -77,6 +79,14 @@ export const RunStats = z.object({
 });
 export type RunStats = z.infer<typeof RunStats>;
 
+/** L05 — one injected project-context document, as injected (post-cap). */
+export const SpecReadEntry = z.object({
+  path: z.string(),
+  tokens: z.number().int(),
+  truncated: z.boolean(),
+});
+export type SpecReadEntry = z.infer<typeof SpecReadEntry>;
+
 /** The single-document trace stored in `run_traces.trace`. */
 export const RunTrace = z.object({
   config: z.object({
@@ -93,6 +103,8 @@ export const RunTrace = z.object({
   raw_output: z.string(),
   memory_pulled: z.array(MemoryPulled),
   specs_read: z.array(z.string()),
+  /** L05 — per-document detail for `specs_read` (same order); null/absent on pre-L05 traces or when nothing was injected. */
+  specs_read_detail: z.array(SpecReadEntry).nullish(),
   log: z.array(RunLogLine),
 });
 export type RunTrace = z.infer<typeof RunTrace>;

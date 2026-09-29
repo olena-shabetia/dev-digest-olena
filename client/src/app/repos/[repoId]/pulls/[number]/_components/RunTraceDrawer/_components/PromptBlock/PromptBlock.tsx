@@ -26,6 +26,7 @@ export function PromptBlock({
   text,
   color,
   tokens,
+  displayTransform,
 }: {
   label: string;
   text: string;
@@ -34,16 +35,29 @@ export function PromptBlock({
    *  for the Skills block today (`assembly.skills_tokens`, HW2 criterion 19).
    *  Omitted (no chip) when `null`/`undefined`. */
   tokens?: number | null;
+  /** L05 (D12) — presentation-only transform applied to `text` before it is
+   *  shown inline, in the fullscreen modal, and copied. The persisted
+   *  `text` itself is never mutated. Used by the Project-context row only. */
+  displayTransform?: (raw: string) => string;
 }) {
   const t = useTranslations("runs");
   const [open, setOpen] = React.useState(false);
   const [full, setFull] = React.useState(false);
   const [copied, setCopied] = React.useState(false);
+  const shown = displayTransform ? displayTransform(text) : text;
   const copy = () => {
-    void navigator.clipboard?.writeText(text || "");
+    void navigator.clipboard?.writeText(shown || "");
     setCopied(true);
     setTimeout(() => setCopied(false), 1200);
   };
+  React.useEffect(() => {
+    if (!full) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setFull(false);
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [full]);
   return (
     <div style={s.promptRow}>
       <div onClick={() => setOpen((o) => !o)} style={s.promptHead}>
@@ -86,7 +100,7 @@ export function PromptBlock({
       </div>
       {open && (
         <pre className="mono" style={s.promptPre}>
-          {text || "—"}
+          {shown || "—"}
         </pre>
       )}
       {full && (
@@ -100,7 +114,7 @@ export function PromptBlock({
             </Button>
           }
         >
-          <PromptModalBody text={text} />
+          <PromptModalBody text={shown} />
         </Modal>
       )}
     </div>

@@ -41,7 +41,7 @@ delimiter-wrapped (`prompt.ts:104-122`):
 ## Skills / rules        (linked skill bodies)
 ## Relevant memory       (curated memory items)
 ## Repo skeleton         (untrusted, repo-derived)
-## Project context       (untrusted spec chunks)
+## Project context       (untrusted, one wrapUntrusted block per attached doc, labelled by path)
 ## Callers of changed symbols  (untrusted, repo-derived)
 ## Diff to review        (untrusted)
 ```

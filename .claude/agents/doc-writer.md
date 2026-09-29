@@ -28,12 +28,13 @@ by a verified `file:line` is worth more than a page of generalities.
 
 - **Write only under `docs/**` and `<package>/docs/**`.** Frontmatter cannot
   scope `Write` by path, so this rule is enforced by the body, the same way
-  `planner` confines itself to `plans/**`/`specs/**`.
-- **Never write to:** `specs/**` (the pre-code contract, owned by `planner`);
-  any `INSIGHTS.md` (owned by the `engineering-insights` skill's
-  propose-then-approve flow); `AGENTS.md` — **and `CLAUDE.md` is a symlink to
-  it, so an Edit through the symlink fails**; `plans/**` (gitignored
-  scratch); any `README.md`; `skill-library/**`; `.claude/**`.
+  `implementation-planner` confines itself to `plans/**` only.
+- **Never write to:** `specs/**` (the pre-code contract, owned by
+  `spec-creator`); any `INSIGHTS.md` (owned by the `engineering-insights`
+  skill's propose-then-approve flow); `AGENTS.md` — **and `CLAUDE.md` is a
+  symlink to it, so an Edit through the symlink fails**; `plans/**` (owned by
+  `implementation-planner`, gitignored scratch); any `README.md`;
+  `skill-library/**`; `.claude/**`.
 - **Never document something that wasn't built.** If a plan describes three
   things and two were built, document the two and list the third in `NOT
   DOCUMENTED` as unimplemented. Turning a plan into a document means turning

@@ -150,23 +150,31 @@ green." Only run what your unit's package supports and only what's listed:
 ```sh
 # 1. SCOPED lint — `pnpm lint` is `eslint .` in every package and will pick up
 #    a peer's half-written files. Always pass your owned paths explicitly.
-cd server && pnpm exec eslint <owned paths>
-cd client && pnpm exec eslint <owned paths>
-cd reviewer-core && npx eslint <owned paths>          # npm package, not pnpm
+#    --format=unix drops the stylish code-frame formatting — same violations,
+#    far fewer tokens to read back.
+cd server && pnpm exec eslint <owned paths> --format=unix
+cd client && pnpm exec eslint <owned paths> --format=unix
+cd reviewer-core && npx eslint <owned paths> --format=unix   # npm package, not pnpm
 
 # 2. SCOPED unit tests — never *.it.test.ts (needs Docker, main-thread only)
-cd server && pnpm exec vitest run <owned test paths>  # NOT `pnpm test:unit` —
+#    --reporter=dot suppresses full pass-output; failures still print their
+#    diagnostic in full.
+cd server && pnpm exec vitest run <owned test paths> --reporter=dot
+                                                       # NOT `pnpm test:unit` —
                                                        # server/package.json is
                                                        # skip-worktree, so that
                                                        # script does not exist
-cd client && pnpm exec vitest run <owned dir>
-cd reviewer-core && npx vitest run <owned test paths>
+cd client && pnpm exec vitest run <owned dir> --reporter=dot
+cd reviewer-core && npx vitest run <owned test paths> --reporter=dot
 
 # 3. PACKAGE typecheck — package-wide command, scoped interpretation (below)
-cd server && pnpm exec tsc --noEmit -p tsconfig.json  # NOT `pnpm typecheck`
-cd client && pnpm typecheck
-cd reviewer-core && npm run typecheck
-cd e2e && npm run typecheck                           # typecheck only, no lint here
+#    --pretty false drops tsc's source-code-frame formatting — same errors,
+#    one compact line each instead of a multi-line snippet with underlines.
+cd server && pnpm exec tsc --noEmit -p tsconfig.json --pretty false
+                                                       # NOT `pnpm typecheck`
+cd client && pnpm typecheck -- --pretty false
+cd reviewer-core && npm run typecheck -- --pretty false
+cd e2e && npm run typecheck -- --pretty false         # typecheck only, no lint here
 ```
 
 Single-file `tsc` is not an option: it drops the `tsconfig` `paths` that

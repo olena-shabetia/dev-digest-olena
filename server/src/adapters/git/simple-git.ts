@@ -129,6 +129,29 @@ export class SimpleGitClient implements GitClient {
   async readFile(repo: RepoRef, path: string): Promise<string> {
     return readFile(join(this.clonePathFor(repo), path), 'utf8');
   }
+
+  async hasCommit(repo: RepoRef, sha: string): Promise<boolean> {
+    // Reject anything that isn't a plain hex sha up front — defense in depth
+    // against argument injection via `${sha}^{commit}`.
+    if (!/^[0-9a-f]{7,64}$/i.test(sha)) return false;
+    try {
+      await this.git(repo).raw(['cat-file', '-e', `${sha}^{commit}`]);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  async readFileAt(repo: RepoRef, ref: string, path: string): Promise<string | null> {
+    // Defense in depth — callers validate `path` as a safe repo-relative path
+    // first, but never trust that alone against `<ref>:<path>` interpolation.
+    if (path.includes('..') || path.startsWith('/') || path.includes('\n')) return null;
+    try {
+      return await this.git(repo).raw(['cat-file', 'blob', `${ref}:${path}`]);
+    } catch {
+      return null;
+    }
+  }
 }
 
 function parseBlamePorcelain(raw: string): BlameLine[] {
