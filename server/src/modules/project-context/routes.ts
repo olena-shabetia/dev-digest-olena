@@ -11,8 +11,17 @@ import type { FastifyInstance } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { ContextFileQuery, ProjectContextListing, SpecFile } from '@devdigest/shared';
 import { getContext } from '../_shared/context.js';
+import { isSafeDocPath } from '../../platform/project-context/index.js';
 import { IdParams } from '../_shared/schemas.js';
 import { ProjectContextService } from './service.js';
+
+// An unsafe path is rejected at the schema layer (422), before `getContext` —
+// which reads the workspace from the DB — so no I/O happens for a bad request.
+// `ProjectContextService#file` re-checks it as defence in depth.
+const SafeContextFileQuery = ContextFileQuery.refine((q) => isSafeDocPath(q.path), {
+  message: 'Unsafe document path',
+  path: ['path'],
+});
 
 export default async function projectContextRoutes(appBase: FastifyInstance) {
   const app = appBase.withTypeProvider<ZodTypeProvider>();
@@ -30,7 +39,7 @@ export default async function projectContextRoutes(appBase: FastifyInstance) {
 
   app.get(
     '/repos/:id/context/file',
-    { schema: { params: IdParams, querystring: ContextFileQuery, response: { 200: SpecFile } } },
+    { schema: { params: IdParams, querystring: SafeContextFileQuery, response: { 200: SpecFile } } },
     async (req) => {
       const { workspaceId } = await getContext(container, req);
       return service.file(workspaceId, req.params.id, req.query.path);
