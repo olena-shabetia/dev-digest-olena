@@ -126,7 +126,10 @@ d('response shapes — routes with no prior test coverage', () => {
       overrides: {
         git: new MockGitClient(),
         github: new MockGitHubClient(),
-        llm: { openai: new MockLLMProvider('openai', { structured: MINIMAL_REVIEW }) },
+        llm: {
+          openai: new MockLLMProvider('openai', { structured: MINIMAL_REVIEW }),
+          openrouter: new MockLLMProvider('openrouter', { structuredBySchema: { IntentExtraction: INTENT_FIXTURE } }),
+        },
       },
     });
     const { pr } = await makeRepoAndPr(app);
@@ -187,7 +190,10 @@ d('response shapes — routes with no prior test coverage', () => {
       overrides: {
         git: new MockGitClient(),
         github: new MockGitHubClient(),
-        llm: { openai: new MockLLMProvider('openai', { structured: MINIMAL_REVIEW }) },
+        llm: {
+          openai: new MockLLMProvider('openai', { structured: MINIMAL_REVIEW }),
+          openrouter: new MockLLMProvider('openrouter', { structuredBySchema: { IntentExtraction: INTENT_FIXTURE } }),
+        },
       },
     });
     const { pr } = await makeRepoAndPr(app);
@@ -220,7 +226,10 @@ d('response shapes — routes with no prior test coverage', () => {
       overrides: {
         git: new MockGitClient(),
         github: new MockGitHubClient(),
-        llm: { openai: new MockLLMProvider('openai', { structured: MINIMAL_REVIEW }) },
+        llm: {
+          openai: new MockLLMProvider('openai', { structured: MINIMAL_REVIEW }),
+          openrouter: new MockLLMProvider('openrouter', { structuredBySchema: { IntentExtraction: INTENT_FIXTURE } }),
+        },
       },
     });
     const { pr } = await makeRepoAndPr(app);
@@ -249,7 +258,10 @@ d('response shapes — routes with no prior test coverage', () => {
       overrides: {
         git: new MockGitClient(),
         github: new MockGitHubClient(),
-        llm: { openai: new MockLLMProvider('openai', { structured: MINIMAL_REVIEW }) },
+        llm: {
+          openai: new MockLLMProvider('openai', { structured: MINIMAL_REVIEW }),
+          openrouter: new MockLLMProvider('openrouter', { structuredBySchema: { IntentExtraction: INTENT_FIXTURE } }),
+        },
       },
     });
     const { pr } = await makeRepoAndPr(app);
@@ -446,6 +458,16 @@ d('response shapes — routes with no prior test coverage', () => {
     await app.close();
   });
 });
+
+// Intent derivation defaults to the openrouter provider; without this mock the run
+// would call the real OpenRouter API (slow, and billed when a key is configured).
+const INTENT_FIXTURE = {
+  intent: 'Add rate limiting to the public API endpoints.',
+  in_scope: [],
+  out_of_scope: [],
+  context_gaps: [],
+  confidence: 'low',
+};
 
 const MINIMAL_REVIEW: Review = {
   verdict: 'approve',
