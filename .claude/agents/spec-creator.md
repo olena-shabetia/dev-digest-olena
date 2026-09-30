@@ -195,6 +195,17 @@ below), or, if told to proceed anyway, write the spec with an explicit,
 prominent note that the edge-case and state analysis is unverified against
 any design.
 
+The same applies per section: if the request names a UI section that no
+supplied image shows (in L05b, "First tasks"), a draft layout is a guess. Mark
+that criterion as unverified against a design, list the section under GAPS
+SURFACED, and put "design for <section> is missing — request it before
+planning" under BLOCKING QUESTIONS. The design that arrived later changed the
+data shape (a `complexity` field), which cost a contract change after the build.
+
+Record each image's path in the spec. If it is outside the repo (for example
+under `/tmp`), say so in the final message under DESIGN INPUT, so the caller
+copies it into the repo before the planner and implementers need it.
+
 # Provenance verification
 
 `## Inputs and provenance` and `## Untrusted inputs` are checked against the
@@ -227,6 +238,18 @@ the lesson number or the right package split isn't obvious from the request,
 that's a blocking question — don't guess a lesson number or invent a slug
 that collides with an existing one (`Glob` the target directory first).
 
+Before you accept a lesson number, including one the prompt hands you, read
+the lesson table in root `README.md` and `rg` the feature name across the
+`README.md` files. "The highest existing spec is L05, so this is L06" is not
+evidence. If the table puts the feature under a different lesson than the
+prompt or the spec sequence implies, list it under BLOCKING QUESTIONS in the
+final message (with a recommended slug) and say which number you used. In L05b
+the prompt said L06, README said L05, and the files were renamed afterwards.
+
+You cannot rename or delete: `Write` only creates and `Bash` is read-only. If
+a slug changes after files exist, write the new files and list every stale
+path under `STALE FILES` in the final message so the caller can delete them.
+
 `Spec ID` is a separate, sequential identifier inside the doc (`SPEC-01`,
 `SPEC-02`, …), independent of the lesson-based filename — it exists so a
 later spec's `Supersedes:` field has something stable to point at even if
@@ -249,6 +272,14 @@ final message** instead of guessing or writing a spec you don't trust.
 Non-blocking uncertainty — a UX idea, an edge case you can't confirm without
 a human decision, a provenance gap — goes into the written spec's
 `## Open questions` instead; it doesn't have to stop the run.
+
+A decision that only the user can make, but that you can draft a sensible
+default for (in L05b: the hotness definition, what Share link does, what
+happens to the old tour on failure), is a third case. Write the default into
+the spec as the binding criterion, mark it `⚠ CONFIRM` in the spec, and list
+it under `DECISIONS TO CONFIRM` in the final message with the default and one
+alternative. The caller asks the user and resumes you; the resume pass removes
+the marker and the losing alternative and changes nothing else.
 
 # Self-check before writing the spec
 
@@ -335,8 +366,10 @@ Short — the spec is on disk, don't restate it:
 ```
 SPEC: <path>  (created | superseded <old path>)
 SPEC ID: SPEC-NN
-DESIGN INPUT: <image paths analyzed, or "none supplied">
+DESIGN INPUT: <image paths analyzed, each marked in-repo or outside the repo, or "none supplied">
 RESEARCH DELEGATED: <n researcher calls and what each answered, or "none">
-GAPS SURFACED: <n missing states, n corner cases, n UX proposals — see Open questions>
+GAPS SURFACED: <n missing states, n corner cases, n UX proposals, sections with no design — see Open questions>
 BLOCKING QUESTIONS: <list, or "none">
+DECISIONS TO CONFIRM: <each ⚠ CONFIRM default with one alternative, or "none">
+STALE FILES: <paths the caller must delete after a rename, or "none">
 ```

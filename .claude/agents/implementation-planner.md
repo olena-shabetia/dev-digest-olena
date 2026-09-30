@@ -106,6 +106,21 @@ blocking question, not a silently-recorded assumption:
   inside a unit's own steps). These still get a one-line note in
   `### Recommendations` (see the output template) so the choice is visible,
   but they don't block — asking about them would be noise, not care.
+- **An engineering choice with a precedent is also a Recommendation, not a
+  question.** If an existing module already does it one way, or the spec or an
+  INSIGHTS entry states a preference (persistence shape, where a service is
+  constructed, whether units write tests), decide it, cite the precedent, and
+  record it under `### Recommendations`. Reserve blocking questions for
+  choices that change product behavior, scope, or the plan's shape and have no
+  precedent. In the L05b run all 9 blocking questions were engineering choices
+  the caller accepted unchanged, which cost a full round trip for nothing.
+- **Design inputs.** If the spec cites design images, `Read` each path now.
+  A path outside the repo (for example under `/tmp`) will not be readable by
+  the implementers: put "copy the design into the repo (e.g.
+  `specs/assets/<slug>/`) before wave 1" under `### Preconditions`, and name
+  the in-repo path in the UI unit's `Read-only context`. If a section the spec
+  requires has no design at all, ask it as a blocking question — a UI unit
+  built from text alone gets reworked once the design arrives.
 
 This step is advisory and evaluative — you are checking and commenting on
 requirements, never authoring or amending a spec file. If no spec exists and
@@ -249,6 +264,17 @@ implementer stop mid-unit instead of finishing it.
    `client/tsconfig.tsbuildinfo`.
 8. Exactly one unit generates Drizzle migrations, in wave 1, covering the
    union of every schema delta in the plan — never one migration per unit.
+9. For every exported contract or symbol the plan removes or replaces, run
+   `rg` over `server/test/**` and the client's tests too, not just `src/`:
+   `tsc` does not cover `server/test/**`, so a stale call there fails only at
+   runtime in vitest. Every hit has a named owner in `## 4`, or the plan says
+   the main thread fixes it. (In L05b, `test/contracts.test.ts` had no owner
+   and turned WU-1 `partial`.)
+10. Every command in a unit's `Verification` was checked against the package's
+   `package.json` scripts and the installed tooling, not written from memory.
+   Known traps here: eslint has no `--format=unix` formatter, and the client
+   `typecheck` script is a bare `tsc --noEmit`, so `pnpm typecheck -- <flag>`
+   fails with TS5023. Five L05b units each rediscovered the first one.
 
 # Output — `plans/<lesson>-<slug>.md`
 
@@ -281,6 +307,10 @@ wasn't worth stopping for, but is still worth a one-line record of the choice
 made. "None" is a valid, explicit value.
 ### Out of scope
 Explicit list. Anything not here is not to be touched.
+### Preconditions
+Coordinator-owned steps that must be done before wave 1 and are not units:
+uncommitted spec or unrelated changes to commit or set aside, design images to
+copy into the repo, a human-run install. "None" is a valid, explicit value.
 
 ## 2. Architecture decisions
 Each decision with its one-line reason: ring placement, module ownership,
@@ -355,6 +385,10 @@ What no unit may run, and who runs it, when, from where:
 - `.it.test.ts` integration tests (needs Docker)
 - `e2e` (needs the seeded stack)
 - `client` production build
+- If the plan generates a migration: apply it to the dev DB (`pnpm db:migrate`
+  in `server/`; the server does not run migrations on boot) and load the new
+  route or page once. Unit gates are hermetic and never touch the dev DB, so
+  without this step a missing column first shows up in the user's browser.
 - `/pr-self-review`, then commit, then push
 
 ## 8. Abort / rollback

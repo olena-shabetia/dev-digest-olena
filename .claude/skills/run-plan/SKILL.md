@@ -1,6 +1,6 @@
 ---
 name: run-plan
-version: 1.0.0
+version: 1.1.0
 type: Workflow
 description: >-
   Executes an approved Development Plan end-to-end — runs each wave's
@@ -57,21 +57,47 @@ Copy this checklist and tick off as you go:
 
 ```
 - [ ] 1. Read the plan (and spec, if given). Confirm execution mode
-         (multi-agent / single-agent) and the wave list.
+         (multi-agent / single-agent) and the wave list. Then:
+         - Read the plan's "Precondition" section. If it needs work
+           committed or set aside first, ask the user and WAIT for the
+           answer — an unanswered precondition is not a closed one.
+         - If the plan cites design images or other reference files, confirm
+           the paths exist and are readable before launching any UI unit.
+           If not, stop and ask — a unit that can't see the design builds
+           from text alone and the rework lands later.
+         - Re-read the user's original brief for this feature and list what
+           it asks for that this skill does NOT cover (per-stage commits,
+           plan review before build, tests, a demo). Carry that list to the
+           report.
 - [ ] 2. For each wave, in order:
          - multi-agent: launch one `implementer` per unit in the wave, in
            parallel, each given the plan path + unit id only (never the
            plan's prose inline).
          - single-agent: launch one `implementer` per unit, sequentially.
+         - From wave 2 on, add one "Known tool quirks" line to each unit's
+           prompt, built from earlier manifests (e.g. a gate command a unit
+           reported as unavailable), so it isn't rediscovered per agent.
          Collect each unit's manifest (STATUS/GATES/CONTRACT DEVIATIONS/
          BLOCKERS). A `blocked`/`failed` unit stops the skill here — report
          it, don't proceed to the next wave.
+         A unit that is `partial` only because of a file NO unit owns (for
+         example an existing test that a frozen contract replacement broke,
+         which `tsc` does not cover) is not a blocker: the main thread makes
+         the minimal fix itself and lists it under "Out-of-plan changes".
+- [ ] 2b. After the last wave, if the plan generated a DB migration: apply it
+         to the dev DB (`pnpm db:migrate` in `server/`, the server does not
+         run migrations on boot) and load the new route or page once. The
+         unit gates are hermetic and never touch the dev DB. Say in the
+         report that you did this.
 - [ ] 3. Run `architecture-reviewer` over the full diff accumulated so far.
 - [ ] 4. CRITICAL or HIGH findings open? -> fix round (below). Otherwise
          continue to step 5.
 - [ ] 5. Run `plan-verifier` against the plan path (+ spec path if given).
 - [ ] 6. UNMET or PARTIAL requirements? -> fix round (below). Otherwise done.
-- [ ] 7. Report the final verdict (see "Report format").
+- [ ] 7. Report the final verdict (see "Report format"). Any change made
+         outside the units after this point (main-thread edits, follow-up
+         requests) gets a scoped `plan-verifier` or `architecture-reviewer`
+         pass, or is listed as unverified.
 ```
 
 ## Fix rounds
@@ -111,10 +137,22 @@ Plan verification: MET n · PARTIAL n · UNMET n · CANNOT VERIFY n
 ## Still open
 <CRITICAL/HIGH architecture findings or UNMET/PARTIAL requirements left, or "none">
 
+## Out-of-plan changes
+<edits the main thread made outside any unit (unowned files, migration applied,
+vendor sync), and whether each was verified, or "none">
+
+## Not covered from the user's brief
+<items from step 1's list that this run did not do, or "none">
+
 ## Next steps
 - test-writer was not run — invoke it manually if this feature needs coverage.
+- engineering-insights: <run | NOT RUN — root AGENTS.md requires it before finishing; do it now>
 - Run /pr-self-review before pushing — this skill's architecture pass is not the push gate.
 ```
+
+Do not treat "plan-verifier clean" as the finish line: the `engineering-insights`
+line above is a separate, repo-wide requirement (root `AGENTS.md`) and has been
+skipped in past runs (see `docs/retro/ledger/run-plan.md`).
 
 ## Cost notes
 
