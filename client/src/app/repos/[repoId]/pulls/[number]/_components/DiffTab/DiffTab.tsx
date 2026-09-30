@@ -3,11 +3,11 @@
 import React from "react";
 import { useTranslations } from "next-intl";
 import { SectionLabel, Button, Icon } from "@devdigest/ui";
-import { DiffViewer, type DiffCommentApi, type DiffFindingsApi } from "@/components/diff-viewer";
+import { DiffViewer, type DiffCommentApi, type DiffFindingsApi, type DiffTarget } from "@/components/diff-viewer";
 import { usePrComments, useCreatePrComment, useSmartDiff, usePrReviews, useFindingAction } from "@/lib/hooks/reviews";
 import { notify } from "@/lib/toast";
 import type { PrFile, SmartDiffRole } from "@/lib/types";
-import { toDiffGroupViews, findingsByPath as computeFindingsByPath } from "./helpers";
+import { toDiffGroupViews, findingsByPath as computeFindingsByPath, resolveTarget } from "./helpers";
 
 interface DiffTabProps {
   prId: string | null;
@@ -17,9 +17,13 @@ interface DiffTabProps {
   canComment?: boolean;
   repoFullName?: string | null;
   headSha?: string | null;
+  /** Raw `?file=` value (untrusted) — validated against `files` here. */
+  targetFile?: string | null;
+  /** Raw `?line=` value (untrusted) — a positive integer or ignored. */
+  targetLine?: string | null;
 }
 
-export function DiffTab({ prId, filesCount, files, canComment, repoFullName, headSha }: DiffTabProps) {
+export function DiffTab({ prId, filesCount, files, canComment, repoFullName, headSha, targetFile, targetLine }: DiffTabProps) {
   const t = useTranslations("prReview");
   const { data: comments } = usePrComments(prId);
   const create = useCreatePrComment(prId);
@@ -106,6 +110,30 @@ export function DiffTab({ prId, filesCount, files, canComment, repoFullName, hea
     },
   };
 
+  // Arrival target (from the PR Brief). Unknown files are ignored silently.
+  const resolved = React.useMemo(() => resolveTarget(files, targetFile, targetLine), [files, targetFile, targetLine]);
+  const resolvedPath = resolved?.path ?? null;
+  const resolvedLine = resolved?.line ?? null;
+  const arrivalKey = resolvedPath ? `${resolvedPath}:${resolvedLine ?? ""}` : null;
+  const [dismissedKey, setDismissedKey] = React.useState<string | null>(null);
+  const highlight = !!arrivalKey && dismissedKey !== arrivalKey;
+  const target: DiffTarget | null = React.useMemo(
+    () => (arrivalKey && resolvedPath ? { path: resolvedPath, line: resolvedLine, key: arrivalKey, highlight } : null),
+    [arrivalKey, resolvedPath, resolvedLine, highlight],
+  );
+
+  // Clear the highlight on a click outside the target card.
+  React.useEffect(() => {
+    if (!arrivalKey || !highlight) return;
+    const onDown = (e: MouseEvent) => {
+      const el = e.target instanceof Element ? e.target : null;
+      if (el?.closest('[data-diff-target="true"]')) return;
+      setDismissedKey(arrivalKey);
+    };
+    document.addEventListener("click", onDown);
+    return () => document.removeEventListener("click", onDown);
+  }, [arrivalKey, highlight]);
+
   const commentCount = comments?.length ?? 0;
   const findingsCount = allFindings.length;
   // Same toggle hides both, so its visibility and its count cover both kinds.
@@ -174,6 +202,7 @@ export function DiffTab({ prId, filesCount, files, canComment, repoFullName, hea
         commenting={commenting}
         groups={canRenderGrouped ? groups : undefined}
         findings={canRenderGrouped ? findingsApi : undefined}
+        target={target}
       />
     </section>
   );

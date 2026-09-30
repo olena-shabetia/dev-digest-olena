@@ -54,6 +54,11 @@ export type {
 export type { Review, Finding, Severity, Verdict } from "@devdigest/shared";
 export type {
   PrBrief,
+  PrBriefRecord,
+  PrBriefResponse,
+  ReviewFocusItem,
+  BriefDataGap,
+  Risk,
   SmartDiff,
   SmartDiffFile,
   SmartDiffGroup,

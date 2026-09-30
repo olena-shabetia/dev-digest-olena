@@ -85,4 +85,8 @@ export const s = {
     fontSize: 12,
     color: "var(--warn)",
   } satisfies CSSProperties,
+  childrenDivider: {
+    borderTop: "1px solid var(--border)",
+    paddingTop: 14,
+  } satisfies CSSProperties,
 } as const;

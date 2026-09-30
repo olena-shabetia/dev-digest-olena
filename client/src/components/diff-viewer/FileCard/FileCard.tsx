@@ -7,7 +7,7 @@ import { useTranslations } from "next-intl";
 import { Icon, SEV } from "@devdigest/ui";
 import type { FindingRecord } from "@devdigest/shared";
 import type { PrFile } from "@/lib/types";
-import { AUTO_EXPAND_MAX_LINES } from "../constants";
+import { AUTO_EXPAND_MAX_LINES, STICKY_HEADER_ATTR, STICKY_HEADER_GAP } from "../constants";
 import { parsePatch, type Line } from "../helpers";
 import {
   buildThreads,
@@ -21,6 +21,7 @@ import { CodeLine } from "../CodeLine";
 import { OutdatedComments } from "../OutdatedComments";
 import { anchorFindings, unanchoredFindings, type DiffFindingsApi } from "../findings";
 import { OutdatedFindings } from "../OutdatedFindings";
+import type { DiffTarget } from "../groups";
 
 /** Threads anchored to a given parsed line (RIGHT=new, LEFT=old). */
 function threadsForLine(ln: Line, matched: Map<string, CommentThread[]>): CommentThread[] {
@@ -48,16 +49,43 @@ export function FileCard({
   file,
   commenting,
   findings,
+  target,
 }: {
   file: PrFile;
   commenting?: DiffCommentApi;
   findings?: DiffFindingsApi;
+  /** Set only on the target file's card; forces open, scrolls, highlights. */
+  target?: DiffTarget | null;
 }) {
   const t = useTranslations("shell");
   const [open, setOpen] = React.useState(
-    (file.additions ?? 0) + (file.deletions ?? 0) <= AUTO_EXPAND_MAX_LINES
+    !!target || (file.additions ?? 0) + (file.deletions ?? 0) <= AUTO_EXPAND_MAX_LINES
   );
   const lines = React.useMemo(() => parsePatch(file.patch), [file.patch]);
+
+  // Arrival: open, then scroll the target line (or the card) into view once
+  // per target key. Refs only — the path/line are never used as selectors.
+  const cardRef = React.useRef<HTMLDivElement>(null);
+  const headerRef = React.useRef<HTMLDivElement>(null);
+  const lineRef = React.useRef<HTMLDivElement>(null);
+  const targetKey = target?.key ?? null;
+  React.useEffect(() => {
+    if (!targetKey) return;
+    setOpen(true);
+    const raf = requestAnimationFrame(() => {
+      const reduce =
+        typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      const el = lineRef.current ?? cardRef.current;
+      // Keep the target clear of a sticky page header (its height can vary).
+      const sticky = document.querySelector(`[${STICKY_HEADER_ATTR}]`);
+      if (el && sticky) el.style.scrollMarginTop = `${sticky.getBoundingClientRect().height + STICKY_HEADER_GAP}px`;
+      el?.scrollIntoView?.({ block: "start", behavior: reduce ? "auto" : "smooth" });
+      headerRef.current?.focus({ preventScroll: true });
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [targetKey]);
+  const targetLineNo = target?.line ?? null;
+  const highlighted = !!target?.highlight;
 
   // Group this file's comments into threads, then split into ones we can anchor
   // to a rendered line vs. "outdated" (GitHub dropped the line / it's not here).
@@ -90,8 +118,12 @@ export function FileCard({
   );
 
   return (
-    <div style={s.fileCard}>
-      <div onClick={() => setOpen((o) => !o)} style={s.fileHeader}>
+    <div
+      ref={cardRef}
+      style={highlighted ? { ...s.fileCard, ...s.fileCardTarget } : s.fileCard}
+      data-diff-target={target ? "true" : undefined}
+    >
+      <div ref={headerRef} tabIndex={target ? -1 : undefined} onClick={() => setOpen((o) => !o)} style={s.fileHeader}>
         <Icon.ChevronRight size={13} style={chevronFor(open)} />
         <Icon.FileText size={14} style={s.fileIcon} />
         <span className="mono" style={s.filePath}>
@@ -126,7 +158,9 @@ export function FileCard({
           {lines.length === 0 ? (
             <div style={s.noDiff}>{t("diffViewer.noDiffText")}</div>
           ) : (
-            lines.map((ln, i) => (
+            lines.map((ln, i) => {
+              const isTargetLine = targetLineNo !== null && ln.kind !== "hunk" && ln.newNo === targetLineNo;
+              const row = (
               <CodeLine
                 key={i}
                 ln={ln}
@@ -136,7 +170,15 @@ export function FileCard({
                 lineFindings={findingsForLine(ln, findingsByKey)}
                 findings={findings}
               />
-            ))
+              );
+              return isTargetLine ? (
+                <div key={i} ref={lineRef}>
+                  {row}
+                </div>
+              ) : (
+                row
+              );
+            })
           )}
           {commenting && commenting.showComments && <OutdatedComments threads={outdated} />}
           {findings && findings.showFindings && (

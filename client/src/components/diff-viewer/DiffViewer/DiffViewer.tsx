@@ -8,7 +8,7 @@ import React from "react";
 import { useTranslations } from "next-intl";
 import type { PrFile } from "@/lib/types";
 import { type DiffCommentApi } from "../comments";
-import { type DiffGroupView } from "../groups";
+import { type DiffGroupView, type DiffTarget } from "../groups";
 import { type DiffFindingsApi } from "../findings";
 import { s } from "../styles";
 import { FileCard } from "../FileCard";
@@ -19,6 +19,7 @@ export function DiffViewer({
   commenting,
   groups,
   findings,
+  target,
 }: {
   files: PrFile[];
   commenting?: DiffCommentApi;
@@ -26,6 +27,8 @@ export function DiffViewer({
    *  flat `files` list below, byte-identical to pre-L03 behaviour. */
   groups?: DiffGroupView[];
   findings?: DiffFindingsApi;
+  /** Optional arrival target; never changes grouping or order. */
+  target?: DiffTarget | null;
 }) {
   const t = useTranslations("shell");
 
@@ -37,7 +40,7 @@ export function DiffViewer({
     return (
       <div style={s.list}>
         {nonEmpty.map((g) => (
-          <GroupSection key={g.role} group={g} commenting={commenting} findings={findings} />
+          <GroupSection key={g.role} group={g} commenting={commenting} findings={findings} target={target} />
         ))}
       </div>
     );
@@ -49,7 +52,7 @@ export function DiffViewer({
   return (
     <div style={s.list}>
       {files.map((f, i) => (
-        <FileCard key={i} file={f} commenting={commenting} />
+        <FileCard key={i} file={f} commenting={commenting} target={target?.path === f.path ? target : null} />
       ))}
     </div>
   );

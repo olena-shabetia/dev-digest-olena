@@ -1,0 +1,41 @@
+import type { CSSProperties } from "react";
+
+export const s = {
+  wrap: { display: "flex", flexDirection: "column", gap: 4 } satisfies CSSProperties,
+  headerRow: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 } satisfies CSSProperties,
+  body: { padding: 18, display: "flex", flexDirection: "column", gap: 12 } satisfies CSSProperties,
+  briefBody: { display: "flex", flexDirection: "column", gap: 6 } satisfies CSSProperties,
+  summaryBlock: {
+    fontSize: 14,
+    lineHeight: 1.55,
+    color: "var(--text-primary)",
+    whiteSpace: "pre-wrap",
+    padding: 14,
+    borderRadius: 10,
+    border: "1px solid var(--border)",
+    background: "var(--bg-elevated)",
+  } satisfies CSSProperties,
+  summaryText: { margin: 0, whiteSpace: "pre-wrap" } satisfies CSSProperties,
+  cost: {
+    fontFamily: "var(--font-mono, monospace)",
+    fontSize: 11,
+    color: "var(--text-muted)",
+    whiteSpace: "nowrap",
+    cursor: "help",
+  } satisfies CSSProperties,
+  stale: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+    flexWrap: "wrap",
+    padding: "8px 12px",
+    borderRadius: 8,
+    background: "var(--warn-bg)",
+    color: "var(--warn)",
+    fontSize: 13,
+  } satisfies CSSProperties,
+  note: { fontSize: 12, color: "var(--text-muted)" } satisfies CSSProperties,
+  errorRow: { display: "flex", alignItems: "center", flexWrap: "wrap", gap: 10 } satisfies CSSProperties,
+  error: { fontSize: 13, color: "var(--crit)" } satisfies CSSProperties,
+} as const;
