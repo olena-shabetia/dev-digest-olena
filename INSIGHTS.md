@@ -23,6 +23,24 @@ _None yet._
 
 ## Tool & Library Notes
 
+### 2026-09-30 — eslint has no `unix` formatter, and `pnpm typecheck -- <flag>` fails in `client/`
+
+**Symptom:** verification commands copied from a plan failed the same way in
+five separate work units: `eslint --format=unix ...` errors because the
+formatter package is not installed, and `pnpm typecheck -- --pretty false` in
+`client/` exits with `TS5023` (unknown compiler option).
+
+**Cause:** `client/package.json:9` defines `"typecheck": "tsc --noEmit"`, and
+pnpm forwards the extra `--` to `tsc` as a flag it does not know. The unix
+formatter is simply not among the dev dependencies.
+
+**Fix:** run plain `pnpm typecheck` (no arguments) and eslint with its default
+formatter.
+
+**Rule:** don't put `--format=unix` or `pnpm typecheck -- <flag>` in a plan's
+verification commands — check `package.json` scripts and installed tooling
+first, otherwise every agent rediscovers this on its own.
+
 ### 2026-09-17 — pnpm 12 silently blocks build scripts and writes a bad stub
 
 **Symptom:** `pnpm install` ends with `ERR_PNPM_IGNORED_BUILDS` listing
