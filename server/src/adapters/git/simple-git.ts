@@ -9,8 +9,10 @@ import type {
   UnifiedDiff,
   BlameLine,
   GitCommit,
+  CommitChurn,
 } from '@devdigest/shared';
 import { parseUnifiedDiff } from './diff-parser.js';
+import { withTimeout } from '../../platform/resilience.js';
 
 /**
  * Depth fetched by `sync()`. Deeper than the shallow clone (CLONE_DEPTH=1) so the
@@ -151,6 +153,65 @@ export class SimpleGitClient implements GitClient {
     } catch {
       return null;
     }
+  }
+
+  async commitChurnSince(
+    repo: RepoRef,
+    sha: string,
+    opts: { sinceDays: number; maxCommits: number; timeoutMs: number },
+  ): Promise<CommitChurn | null> {
+    // Defense in depth against argument injection — plain hex sha only.
+    if (!/^[0-9a-f]{7,64}$/i.test(sha)) return null;
+    try {
+      return await withTimeout(this.walkChurn(repo, sha, opts), opts.timeoutMs);
+    } catch {
+      return null;
+    }
+  }
+
+  private async walkChurn(
+    repo: RepoRef,
+    sha: string,
+    opts: { sinceDays: number; maxCommits: number },
+  ): Promise<CommitChurn> {
+    const g = this.git(repo);
+    const dateRaw = (await g.raw(['show', '-s', '--format=%cI', sha])).trim();
+    const commitDate = new Date(dateRaw);
+    if (Number.isNaN(commitDate.getTime())) throw new Error('unparseable commit date');
+    const since = new Date(commitDate.getTime() - opts.sinceDays * 86_400_000).toISOString();
+    const shallow = (await g.raw(['rev-parse', '--is-shallow-repository'])).trim();
+    if (shallow === 'true') {
+      try {
+        await g.raw(['fetch', 'origin', `--shallow-since=${since}`]);
+      } catch {
+        // deepening failed (offline, lock contention) — still try the local log
+      }
+    }
+    const raw = await g.raw([
+      'log',
+      sha,
+      `--since=${since}`,
+      '-n',
+      String(opts.maxCommits),
+      '--name-only',
+      '--format=%x00%H',
+    ]);
+    const byPath: Record<string, number> = {};
+    let commits = 0;
+    for (const chunk of raw.split('\0')) {
+      if (!chunk.trim()) continue;
+      commits += 1;
+      const lines = chunk.split('\n').slice(1); // first line is the sha
+      const seen = new Set<string>();
+      for (const l of lines) {
+        const p = l.trim();
+        if (p && !seen.has(p)) {
+          seen.add(p);
+          byPath[p] = (byPath[p] ?? 0) + 1;
+        }
+      }
+    }
+    return { commits, byPath };
   }
 }
 

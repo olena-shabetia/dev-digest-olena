@@ -22,6 +22,7 @@ import type {
   UnifiedDiff,
   BlameLine,
   GitCommit,
+  CommitChurn,
   CodeIndex,
   CodeMatch,
   CodeSymbol,
@@ -255,6 +256,8 @@ export interface MockGitOptions {
   headAvailable?: boolean;
   /** L05 — whether `hasCommit` flips to true once `fetchPullHead` has been called. Default false. */
   headAvailableAfterFetch?: boolean;
+  /** L05b — result of `commitChurnSince`. Unset/null → null (graph-only ranking). */
+  churn?: CommitChurn | null;
 }
 
 export class MockGitClient implements GitClient {
@@ -312,6 +315,9 @@ export class MockGitClient implements GitClient {
   }
   async readFileAt(_repo: RepoRef, _ref: string, path: string): Promise<string | null> {
     return this.opts.filesAtRef?.[path] ?? null;
+  }
+  async commitChurnSince(): Promise<CommitChurn | null> {
+    return this.opts.churn ?? null;
   }
 }
 

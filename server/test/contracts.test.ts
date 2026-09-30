@@ -8,7 +8,7 @@ import {
   PrHistory,
   SmartDiff,
   Conformance,
-  Onboarding,
+  OnboardingTourContent,
   EvalRun,
   MemoryItem,
   RunTrace,
@@ -130,8 +130,19 @@ describe('AI contracts parse fixtures', () => {
       }),
     ).not.toThrow();
     expect(() =>
-      Onboarding.parse({
-        sections: [{ kind: 'architecture', title: 'T', body: 'b', links: [] }],
+      OnboardingTourContent.parse({
+        sections: [
+          { kind: 'architecture', prose: null, diagram: null, structure: [], stack: [] },
+          { kind: 'critical_paths', items: [] },
+          { kind: 'run_locally', package_manager: null, items: [] },
+          { kind: 'reading_path', ranking: 'graph_only', items: [] },
+          { kind: 'first_tasks', items: [] },
+        ],
+        index_partial: false,
+        files_indexed: 0,
+        ranking: 'graph_only',
+        dropped_components: [],
+        error_class: null,
       }),
     ).not.toThrow();
     expect(() =>

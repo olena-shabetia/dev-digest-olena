@@ -202,6 +202,14 @@ export interface GitCommit {
   date: string;
 }
 
+/** L05b — bounded per-path commit churn. */
+export interface CommitChurn {
+  /** Commits actually walked (<= maxCommits). */
+  commits: number;
+  /** repo-relative path -> number of walked commits touching it. */
+  byPath: Record<string, number>;
+}
+
 export interface GitClient {
   clone(repo: RepoRef, url: string, opts?: CloneOptions): Promise<{ path: string }>;
   fetchPullHead(repo: RepoRef, n: number): Promise<void>;
@@ -236,6 +244,17 @@ export interface GitClient {
    * working tree. Callers validate `path` as a safe repo-relative path first.
    */
   readFileAt(repo: RepoRef, ref: string, path: string): Promise<string | null>;
+  /**
+   * L05b — bounded churn: commits reachable from `sha`, committed within
+   * `sinceDays` before `sha`'s own commit date, at most `maxCommits`. May deepen
+   * a shallow clone (`git fetch --shallow-since=<date>`). Validates `sha` as hex.
+   * NEVER throws — resolves null on any error or when `timeoutMs` elapses.
+   */
+  commitChurnSince(
+    repo: RepoRef,
+    sha: string,
+    opts: { sinceDays: number; maxCommits: number; timeoutMs: number },
+  ): Promise<CommitChurn | null>;
 }
 
 // ---------- CodeIndex (ripgrep + tree-sitter) ----------
