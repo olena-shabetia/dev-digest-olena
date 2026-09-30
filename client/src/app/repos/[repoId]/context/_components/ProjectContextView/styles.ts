@@ -15,7 +15,7 @@ export const s = {
   split: { display: "flex", height: "100%" } satisfies CSSProperties,
 
   sidebar: {
-    width: 240,
+    width: 310,
     flexShrink: 0,
     display: "flex",
     flexDirection: "column",
