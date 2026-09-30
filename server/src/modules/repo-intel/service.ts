@@ -33,9 +33,12 @@ import type {
   BlastCallerRow,
   BlastChangedSymbol,
   BlastResult,
+  DirFileCountRow,
+  EndpointFactRow,
   FileRankRow,
   IndexResult,
   IndexState,
+  PageRankRow,
   RefRow,
   RepoIntel,
   RepoMapResult,
@@ -45,6 +48,7 @@ import type {
 import {
   BFS_DEPTH,
   DEFAULT_REPO_MAP_TOKEN_BUDGET,
+  EXCLUDED_DIRS,
   INDEX_JOB_KIND,
   INDEXER_VERSION,
   MAX_CALLERS_PER_SYMBOL,
@@ -412,6 +416,35 @@ export class RepoIntelService implements RepoIntel {
     const hit = await this.repo.getRepoMapCache(repoId, state.lastIndexedSha, budget);
     if (!hit) return degraded;
     return { text: hit.mapText, tokens: hit.tokenCount, cached: true };
+  }
+
+  // --- L05b: onboarding tour reads (best-effort: [] when flag off) ---
+  async getEndpointFacts(repoId: string): Promise<EndpointFactRow[]> {
+    if (!this.container.config.repoIntelEnabled) return [];
+    const rows = await this.repo.getAllEndpointFacts(repoId);
+    return rows.map((r) => ({ path: r.filePath, endpoints: r.endpoints }));
+  }
+
+  async getPageRanks(repoId: string, paths: string[]): Promise<PageRankRow[]> {
+    if (!this.container.config.repoIntelEnabled) return [];
+    if (paths.length === 0) return [];
+    return this.repo.getPageRanksFor(repoId, paths);
+  }
+
+  async getDirFileCounts(repoId: string): Promise<DirFileCountRow[]> {
+    if (!this.container.config.repoIntelEnabled) return [];
+    const excluded: ReadonlySet<string> = new Set(EXCLUDED_DIRS);
+    const counts = new Map<string, number>();
+    for (const p of await this.repo.getIndexedPaths(repoId)) {
+      const i = p.indexOf('/');
+      if (i <= 0) continue; // root-level file
+      const dir = p.slice(0, i);
+      if (excluded.has(dir)) continue;
+      counts.set(dir, (counts.get(dir) ?? 0) + 1);
+    }
+    return [...counts.entries()]
+      .map(([dir, files]) => ({ dir, files }))
+      .sort((a, b) => (a.dir < b.dir ? -1 : a.dir > b.dir ? 1 : 0));
   }
 
   /** Percentile per path from `file_rank` (smart-diff / run-executor "top-N%"). */

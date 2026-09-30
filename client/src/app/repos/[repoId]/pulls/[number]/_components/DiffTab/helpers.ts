@@ -50,6 +50,25 @@ export function toDiffGroupViews(
   return views;
 }
 
+/** Parse an untrusted `?line=` value: a positive integer, else null. */
+export function parseTargetLine(raw: string | null | undefined): number | null {
+  if (!raw || !/^\d{1,7}$/.test(raw)) return null;
+  const n = Number(raw);
+  return n >= 1 ? n : null;
+}
+
+/** Resolve an untrusted `?file=` value against the PR's files (exact match only). */
+export function resolveTarget(
+  files: PrFile[],
+  rawFile: string | null | undefined,
+  rawLine: string | null | undefined,
+): { path: string; line: number | null } | null {
+  if (!rawFile) return null;
+  const file = files.find((f) => f.path === rawFile);
+  if (!file) return null;
+  return { path: file.path, line: parseTargetLine(rawLine) };
+}
+
 /** Groups a PR's latest-review findings by file path. Pure, React-free. */
 export function findingsByPath(findings: FindingRecord[]): Map<string, FindingRecord[]> {
   const byPath = new Map<string, FindingRecord[]>();

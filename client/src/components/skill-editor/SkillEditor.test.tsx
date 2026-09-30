@@ -14,6 +14,17 @@ vi.mock("@/lib/hooks/skills", () => ({
   useSkillVersions: () => ({ data: [], isLoading: false, isError: false }),
 }));
 
+// The Context tab (L05) pulls its own repo/doc hooks — mock them so the
+// default (Config) render stays a pure smoke test.
+vi.mock("@/lib/repo-context", () => ({
+  useActiveRepo: () => ({ repoId: null, setRepoId: vi.fn(), repos: [], activeRepo: null, reposLoaded: true }),
+}));
+vi.mock("@/lib/hooks/project-context", () => ({
+  useProjectDocs: () => ({ data: undefined, isLoading: false, isError: false, refetch: vi.fn() }),
+  useSkillContextDocs: () => ({ data: undefined, isLoading: false, isError: false }),
+  useSetSkillContextDocs: () => ({ mutate: vi.fn(), isPending: false }),
+}));
+
 import { SkillEditor } from "./SkillEditor";
 
 afterEach(cleanup);
@@ -45,9 +56,10 @@ describe("SkillEditor (smoke)", () => {
     expect(screen.getByText("Configuration")).toBeInTheDocument();
   });
 
-  it("renders all 5 tabs", () => {
+  it("renders all 6 tabs", () => {
     renderWithIntl(<SkillEditor skill={SKILL} />);
     expect(screen.getByText("Config")).toBeInTheDocument();
+    expect(screen.getByText("Context")).toBeInTheDocument();
     expect(screen.getByText("Preview")).toBeInTheDocument();
     expect(screen.getByText("Evals")).toBeInTheDocument();
     expect(screen.getByText("Stats")).toBeInTheDocument();

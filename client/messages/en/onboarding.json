@@ -1,15 +1,91 @@
 {
   "title": "Onboarding Tour",
-  "sections": "Sections",
-  "sectionCount": "{count} sections",
   "regenerate": "Regenerate",
   "regenerating": "Regenerating…",
   "unknownError": "Unknown error",
   "generate": {
     "title": "Generate onboarding tour",
-    "body": "DevDigest indexes the repo and specs, then writes a 5-section guided tour: overview, architecture, key modules, getting started, and conventions & gotchas.",
+    "body": "DevDigest builds a 5-section guided tour from the repo index: architecture overview, critical paths, how to run locally, a guided reading path, and first tasks.",
     "cta": "Generate onboarding tour",
     "generating": "Generating…"
+  },
+  "header": {
+    "title": "Onboarding for <accent>{repo}</accent>",
+    "subline": "Generated from index of {files} files · last refreshed {relative}",
+    "partial": "partial index",
+    "partialTooltip": "The index was bounded or incomplete, so this tour may not cover every file."
+  },
+  "share": {
+    "cta": "Share link",
+    "copied": "Link copied to clipboard"
+  },
+  "toc": {
+    "title": "On this page"
+  },
+  "sections": {
+    "architecture": "Architecture overview",
+    "criticalPaths": "Critical paths",
+    "runLocally": "How to run locally",
+    "readingPath": "Guided reading path",
+    "firstTasks": "First tasks"
+  },
+  "card": {
+    "expand": "Expand {title}",
+    "collapse": "Collapse {title}"
+  },
+  "architecture": {
+    "structure": "Structure",
+    "stack": "Stack",
+    "files": "{count} files"
+  },
+  "open": {
+    "label": "Open",
+    "aria": "Open {path} on GitHub"
+  },
+  "copy": {
+    "aria": "Copy command: {command}",
+    "done": "Copied"
+  },
+  "readingPath": {
+    "graphOnly": "Order is based on import structure only, because commit history was unavailable."
+  },
+  "firstTasks": {
+    "complexity": {
+      "low": "Low complexity",
+      "medium": "Medium complexity",
+      "high": "High complexity"
+    },
+    "unavailable": "First tasks are not available without generation. Regenerate once the language model is reachable."
+  },
+  "skeleton": {
+    "flag_off": {
+      "title": "Repository analysis is turned off, so this tour has no annotations.",
+      "next": "Enable repo-intel in settings, then regenerate."
+    },
+    "not_cloned": {
+      "title": "This repository has not been cloned yet, so the tour is empty.",
+      "next": "Wait for the clone to finish (or resync the repository), then regenerate."
+    },
+    "index_missing": {
+      "title": "This repository has not been indexed yet.",
+      "next": "Wait for indexing to finish, then regenerate."
+    },
+    "index_degraded": {
+      "title": "The index is degraded, so only basic facts are shown.",
+      "next": "Resync the repository, then regenerate."
+    },
+    "llm_failed": {
+      "title": "Generation failed, so reasons and annotations are missing.",
+      "next": "Try again with Regenerate."
+    },
+    "llm_invalid_output": {
+      "title": "The model returned output that could not be used, so annotations are missing.",
+      "next": "Try again with Regenerate."
+    }
+  },
+  "stale": {
+    "body": "This tour was generated from an older index ({tourSha}); the repository is now at {currentSha}.",
+    "next": "Use Regenerate to refresh it."
   },
   "loadError": {
     "title": "Couldn’t load the onboarding tour"

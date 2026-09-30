@@ -234,6 +234,69 @@ export class AgentsRepository {
       .values(skillIds.map((skillId, i) => ({ agentId, skillId, order: i })));
   }
 
+  // ---- project-context attachments (agent_context_docs, L05) --------------
+
+  /** Paths attached to `agentId` for one repo, ordered by `order` asc. */
+  async listContextDocs(agentId: string, repoId: string): Promise<string[]> {
+    const rows = await this.db
+      .select({ path: t.agentContextDocs.path })
+      .from(t.agentContextDocs)
+      .where(
+        and(eq(t.agentContextDocs.agentId, agentId), eq(t.agentContextDocs.repoId, repoId)),
+      )
+      .orderBy(asc(t.agentContextDocs.order));
+    return rows.map((r) => r.path);
+  }
+
+  /**
+   * Replace the full ordered set of attached doc paths for (agentId, repoId).
+   * Rows belonging to other repos for this agent are untouched (SPEC-01 AC-11a).
+   */
+  async setContextDocs(agentId: string, repoId: string, paths: string[]): Promise<void> {
+    await this.db.transaction(async (tx) => {
+      await tx
+        .delete(t.agentContextDocs)
+        .where(
+          and(eq(t.agentContextDocs.agentId, agentId), eq(t.agentContextDocs.repoId, repoId)),
+        );
+      if (paths.length === 0) return;
+      await tx
+        .insert(t.agentContextDocs)
+        .values(paths.map((path, i) => ({ agentId, repoId, path, order: i })));
+    });
+  }
+
+  /**
+   * Per-path count of DISTINCT agents (scoped to `workspaceId`) using each
+   * attached doc path in `repoId` — direct agent attachments UNION ALL doc
+   * paths inherited via an ENABLED, linked skill (SPEC-01 AC-29, SPEC-02
+   * AC-15d-f). Disabled agents count; disabled skills contribute nothing.
+   * One grouped query over the UNION ALL, no per-path loop.
+   */
+  async countAgentsUsingDocs(workspaceId: string, repoId: string): Promise<Map<string, number>> {
+    const rows = await this.db.execute<{ path: string; count: number }>(sql`
+      SELECT path, COUNT(DISTINCT agent_id)::int AS count
+      FROM (
+        SELECT acd.agent_id AS agent_id, acd.path AS path
+        FROM agent_context_docs acd
+        JOIN agents a ON a.id = acd.agent_id
+        WHERE a.workspace_id = ${workspaceId} AND acd.repo_id = ${repoId}
+        UNION ALL
+        SELECT ags.agent_id AS agent_id, scd.path AS path
+        FROM skill_context_docs scd
+        JOIN skills s ON s.id = scd.skill_id
+        JOIN agent_skills ags ON ags.skill_id = s.id
+        JOIN agents a2 ON a2.id = ags.agent_id
+        WHERE s.enabled = true
+          AND s.workspace_id = ${workspaceId}
+          AND a2.workspace_id = ${workspaceId}
+          AND scd.repo_id = ${repoId}
+      ) combined
+      GROUP BY path
+    `);
+    return new Map(rows.map((r) => [r.path, r.count]));
+  }
+
   // ---- Agent Stats (GET /agents/:id/stats, L02) ----------------------------
 
   /**

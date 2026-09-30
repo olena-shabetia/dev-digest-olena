@@ -6,14 +6,46 @@ import React from "react";
 import { useTranslations } from "next-intl";
 import { Badge } from "@devdigest/ui";
 import type { RunTrace, FindingRecord } from "@devdigest/shared";
-import { formatCost, formatSeconds, formatTokens } from "@/lib/format";
+import { formatCost, formatSeconds, formatTokens, formatTokenCount } from "@/lib/format";
 import { PROMPT_COLORS } from "../../constants";
 import { s } from "../../styles";
+import { stripUntrustedDelimiters } from "../../helpers";
 import { TraceSection } from "../TraceSection";
 import { ToolCallRow } from "../ToolCallRow";
 import { PromptBlock } from "../PromptBlock";
 import { FindingsSection } from "../FindingsSection";
 import { Row, Stat } from "../atoms";
+
+function SpecsReadRow({ trace }: { trace: RunTrace }) {
+  const t = useTranslations("runs");
+  if (trace.specs_read_detail != null) {
+    if (trace.specs_read_detail.length === 0) {
+      return <span style={s.specsNone}>{t("trace.config.none")}</span>;
+    }
+    return (
+      <>
+        {trace.specs_read_detail.map((sp, i) => (
+          <span key={i} className="mono" style={s.spec}>
+            {sp.path} ({t("trace.config.specTokens", { count: formatTokenCount(sp.tokens) })}
+            {sp.truncated ? `, ${t("trace.config.specTruncated")}` : ""})
+          </span>
+        ))}
+      </>
+    );
+  }
+  if (trace.specs_read.length === 0) {
+    return <span style={s.specsNone}>{t("trace.config.none")}</span>;
+  }
+  return (
+    <>
+      {trace.specs_read.map((sp, i) => (
+        <span key={i} className="mono" style={s.spec}>
+          {sp}
+        </span>
+      ))}
+    </>
+  );
+}
 
 export function TraceBody({ trace, findings }: { trace: RunTrace; findings: FindingRecord[] }) {
   const t = useTranslations("runs");
@@ -37,15 +69,7 @@ export function TraceBody({ trace, findings }: { trace: RunTrace; findings: Find
           </Row>
           <Row label={t("trace.config.specsRead")}>
             <div style={s.specsWrap}>
-              {trace.specs_read.length === 0 ? (
-                <span style={s.specsNone}>{t("trace.config.none")}</span>
-              ) : (
-                trace.specs_read.map((sp, i) => (
-                  <span key={i} className="mono" style={s.spec}>
-                    {sp}
-                  </span>
-                ))
-              )}
+              <SpecsReadRow trace={trace} />
             </div>
           </Row>
         </div>
@@ -87,7 +111,13 @@ export function TraceBody({ trace, findings }: { trace: RunTrace; findings: Find
           <PromptBlock label={t("trace.prompt.repoMap")} text={trace.prompt_assembly.repo_map} color={PROMPT_COLORS.repoMap} />
         )}
         {trace.prompt_assembly.specs != null && (
-          <PromptBlock label={t("trace.prompt.specs")} text={trace.prompt_assembly.specs} color={PROMPT_COLORS.specs} />
+          <PromptBlock
+            label={t("trace.prompt.specs")}
+            text={trace.prompt_assembly.specs}
+            color={PROMPT_COLORS.specs}
+            tokens={trace.prompt_assembly.specs_tokens}
+            displayTransform={stripUntrustedDelimiters}
+          />
         )}
         {trace.prompt_assembly.callers != null && (
           <PromptBlock label={t("trace.prompt.callers")} text={trace.prompt_assembly.callers} color={PROMPT_COLORS.callers} />

@@ -3,6 +3,6 @@
    DiffCommentApi / DiffGroupView / DiffFindingsApi contracts. */
 export { DiffViewer } from "./DiffViewer";
 export type { DiffCommentApi } from "./comments";
-export type { DiffGroupView } from "./groups";
+export type { DiffGroupView, DiffTarget } from "./groups";
 export type { DiffFindingsApi } from "./findings";
 export { anchorFindings } from "./findings";

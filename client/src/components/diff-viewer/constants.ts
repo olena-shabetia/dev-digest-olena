@@ -17,3 +17,12 @@ export const HUNK_HEADER_RE = /@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/;
  * happen to land this close together will also cluster into one anchor.
  */
 export const FINDING_CLUSTER_MAX_GAP = 2;
+
+/**
+ * A page that sticks a header above the diff marks it with this attribute, so
+ * arrival scrolling can leave room under it (a fixed offset would break when
+ * the header wraps). Read-only, constant selector, never user data.
+ */
+export const STICKY_HEADER_ATTR = "data-sticky-header";
+/** Breathing room between the sticky header and the scrolled-to target. */
+export const STICKY_HEADER_GAP = 12;

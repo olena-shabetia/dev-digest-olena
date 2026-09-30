@@ -3,6 +3,7 @@ import {
   uuid,
   text,
   integer,
+  doublePrecision,
   boolean,
   jsonb,
   timestamp,
@@ -117,10 +118,26 @@ export const references = pgTable(
   }),
 );
 
-export const onboarding = pgTable('onboarding', {
-  repoId: uuid('repo_id')
-    .primaryKey()
-    .references(() => repos.id, { onDelete: 'cascade' }),
-  json: jsonb('json').notNull(),
-  generatedAt: timestamp('generated_at', { withTimezone: true }).defaultNow().notNull(),
-});
+export const onboarding = pgTable(
+  'onboarding',
+  {
+    repoId: uuid('repo_id')
+      .primaryKey()
+      .references(() => repos.id, { onDelete: 'cascade' }),
+    workspaceId: uuid('workspace_id')
+      .notNull()
+      .references(() => workspaces.id, { onDelete: 'cascade' }),
+    json: jsonb('json').notNull(),
+    status: text('status', { enum: ['ready', 'skeleton'] }).notNull(),
+    reason: text('reason'),
+    indexSha: text('index_sha'),
+    provider: text('provider'),
+    model: text('model'),
+    llmCalls: integer('llm_calls'),
+    tokensIn: integer('tokens_in'),
+    tokensOut: integer('tokens_out'),
+    costUsd: doublePrecision('cost_usd'),
+    generatedAt: timestamp('generated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({ byWorkspace: index('onboarding_workspace_idx').on(t.workspaceId) }),
+);

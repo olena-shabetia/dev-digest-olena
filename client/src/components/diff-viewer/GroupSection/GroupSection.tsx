@@ -6,7 +6,7 @@
 
 import React from "react";
 import { Icon, SEV } from "@devdigest/ui";
-import type { DiffGroupView } from "../groups";
+import type { DiffGroupView, DiffTarget } from "../groups";
 import type { DiffCommentApi } from "../comments";
 import type { DiffFindingsApi } from "../findings";
 import { s, chevronFor } from "../styles";
@@ -16,12 +16,21 @@ export function GroupSection({
   group,
   commenting,
   findings,
+  target,
 }: {
   group: DiffGroupView;
   commenting?: DiffCommentApi;
   findings?: DiffFindingsApi;
+  target?: DiffTarget | null;
 }) {
-  const [open, setOpen] = React.useState(!group.defaultCollapsed);
+  const containsTarget = !!target && group.files.some((f) => f.path === target.path);
+  const [open, setOpen] = React.useState(!group.defaultCollapsed || containsTarget);
+  const targetKey = containsTarget ? target?.key : null;
+
+  // Open the group on a new arrival; later manual toggles still work.
+  React.useEffect(() => {
+    if (targetKey) setOpen(true);
+  }, [targetKey]);
 
   return (
     <div>
@@ -46,7 +55,13 @@ export function GroupSection({
       {open && (
         <div style={s.groupBody}>
           {group.files.map((f, i) => (
-            <FileCard key={i} file={f} commenting={commenting} findings={findings} />
+            <FileCard
+              key={i}
+              file={f}
+              commenting={commenting}
+              findings={findings}
+              target={target?.path === f.path ? target : null}
+            />
           ))}
         </div>
       )}

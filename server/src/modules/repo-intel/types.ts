@@ -169,4 +169,18 @@ export interface RepoIntel {
     opts?: { exclude?: string[] },
   ): Promise<string[]>;
   getCriticalPaths(repoId: string): Promise<string[][]>;
+
+  // --- L05b: onboarding tour reads ---
+  /** All file_facts rows with ≥1 endpoint, ordered by path ASC. [] when flag off / no data. */
+  getEndpointFacts(repoId: string): Promise<EndpointFactRow[]>;
+  /** file_rank.pagerank for the given paths (paths not in file_rank are absent). [] when flag off / empty input. */
+  getPageRanks(repoId: string, paths: string[]): Promise<PageRankRow[]>;
+  /** Indexed-file counts per top-level directory (first path segment; root-level
+   *  files excluded; EXCLUDED_DIRS excluded), ordered by dir ASC. [] when flag off / no data. */
+  getDirFileCounts(repoId: string): Promise<DirFileCountRow[]>;
 }
+
+// --- L05b: onboarding tour reads ---
+export interface EndpointFactRow { path: string; endpoints: string[] }
+export interface PageRankRow { path: string; pagerank: number }
+export interface DirFileCountRow { dir: string; files: number }

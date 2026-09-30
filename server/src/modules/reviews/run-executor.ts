@@ -7,8 +7,9 @@ import * as schema from '../../db/schema.js';
 import type { AgentRow } from '../../db/rows.js';
 import type { ReviewRepository, FindingRow, PullRow, ReviewRow } from './repository.js';
 import { REVIEW_STRATEGY } from './constants.js';
-import { renderIntent, summarizeIntentSources, taskLine } from './helpers.js';
+import { renderIntent, resolveEffectiveDocPaths, summarizeIntentSources, taskLine } from './helpers.js';
 import { loadDiff } from './diff-loader.js';
+import { readProjectDocsAtRef, type InjectedDoc } from '../../platform/project-context/index.js';
 
 /** Thrown by a run when the user cancels it mid-flight (between map files). */
 export class RunCancelledError extends Error {
@@ -256,6 +257,19 @@ export class ReviewRunExecutor {
           : 'No enabled skills linked to this agent',
       );
 
+      // L05 — project-context: this agent's effective attached doc set (its
+      // own attachments + its ENABLED linked skills'), read at the PR head
+      // commit. Best-effort by design (server/AGENTS.md): any failure here is
+      // logged and treated as "no attached docs", never fails or cancels the
+      // run.
+      const { docs: projectContextDocs } = await this.buildProjectContext(
+        agent,
+        pull,
+        repo,
+        enabledSkills,
+        runLog,
+      );
+
       // ---- Engine: assemble → single-pass → grounding -----------------------
       // The pure review pipeline lives in @devdigest/reviewer-core (shared with
       // the CI runner). The service owns only I/O: repo-intel context resolution
@@ -284,6 +298,12 @@ export class ReviewRunExecutor {
         // idiom, so a run with no usable intent produces a byte-identical
         // prompt to the pre-L03 shape.
         ...(intent ? { intent } : {}),
+        // L05 — project-context: attached repo docs, read at the PR head
+        // commit. Same omit-when-empty idiom: no attachments → no `specs`
+        // key → byte-identical prompt to the pre-L05 shape.
+        ...(projectContextDocs.length
+          ? { specs: projectContextDocs.map(({ path, content }) => ({ path, content })) }
+          : {}),
         task,
         sessionId: `${repo.owner}/${repo.name}#${pull.number}:${agent.name}`,
         onEvent: (e) => runLog.event(e.kind, e.msg, e.data),
@@ -370,7 +390,14 @@ export class ReviewRunExecutor {
         })),
         raw_output: outcome.raw,
         memory_pulled: [],
-        specs_read: [],
+        // L05 — the effective attached doc set actually injected this run
+        // (same order as the prompt section); detail (tokens/truncated) is
+        // null when nothing was injected, so an old trace's `specs_read: []`
+        // stays valid.
+        specs_read: projectContextDocs.map((d) => d.path),
+        specs_read_detail: projectContextDocs.length
+          ? projectContextDocs.map(({ path, tokens, truncated }) => ({ path, tokens, truncated }))
+          : null,
         // Persisted log = the run's FULL event buffer (incl. shared pre-work:
         // diff load + intent), not just events recorded inside this method.
         log: runLog.logFor(runId),
@@ -491,6 +518,65 @@ export class ReviewRunExecutor {
       return `\n\n${hot.length} of ${changedFiles.length} changed file(s) are in the top 5% most-depended-on (high blast risk) — prioritise their correctness.`;
     } catch {
       return '';
+    }
+  }
+
+  /**
+   * L05 — resolve this agent's effective project-context doc set (its own
+   * attachments + its ENABLED linked skills') and read it at the PR head
+   * commit. Best-effort by design (server/AGENTS.md): the whole body is
+   * wrapped in try/catch, so a resolution or read failure is logged and
+   * treated as no attached docs — it never fails or cancels the run. Makes
+   * ZERO git calls when the effective set is empty (no attachments at all).
+   */
+  private async buildProjectContext(
+    agent: AgentRow,
+    pull: PullRow,
+    repo: typeof schema.repos.$inferSelect,
+    enabledSkills: readonly { skill: { id: string } }[],
+    runLog: RunLogger,
+  ): Promise<{ docs: InjectedDoc[] }> {
+    try {
+      const enabledSkillIds = enabledSkills.map((l) => l.skill.id);
+      const [agentPaths, skillDocs] = await Promise.all([
+        this.agents.listContextDocs(agent.id, pull.repoId),
+        this.container.skillsRepo.contextDocsForSkills(enabledSkillIds, pull.repoId),
+      ]);
+      const paths = resolveEffectiveDocPaths(agentPaths, enabledSkillIds, skillDocs);
+      if (paths.length === 0) return { docs: [] };
+
+      const result = await readProjectDocsAtRef(
+        this.container.git,
+        { owner: repo.owner, name: repo.name },
+        pull.headSha,
+        pull.number,
+        paths,
+      );
+
+      if (result.status === 'head_unavailable') {
+        runLog.info(`project context: PR head ${pull.headSha} not available — skipped`);
+        return { docs: [] };
+      }
+
+      for (const skipped of result.skipped) {
+        runLog.info(`project context: skipped ${skipped.path} (${skipped.reason})`);
+      }
+      for (const doc of result.docs) {
+        if (doc.truncated) {
+          runLog.info(
+            `project context: ${doc.path} truncated to 12,000 of ${doc.originalChars.toLocaleString('en-US')} characters`,
+          );
+        }
+      }
+      if (result.docs.length > 0) {
+        const summary = result.docs.map((d) => `${d.path} (~${d.tokens} tok)`).join(', ');
+        runLog.info(`project context: ${summary}`);
+      }
+
+      return { docs: result.docs };
+    } catch (err) {
+      runLog.info(`project context: ${(err as Error).message}`);
+      return { docs: [] };
     }
   }
 

@@ -1,0 +1,15 @@
+{
+  "agent": {
+    "heading": "Project context",
+    "badge": "{attached} of {total} attached",
+    "helper": "Attach specs, docs, or insights from this repo. They're read at the PR head commit and injected into this agent's prompt.",
+    "saveError": "Could not save the attached documents."
+  },
+  "skill": {
+    "heading": "Project context to use",
+    "badge": "{count} attached",
+    "helper": "Any agent using this skill inherits these documents.",
+    "serializesAs": "Serializes as",
+    "saveError": "Could not save the attached documents."
+  }
+}

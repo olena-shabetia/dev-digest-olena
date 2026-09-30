@@ -18,6 +18,7 @@ import { PreviewTab } from "./_components/PreviewTab";
 import { EvalsTab } from "./_components/EvalsTab";
 import { StatsTab } from "./_components/StatsTab";
 import { VersionsTab } from "./_components/VersionsTab";
+import { ContextTab } from "./_components/ContextTab";
 import { TABS } from "./constants";
 import { s } from "./styles";
 
@@ -65,6 +66,7 @@ export function SkillEditor({ skill, openFullPageHref }: { skill: Skill; openFul
       </div>
       <div style={s.body}>
         {tab === "config" && <ConfigTab skill={skill} />}
+        {tab === "context" && <ContextTab skill={skill} />}
         {tab === "preview" && <PreviewTab skill={skill} />}
         {tab === "evals" && <EvalsTab />}
         {tab === "stats" && <StatsTab skill={skill} />}

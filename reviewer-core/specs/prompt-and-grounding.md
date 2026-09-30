@@ -18,6 +18,14 @@ invariant in `../AGENTS.md`.
   (line 33).
 - Call sites: PR description (`prompt.ts:107`), repo-map (`:112`), diff
   (`:120`), specs (`:96`), callers digest (`:117`).
+
+  > **Superseded 2026-09-29 (specs entry only)** by
+  > [`L05-project-context-injection.md`](./L05-project-context-injection.md)
+  > (SPEC-04). `specs` is now `ProjectContextDoc[]` (`{path, content}`) and is
+  > wrapped once per document as
+  > `wrapUntrusted(path, "### " + path + "\n" + content)` (not `spec-<i>`),
+  > under a trusted `PROJECT_CONTEXT_GUARD` line. The other entries in this
+  > list are unchanged by that spec.
 - `INJECTION_GUARD` (`prompt.ts:16-28`) is appended to the system prompt
   unconditionally at `prompt.ts:86` — never behind a flag, never conditional
   on whether a given chunk has untrusted content, per `../AGENTS.md`.

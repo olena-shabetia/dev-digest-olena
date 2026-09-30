@@ -1,0 +1,34 @@
+{
+  "picker": {
+    "filterPlaceholder": "Filter by path…",
+    "footerTotal": "≈ {count} tokens",
+    "injectedNote": "Attached docs are read at the PR head commit and injected into every run's prompt.",
+    "noMatches": "No documents match \"{query}\".",
+    "selectRepoPrompt": "Select a repository to see its documents.",
+    "empty": {
+      "title": "No documents found",
+      "body": "This repository has no markdown under specs/, docs/, or insights/.",
+      "cta": "View Project Context"
+    },
+    "loadError": "Could not load this repo's documents.",
+    "retry": "Retry",
+    "attachAria": "Attach {path}",
+    "detachAria": "Detach {path}",
+    "previewAria": "Preview {path}",
+    "dragAria": "Drag to reorder {path}",
+    "moveUpAria": "Move {path} up",
+    "moveDownAria": "Move {path} down",
+    "truncated": "truncated"
+  },
+  "preview": {
+    "usedBy": "{count, plural, =0 {Used by 0 agents} one {Used by # agent} other {Used by # agents}}",
+    "tokens": "~{count} tok",
+    "truncated": "truncated",
+    "attach": "Attach",
+    "detach": "Detach",
+    "loadError": "Could not load this document.",
+    "retry": "Retry",
+    "viewPreview": "Preview",
+    "viewRaw": "Raw"
+  }
+}

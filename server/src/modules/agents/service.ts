@@ -5,13 +5,16 @@ import type {
   AgentStats,
   AgentVersion,
   CiFailOn,
+  ContextAttachmentList,
   ModelInfo,
   Provider,
   ReviewStrategy,
   RunSummary,
 } from '@devdigest/shared';
 import { AgentsRepository } from './repository.js';
-import { toAgentDto, toAgentVersionDto } from './helpers.js';
+import { toAgentDto, toAgentVersionDto, validateContextDocPaths } from './helpers.js';
+import { listRepoDocs } from '../../platform/project-context/index.js';
+import { ValidationError } from '../../platform/errors.js';
 
 /** Default number of runs returned by `GET /agents/:id/runs` when `?limit=` is omitted. */
 const DEFAULT_RUNS_LIMIT = 20;
@@ -220,5 +223,56 @@ export class AgentsService {
     // `agents/repository.ts` would trip dependency-cruiser's
     // `no-cross-module-imports` rule.
     return this.container.reviewRepo.listRunsForAgent(workspaceId, agentId, limit);
+  }
+
+  /**
+   * The agent's attached project-context docs for one repo (L05,
+   * `GET /agents/:id/context/:repoId`). `undefined` when the agent isn't in
+   * this workspace or the repo isn't in this workspace (route → 404).
+   */
+  async contextDocs(
+    workspaceId: string,
+    agentId: string,
+    repoId: string,
+  ): Promise<ContextAttachmentList | undefined> {
+    const agent = await this.repo.getById(workspaceId, agentId);
+    if (!agent) return undefined;
+    const repo = await this.container.reviewRepo.getRepo(repoId);
+    if (repo?.workspaceId !== workspaceId) return undefined;
+    const paths = await this.repo.listContextDocs(agentId, repoId);
+    return { repo_id: repoId, paths };
+  }
+
+  /**
+   * Replace the agent's attached project-context docs for one repo (L05,
+   * `PUT /agents/:id/context/:repoId`). Every path must be a safe doc path
+   * AND a member of the repo's CURRENT discovered set — otherwise throws
+   * `ValidationError` (422) and writes nothing. `undefined` when the agent or
+   * repo isn't in this workspace (route → 404).
+   */
+  async setContextDocs(
+    workspaceId: string,
+    agentId: string,
+    repoId: string,
+    paths: string[],
+  ): Promise<ContextAttachmentList | undefined> {
+    const agent = await this.repo.getById(workspaceId, agentId);
+    if (!agent) return undefined;
+    const repo = await this.container.reviewRepo.getRepo(repoId);
+    if (repo?.workspaceId !== workspaceId) return undefined;
+
+    if (paths.length > 0) {
+      const { status, docs } = await listRepoDocs(
+        { owner: repo.owner, name: repo.name, clonePath: repo.clonePath },
+        this.container.config.projectContextGlobs,
+      );
+      const discovered = new Set(docs.map((d) => d.path));
+      if (status !== 'ok' || !validateContextDocPaths(paths, discovered)) {
+        throw new ValidationError("One or more paths are not in the repo's current discovered doc set");
+      }
+    }
+
+    await this.repo.setContextDocs(agentId, repoId, paths);
+    return { repo_id: repoId, paths };
   }
 }

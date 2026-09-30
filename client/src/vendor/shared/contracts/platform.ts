@@ -277,13 +277,58 @@ export const PrCommentInput = z.object({
 export type PrCommentInput = z.infer<typeof PrCommentInput>;
 
 // ---- Project Context ----
+/** L05 — document type chip, derived from the FIRST matching root segment from the left. */
+export const ProjectDocType = z.enum(['specs', 'docs', 'insights']);
+export type ProjectDocType = z.infer<typeof ProjectDocType>;
+
 export const SpecFile = z.object({
   path: z.string(),
   content: z.string().nullish(),
   size: z.number().int().nullish(),
   updated_at: z.string().nullish(),
+  /** L05 — additive. Always set by GET /repos/:id/context and /context/file. */
+  type: ProjectDocType.nullish(),
+  /** L05 — ceil(min(chars, 12000) / 4), i.e. the POST-cap estimate. */
+  tokens: z.number().int().nullish(),
+  /** L05 — true when chars > 12000 (the run will truncate it). */
+  truncated: z.boolean().nullish(),
+  /** L05 — live count of distinct workspace agents whose effective set for THIS repo has the doc. */
+  used_by_agents: z.number().int().nullish(),
 });
 export type SpecFile = z.infer<typeof SpecFile>;
+
+/** L05 — `not_cloned` = repo has no clone on disk (empty docs, not an error). */
+export const ProjectContextStatus = z.enum(['ok', 'not_cloned']);
+export type ProjectContextStatus = z.infer<typeof ProjectContextStatus>;
+
+/** L05 — GET /repos/:id/context. `content` is always omitted/null in the listing. */
+export const ProjectContextListing = z.object({
+  status: ProjectContextStatus,
+  // The configured discovery globs, e.g. ['**/{specs,docs,insights}/**/*.md'].
+  roots: z.array(z.string()),
+  docs: z.array(SpecFile),
+});
+export type ProjectContextListing = z.infer<typeof ProjectContextListing>;
+
+/** L05 — the ordered attachment set of ONE owner (agent or skill) in ONE repo. */
+export const ContextAttachmentList = z.object({
+  repo_id: z.string(),
+  paths: z.array(z.string()),
+});
+export type ContextAttachmentList = z.infer<typeof ContextAttachmentList>;
+
+/** L05 — PUT body: the full ordered set (order = index). [] = detach all. */
+export const SetContextAttachments = z.object({
+  paths: z
+    .array(z.string().min(1).max(1024))
+    .max(50)
+    .refine((p) => new Set(p).size === p.length, { message: 'paths must be unique' }),
+});
+export type SetContextAttachments = z.infer<typeof SetContextAttachments>;
+
+/** L05 — GET /repos/:id/context/file?path=… */
+export const ContextFileQuery = z.object({ path: z.string().min(1).max(1024) });
+export type ContextFileQuery = z.infer<typeof ContextFileQuery>;
 
 export const IndexStatus = z.object({
   status: z.enum(['idle', 'cloning', 'parsing', 'embedding', 'done', 'error']),
