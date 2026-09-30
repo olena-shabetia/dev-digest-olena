@@ -36,6 +36,21 @@ export type {
   SetContextAttachments,
 } from "@devdigest/shared";
 
+export type {
+  OnboardingTour,
+  OnboardingTourResponse,
+  OnboardingGenerateAccepted,
+  OnboardingSection,
+  OnboardingSectionKind,
+  OnboardingSkeletonReason,
+  OnboardingState,
+  OnboardingCriticalPath,
+  OnboardingCommand,
+  OnboardingReadingItem,
+  OnboardingFirstTask,
+  OnboardingIndexSummary,
+} from "@devdigest/shared";
+
 export type { Review, Finding, Severity, Verdict } from "@devdigest/shared";
 export type {
   PrBrief,
