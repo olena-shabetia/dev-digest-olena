@@ -4,13 +4,23 @@ import { waitForPrRuns } from './helpers/runs.js';
 import { buildApp } from '../src/app.js';
 import { loadConfig } from '../src/platform/config.js';
 import { seed } from '../src/db/seed.js';
-import { MockLLMProvider, MockEmbedder, MockGitClient } from '../src/adapters/mocks.js';
+import { MockLLMProvider, MockEmbedder, MockGitClient, MockGitHubClient } from '../src/adapters/mocks.js';
 import * as t from '../src/db/schema.js';
 import { eq } from 'drizzle-orm';
 import type { Review } from '@devdigest/shared';
 
 const hasDocker = await dockerAvailable();
 const d = hasDocker ? describe : describe.skip;
+
+// Intent derivation defaults to the openrouter provider; without this mock the run
+// would call the real OpenRouter API (slow, and billed when a key is configured).
+const INTENT_FIXTURE = {
+  intent: 'Add rate limiting to the public API endpoints.',
+  in_scope: [],
+  out_of_scope: [],
+  context_gaps: [],
+  confidence: 'low',
+};
 
 const config = () => loadConfig({ ...process.env, NODE_ENV: 'test' } as NodeJS.ProcessEnv);
 
@@ -117,8 +127,11 @@ d('A2 reviews + agents (Testcontainers pg)', () => {
       overrides: {
         embedder: new MockEmbedder(),
         git: new MockGitClient({ diff: DIFF }),
+        // The PR body says "Closes #471": without this, intent derivation calls the real Octokit.
+        github: new MockGitHubClient(),
         llm: {
           [provider]: new MockLLMProvider(provider, { structured }),
+          openrouter: new MockLLMProvider('openrouter', { structuredBySchema: { IntentExtraction: INTENT_FIXTURE } }),
         },
       },
     });

@@ -7,7 +7,7 @@ description: >-
   MET/PARTIAL/UNMET/CANNOT VERIFY table plus anything built outside the
   plan's scope. Use after implementation, before a PR. Reports gaps, not
   style preferences; does not edit, fix, or grade code quality.
-model: opus
+model: sonnet
 tools: Read, Glob, Grep, Bash
 disallowedTools: Agent, Write, Edit, NotebookEdit
 skills:
@@ -60,13 +60,23 @@ becomes your final message for the run.
 Search order, matching how this repo's plans and specs are actually
 structured:
 
-1. `## Acceptance criteria` / `## Requirements` / `## Definition of Done`
+1. `## Acceptance criteria` / `## Acceptance criteria (EARS)` / `##
+   Requirements` / `## Definition of Done` — in an EARS spec (written by
+   `spec-creator`), each numbered `N. [Pattern] <EARS sentence>` line is its
+   own requirement; carry the `[Pattern]` tag into the Requirement column,
+   since confirming an `[Unwanted behavior]` criterion means finding evidence
+   of the failure path specifically, not just the happy path a matching
+   `[Event-driven]` criterion would satisfy.
 2. `## Work units` — each unit's `Owned paths` and `Contract anchors` is its
    own requirement
 3. `## Contract freeze` — each frozen symbol is its own requirement
-4. `## Scope — N surfaces` (in `specs/*.md`) — each numbered surface
-5. `## Non-goals` / an explicit "out of scope" paragraph — checked in
+4. `## Non-goals` / an explicit "out of scope" paragraph — checked in
    **reverse**: verify nothing was built there, not that something was
+
+A spec written before `spec-creator` existed (e.g. `specs/L04-blast-radius.md`)
+has no numbered `## Acceptance criteria` section at all — extract its
+requirements from `## Contract freeze` and the reverse-checked "out of scope"
+prose instead (items 3–4), same as for a plan.
 
 Count only `[x]`-checked items as promised. Number every requirement you
 extract sequentially and keep that numbering through to the report table —

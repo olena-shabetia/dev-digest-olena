@@ -1,4 +1,4 @@
-import { and, desc, eq, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
 import type { Db } from '../../db/client.js';
 import * as t from '../../db/schema.js';
 import { INITIAL_SKILL_VERSION } from './constants.js';
@@ -213,6 +213,61 @@ export class SkillsRepository {
       .from(t.skillVersions)
       .where(eq(t.skillVersions.skillId, skillId))
       .orderBy(desc(t.skillVersions.version));
+  }
+
+  // ---- project-context attachments (skill_context_docs, L05) --------------
+
+  /** Paths attached to `skillId` for one repo, ordered by `order` asc. */
+  async listContextDocs(skillId: string, repoId: string): Promise<string[]> {
+    const rows = await this.db
+      .select({ path: t.skillContextDocs.path })
+      .from(t.skillContextDocs)
+      .where(
+        and(eq(t.skillContextDocs.skillId, skillId), eq(t.skillContextDocs.repoId, repoId)),
+      )
+      .orderBy(asc(t.skillContextDocs.order));
+    return rows.map((r) => r.path);
+  }
+
+  /**
+   * Replace the full ordered set of attached doc paths for (skillId, repoId).
+   * Rows belonging to other repos for this skill are untouched (SPEC-01 AC-11a).
+   */
+  async setContextDocs(skillId: string, repoId: string, paths: string[]): Promise<void> {
+    await this.db.transaction(async (tx) => {
+      await tx
+        .delete(t.skillContextDocs)
+        .where(
+          and(eq(t.skillContextDocs.skillId, skillId), eq(t.skillContextDocs.repoId, repoId)),
+        );
+      if (paths.length === 0) return;
+      await tx
+        .insert(t.skillContextDocs)
+        .values(paths.map((path, i) => ({ skillId, repoId, path, order: i })));
+    });
+  }
+
+  /**
+   * Attached doc paths (with `order`) for a set of skills, scoped to one repo.
+   * Returns `[]` for an empty `skillIds` without querying — the run-time
+   * effective-set resolution (WU-9) calls this once per run with the agent's
+   * enabled, linked skill ids.
+   */
+  async contextDocsForSkills(
+    skillIds: string[],
+    repoId: string,
+  ): Promise<{ skillId: string; path: string; order: number }[]> {
+    if (skillIds.length === 0) return [];
+    return this.db
+      .select({
+        skillId: t.skillContextDocs.skillId,
+        path: t.skillContextDocs.path,
+        order: t.skillContextDocs.order,
+      })
+      .from(t.skillContextDocs)
+      .where(
+        and(inArray(t.skillContextDocs.skillId, skillIds), eq(t.skillContextDocs.repoId, repoId)),
+      );
   }
 
   // ---- stats ----------------------------------------------------------------

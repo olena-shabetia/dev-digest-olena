@@ -4,7 +4,16 @@ import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 // registered globally in app.ts; this import only pulls in its ambient types).
 import '@fastify/multipart';
 import { z } from 'zod';
-import { Skill, SkillImportPreview, SkillSource, SkillType, SkillVersion, SkillStats } from '@devdigest/shared';
+import {
+  ContextAttachmentList,
+  SetContextAttachments,
+  Skill,
+  SkillImportPreview,
+  SkillSource,
+  SkillType,
+  SkillVersion,
+  SkillStats,
+} from '@devdigest/shared';
 import { getContext } from '../_shared/context.js';
 import { IdParams } from '../_shared/schemas.js';
 import { NotFoundError, ValidationError } from '../../platform/errors.js';
@@ -22,6 +31,8 @@ const Ok = z.object({ ok: z.boolean() });
  *   GET    /skills/:id/versions     → body-snapshot history (newest first)
  *   GET    /skills/:id/stats        → agents currently using this skill
  *   POST   /skills/import/preview   → parse a .md/.zip upload; writes nothing
+ *   GET    /skills/:id/context/:repoId → attached project-context docs (L05)
+ *   PUT    /skills/:id/context/:repoId → replace attached project-context docs (L05)
  */
 
 const CreateSkillBody = z.object({
@@ -33,6 +44,9 @@ const CreateSkillBody = z.object({
   enabled: z.boolean().optional(),
   evidence_files: z.array(z.string()).optional(),
 });
+
+/** `/skills/:id/context/:repoId` (L05) — frozen name, declared route-local. */
+const OwnerRepoParams = z.object({ id: z.string().uuid(), repoId: z.string().uuid() });
 
 const UpdateSkillBody = z.object({
   name: z.string().min(1).optional(),
@@ -153,6 +167,39 @@ export default async function skillsRoutes(appBase: FastifyInstance) {
       if (!file) throw new ValidationError('No file uploaded');
       const buffer = await file.toBuffer();
       return service.importPreview(file.filename, buffer);
+    },
+  );
+
+  app.get(
+    '/skills/:id/context/:repoId',
+    { schema: { params: OwnerRepoParams, response: { 200: ContextAttachmentList } } },
+    async (req) => {
+      const { workspaceId } = await getContext(app.container, req);
+      const result = await service.contextDocs(workspaceId, req.params.id, req.params.repoId);
+      if (!result) throw new NotFoundError('Skill or repo not found');
+      return result;
+    },
+  );
+
+  app.put(
+    '/skills/:id/context/:repoId',
+    {
+      schema: {
+        params: OwnerRepoParams,
+        body: SetContextAttachments,
+        response: { 200: ContextAttachmentList },
+      },
+    },
+    async (req) => {
+      const { workspaceId } = await getContext(app.container, req);
+      const result = await service.setContextDocs(
+        workspaceId,
+        req.params.id,
+        req.params.repoId,
+        req.body.paths,
+      );
+      if (!result) throw new NotFoundError('Skill or repo not found');
+      return result;
     },
   );
 }

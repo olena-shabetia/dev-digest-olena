@@ -4,6 +4,16 @@
  *  roles, finding_lines, or total_lines — see client/specs/L03-smart-diff.ui.md. */
 import type { SmartDiffRole, PrFile } from "@/lib/types";
 
+/** A file (and optionally a new-side line) to open, scroll to and highlight.
+ *  `key` changes per arrival so effects re-run only for a new target. */
+export interface DiffTarget {
+  path: string;
+  line: number | null;
+  key: string;
+  /** Whether the outline is currently shown (cleared by the owner on outside click). */
+  highlight: boolean;
+}
+
 export interface DiffGroupView {
   /** The server-classified role this group represents. */
   role: SmartDiffRole;

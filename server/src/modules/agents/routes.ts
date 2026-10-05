@@ -7,10 +7,12 @@ import {
   AgentStats,
   AgentVersion,
   CiFailOn,
+  ContextAttachmentList,
   ModelInfo,
   Provider,
   ReviewStrategy,
   RunSummary,
+  SetContextAttachments,
 } from '@devdigest/shared';
 import { getContext } from '../_shared/context.js';
 import { IdParams } from '../_shared/schemas.js';
@@ -28,6 +30,9 @@ const VersionParams = z.object({
   version: z.coerce.number().int().positive(),
 });
 
+/** `/agents/:id/context/:repoId` (L05) — frozen name, declared route-local. */
+const OwnerRepoParams = z.object({ id: z.string().uuid(), repoId: z.string().uuid() });
+
 /**
  * A2 — agents module (owner A2).
  *   GET    /agents                  → list (workspace-scoped)
@@ -42,6 +47,8 @@ const VersionParams = z.object({
  *   GET    /providers/:id/models    → dynamic model list for a provider (editor)
  *   GET    /agents/:id/stats        → quality/cost aggregates (Stats tab, L02)
  *   GET    /agents/:id/runs         → recent run history (Stats tab, L02)
+ *   GET    /agents/:id/context/:repoId → attached project-context docs (L05)
+ *   PUT    /agents/:id/context/:repoId → replace attached project-context docs (L05)
  */
 
 const CreateAgentBody = z.object({
@@ -254,6 +261,39 @@ export default async function agentsRoutes(appBase: FastifyInstance) {
       const runs = await service.runs(workspaceId, req.params.id, req.query.limit);
       if (!runs) throw new NotFoundError('Agent not found');
       return runs;
+    },
+  );
+
+  app.get(
+    '/agents/:id/context/:repoId',
+    { schema: { params: OwnerRepoParams, response: { 200: ContextAttachmentList } } },
+    async (req) => {
+      const { workspaceId } = await getContext(app.container, req);
+      const result = await service.contextDocs(workspaceId, req.params.id, req.params.repoId);
+      if (!result) throw new NotFoundError('Agent or repo not found');
+      return result;
+    },
+  );
+
+  app.put(
+    '/agents/:id/context/:repoId',
+    {
+      schema: {
+        params: OwnerRepoParams,
+        body: SetContextAttachments,
+        response: { 200: ContextAttachmentList },
+      },
+    },
+    async (req) => {
+      const { workspaceId } = await getContext(app.container, req);
+      const result = await service.setContextDocs(
+        workspaceId,
+        req.params.id,
+        req.params.repoId,
+        req.body.paths,
+      );
+      if (!result) throw new NotFoundError('Agent or repo not found');
+      return result;
     },
   );
 }

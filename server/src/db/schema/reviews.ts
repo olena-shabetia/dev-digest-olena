@@ -123,9 +123,20 @@ export const prIntent = pgTable(
   }),
 );
 
-export const prBrief = pgTable('pr_brief', {
-  prId: uuid('pr_id')
-    .primaryKey()
-    .references(() => pullRequests.id, { onDelete: 'cascade' }),
-  json: jsonb('json').notNull(),
-});
+export const prBrief = pgTable(
+  'pr_brief',
+  {
+    prId: uuid('pr_id')
+      .primaryKey()
+      .references(() => pullRequests.id, { onDelete: 'cascade' }),
+    // Table verified empty 2026-09-30, no backfill.
+    workspaceId: uuid('workspace_id')
+      .notNull()
+      .references(() => workspaces.id, { onDelete: 'cascade' }),
+    json: jsonb('json').notNull(),
+  },
+  (t) => ({
+    // Postgres does not auto-index FK columns; brief reads filter on workspace_id.
+    wsIdx: index('pr_brief_ws_idx').on(t.workspaceId),
+  }),
+);

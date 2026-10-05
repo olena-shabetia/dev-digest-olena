@@ -33,5 +33,8 @@ export function makeRepoIntelStub(opts: { rankedPaths?: string[]; throwOnRank?: 
       return (opts.rankedPaths ?? []).slice(0, n);
     },
     getCriticalPaths: async () => [],
+    getEndpointFacts: async () => [],
+    getPageRanks: async () => [],
+    getDirFileCounts: async () => [],
   };
 }

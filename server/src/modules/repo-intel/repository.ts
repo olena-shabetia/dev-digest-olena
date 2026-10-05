@@ -445,6 +445,34 @@ export class RepoIntelRepository {
       .where(and(eq(t.fileRank.repoId, repoId), inArray(t.fileRank.filePath, paths)));
   }
 
+  /** L05b: all file_facts rows with at least one endpoint, path ASC. */
+  async getAllEndpointFacts(repoId: string): Promise<Array<{ filePath: string; endpoints: string[] }>> {
+    const rows = await this.db
+      .select({ filePath: t.fileFacts.filePath, endpoints: t.fileFacts.endpoints })
+      .from(t.fileFacts)
+      .where(and(eq(t.fileFacts.repoId, repoId), sql`jsonb_array_length(${t.fileFacts.endpoints}) > 0`))
+      .orderBy(asc(t.fileFacts.filePath));
+    return rows.map((r) => ({ filePath: r.filePath, endpoints: (r.endpoints as string[]) ?? [] }));
+  }
+
+  /** L05b: raw pagerank per path (empty input → []). */
+  async getPageRanksFor(repoId: string, paths: string[]): Promise<Array<{ path: string; pagerank: number }>> {
+    if (paths.length === 0) return [];
+    return this.db
+      .select({ path: t.fileRank.filePath, pagerank: t.fileRank.pagerank })
+      .from(t.fileRank)
+      .where(and(eq(t.fileRank.repoId, repoId), inArray(t.fileRank.filePath, paths)));
+  }
+
+  /** L05b: every indexed file path (one file_rank row per indexed file). */
+  async getIndexedPaths(repoId: string): Promise<string[]> {
+    const rows = await this.db
+      .select({ path: t.fileRank.filePath })
+      .from(t.fileRank)
+      .where(eq(t.fileRank.repoId, repoId));
+    return rows.map((r) => r.path);
+  }
+
   /** Top `limit` paths by rank DESC (caller filters tests/configs in JS). */
   async getRankedPaths(
     repoId: string,

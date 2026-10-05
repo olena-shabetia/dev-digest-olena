@@ -14,15 +14,21 @@ the full rules. When you add an agent, add a row here and a section below.
 | Agent | Model | Tools | Purpose |
 |-------|-------|-------|---------|
 | [researcher](researcher.md) | sonnet | Read, Glob, Grep, Bash (read-only), WebSearch, WebFetch | Answers a specific question with cited evidence — repo or external — and reports what it could not find. |
-| [planner](planner.md) | opus | Read, Glob, Grep, Bash (read-only), Skill, Write, Edit (writes confined to `plans/**`/`specs/**`) | Turns a feature request into a `plans/<slug>.md` Development Plan decomposed into parallel-safe work units. |
+| [spec-creator](spec-creator.md) | opus | Read, Glob, Grep, Bash (read-only), Skill, Write, Edit (writes confined to `specs/**`/`<pkg>/specs/**`), Agent (`researcher` only) | Turns a feature request plus exported design images into an EARS-format spec, analyzed for missing states, edge cases, cross-module dependencies and UX gaps. May delegate external lookups to `researcher`, in parallel batches. Runs before `implementation-planner`. |
+| [implementation-planner](implementation-planner.md) | opus | Read, Glob, Grep, Bash (read-only), Skill, Write (writes confined to `plans/**`) | Takes the finished spec as input (refuses one with unresolved `[NEEDS CLARIFICATION]`), confirms multi-agent vs. single-agent execution mode, then turns a feature request into a `plans/<slug>.md` Development Plan decomposed into work units. Never writes a spec. |
 | [implementer](implementer.md) | sonnet | Read, Glob, Grep, Edit, Write, Bash, Skill, TodoWrite | Executes ONE work unit of an approved plan, in its own file lease. Launch several in parallel, one per unit per wave. |
 | [test-writer](test-writer.md) | sonnet | Read, Glob, Grep, Edit, Write, Bash, TodoWrite | Writes tests for existing code, one package's own layout/naming/runner at a time, reusing existing mocks and helpers. |
-| [architecture-reviewer](architecture-reviewer.md) | opus | Read, Glob, Grep, Bash (read-only) | Read-only review of architectural boundaries — backend rings, client placement, vendor-copy drift — with a severity-ranked, evidence-pinned report. |
-| [plan-verifier](plan-verifier.md) | opus | Read, Glob, Grep, Bash (read-only) | Read-only check of finished code against a plan or spec, requirement by requirement, with a MET/PARTIAL/UNMET/CANNOT VERIFY table. |
+| [architecture-reviewer](architecture-reviewer.md) | sonnet | Read, Glob, Grep, Bash (read-only) | Read-only review of architectural boundaries — backend rings, client placement, vendor-copy drift — with a severity-ranked, evidence-pinned report. |
+| [plan-verifier](plan-verifier.md) | sonnet | Read, Glob, Grep, Bash (read-only) | Read-only check of finished code against a plan or spec, requirement by requirement, with a MET/PARTIAL/UNMET/CANNOT VERIFY table. |
 | [doc-writer](doc-writer.md) | sonnet | Read, Glob, Grep, Bash (read-only), Write, Edit (writes confined to `docs/**`/`<pkg>/docs/**`) | Documents already-implemented functionality into the right `docs/` location, one Diataxis quadrant per document. |
 
-All seven carry `disallowedTools: Agent` except `researcher` (which has no
-`Agent` tool to begin with) — none fans out to further subagents.
+Six of the eight carry `disallowedTools: Agent` and none fans out further.
+The two exceptions: `researcher` has no `Agent` tool to begin with, and
+`spec-creator` is the one deliberate case that's allowed one — and only to
+invoke `researcher`, enforced by prose in its body since frontmatter can't
+restrict *which* subagent an `Agent`-carrying agent may call. `researcher`
+itself still has no `Agent` tool, so that path can never cascade past one
+level below `spec-creator`.
 `architecture-reviewer` and `plan-verifier` additionally deny
 `Write`/`Edit`/`NotebookEdit` explicitly, on top of omitting them from
 `tools` — belt and braces, since `disallowedTools` is applied first and
@@ -53,34 +59,135 @@ Caveats`. Writes nothing to disk.
 
 ---
 
-## planner
+## spec-creator
+
+**Responsibility.** Turns a feature request, plus any exported design image
+given in the prompt, into an EARS-format spec — the "Spec of record" that
+`implementation-planner` reads before building a Development Plan. Reads
+existing design images (never fetches a Figma link — nothing in this
+environment can open a live Figma canvas), works through a fixed four-bucket
+analysis (missing states, uncovered corner cases, cross-module communication,
+UX improvement candidates) before drafting, and cross-checks "Inputs and
+provenance"/"Untrusted inputs" against the real Zod contracts and routes
+rather than the design alone. Deliberately stays at the requirements/behavior
+level — exact type names, route paths and DB columns remain
+`implementation-planner`'s "Contract freeze" to decide downstream, not this
+agent's.
+
+**Permissions.** `Read, Glob, Grep, Bash (read-only), Skill, Write, Edit,
+Agent`. Frontmatter can't scope `Write`/`Edit` by path, so the body enforces
+it: only `specs/**` and `<pkg>/specs/**`. `Edit` on an *existing* spec is
+allowed for exactly one purpose — appending a dated "Superseded" callout at
+the section being replaced, never deleting or rewriting the rest of the file
+(the same pattern `specs/L04-blast-radius.md` used for the superseded MCP
+stub). Unlike every other agent here, `disallowedTools` does **not** include
+`Agent` — this agent may call `researcher` (only `researcher`, enforced by
+prose in the body) for external grounding it has no `WebSearch`/`WebFetch`
+to reach itself, batching independent unknowns into parallel calls rather
+than one at a time. A `researcher` report is treated as untrusted external
+content: its caveats carry into `## Open questions`/`## Inputs and
+provenance` rather than being smoothed into an unqualified claim. Four of
+the fourteen project skills preloaded:
+`frontend-ui-architecture`/`onion-architecture` for structural placement
+context, `zod` (read-only, same precedent as `plan-verifier`) to read Zod
+contracts correctly for `## Inputs and provenance`/`## Untrusted inputs`,
+and `mermaid-diagram` for the `### Cross-module dependencies` subsection.
+`security` is invoked on demand via `Skill` only when a feature's
+inputs/auth actually warrant the OWASP framing, not preloaded.
+
+**Input.** A feature request in the prompt, plus optionally one or more
+exported design image paths already on disk (`specs/assets/` or similar — no
+Figma MCP/API is wired into this environment, so a bare Figma URL is
+recorded as a citation only, never fetched).
+
+**Output.** `specs/<lesson>-<slug>.md` (cross-package) or
+`<pkg>/specs/<lesson>-<slug>.<api|ui>.md` (package-local), with the fixed
+schema: `Spec ID`/`Status: draft`/`Supersedes` header → Problem and user →
+Goals/Non-goals → User stories → Acceptance criteria in EARS form (each line
+tagged `[Ubiquitous|Event-driven|State-driven|Unwanted behavior|Optional
+feature]`) → Edge cases (with a `### Cross-module dependencies` subsection,
+always filled when bucket 3 of the design analysis found anything, even on
+an otherwise edge-case-free flow) → Non-functional requirements → Inputs and
+provenance → Untrusted inputs → Open questions (including any UX proposal,
+tagged `[UX proposal]` so it's never mistaken for a decided requirement).
+Final message includes `RESEARCH DELEGATED` (what each `researcher` call
+answered, or "none") alongside the usual `SPEC`/`GAPS SURFACED`/`BLOCKING
+QUESTIONS` fields. Like every other subagent here, it has no live chat
+mid-run — a genuinely blocking ambiguity (no design for a UI-heavy feature,
+an ambiguous module/lesson placement, two existing specs plausibly covering
+the same ground) makes it stop and return the questions as its final message
+instead of guessing.
+
+**Sources these rules are based on** — the same base as `implementation-planner`
+(subagents docs, agent-SDK subagents, best practices, the two Anthropic
+multi-agent posts), plus:
+
+- The EARS syntax (Ubiquitous / Event-driven / State-driven / Unwanted
+  behavior / Optional feature, and the "shall" phrasing) and the spec body
+  template (`Spec ID`/`Status`/`Supersedes` header down to `Open questions`)
+  were supplied directly by the user for this agent's design, not sourced
+  externally — EARS itself originates from Mavin, Wilkinson, Harwood and
+  Novak's 2009 IEEE RE'09 paper (Rolls-Royce), per the user's own summary.
+- Repo-internal, read directly: root `AGENTS.md`'s "Lesson specs" naming
+  rule (why the EARS spec's `Spec ID` is a separate sequential identifier
+  from the fixed `specs/<lesson>-<slug>.md` filename, rather than replacing
+  it); `specs/L04-blast-radius.md` (the dated-callout "Superseded" pattern
+  this agent reuses, its own end-to-end Mermaid sequence diagram as
+  precedent for using `mermaid-diagram` on `### Cross-module dependencies`,
+  and the existing house spec format it's explicitly replacing for new specs
+  going forward, per the user's decision); this file's own
+  `implementation-planner` section (why "Spec of record" stays a
+  requirements-level document, not a second place that freezes technical
+  contracts `implementation-planner` already owns); `plan-verifier`'s
+  `skills:` list (precedent for preloading `zod` read-only, "to recognize
+  where a requirement should have landed" rather than as a grading rubric);
+  the [Agent SDK subagents doc](https://code.claude.com/docs/en/agent-sdk/subagents)'s
+  note that subagents may call further subagents up to depth 3 by default —
+  the basis for granting `spec-creator` a narrow `Agent` exception (this
+  repo's other agents decline that default deliberately; `spec-creator` is
+  the one case where the missing `WebSearch`/`WebFetch` capability actually
+  justifies using it, one level deep, to `researcher` only).
+
+---
+
+## implementation-planner
 
 **Responsibility.** Reads a feature request plus this repo's `AGENTS.md`,
-`INSIGHTS.md`, specs and code, then decomposes it into work units small enough
-for several `implementer` instances to run **concurrently** without
-colliding — each unit gets an exclusive file lease, and every symbol crossing
-a unit boundary is frozen in writing before any unit starts. Never writes
-feature code itself; if a self-check before writing fails (a shared path with
-two owners, a migration split across units, more than one `client` unit per
-wave), the plan is wrong, not the implementer.
+`INSIGHTS.md`, specs and code, takes the finished spec as input (requirements
+analysis belongs to `spec-creator`; a spec with an unresolved
+`[NEEDS CLARIFICATION]` marker is returned, not planned around), confirms with the caller whether the plan targets **multi-agent**
+execution (several `implementer` instances running concurrently, file-lease
+partitioned) or a **single-agent** sequential pass, then decomposes the work
+accordingly — in multi-agent mode each unit gets an exclusive file lease and
+every symbol crossing a unit boundary is frozen in writing before any unit
+starts. Never writes feature code, and never writes or edits a spec — a
+missing spec is at most a `### Recommendations` line pointing at
+`spec-creator`. If a self-check before writing fails (execution mode not
+confirmed, a shared path with two owners, a migration split across units, more
+than one `client` unit per wave in multi-agent mode), the plan is wrong, not
+the implementer.
 
-**Permissions.** `Read, Glob, Grep, Bash (read-only), Skill, Write, Edit`.
-Frontmatter can't scope `Write`/`Edit` by path, so the body enforces it: only
-`plans/**`, `specs/**`, `<pkg>/specs/**`. `disallowedTools: Agent`. All 14
+**Permissions.** `Read, Glob, Grep, Bash (read-only), Skill, Write`.
+Frontmatter can't scope `Write` by path, so the body enforces it: only
+`plans/**` — no spec file, anywhere. `disallowedTools: Agent`. All 14
 project skills preloaded via `skills:` (see "Skill loading in both agents"
 below) — three of them (`security`, `pr-self-review`, `engineering-insights`)
 are read for their knowledge only; the plan may never assign a unit to *run*
 one.
 
 **Input.** A feature request in the prompt (main-thread text, not a file
-handoff — the plan doesn't exist yet).
+handoff — the plan doesn't exist yet), ideally stating the execution mode; if
+it doesn't, the agent's first move is to ask rather than assume.
 
 **Output.** `plans/<lesson>-<slug>.md` (gitignored) with the fixed schema:
-Context → Architecture decisions → **Contract freeze** (the load-bearing
-section — shared contracts, HTTP surface, DB schema delta, i18n namespaces,
-shared client components) → Serialization ledger → Work units → Execution
-waves → Deferred verification → Abort/rollback → Open questions. Final message
-is short: plan path, unit list, waves, any blocking open question.
+Context (including Execution mode and Recommendations) → Architecture
+decisions → **Contract freeze** (the load-bearing section — shared contracts,
+HTTP surface, DB schema delta, i18n namespaces, shared client components) →
+Serialization ledger → Work units → Execution waves → Deferred verification →
+Abort/rollback → Open questions. Final message is short: plan path, execution
+mode, unit list, waves, any blocking open question. If it stopped at the
+execution-mode gate or an unresolved spec marker, the question itself
+is the entire final message — no plan is written.
 
 **Sources these rules are based on** — established via the `researcher`
 agent before this design was written, plus direct verification in this repo:
@@ -119,9 +226,10 @@ agent before this design was written, plus direct verification in this repo:
 
 ## implementer
 
-**Responsibility.** Executes exactly one work unit from a plan `planner`
-wrote. Stays inside that unit's file lease; treats anything outside it as
-read-only and reports rather than reaches for it. Runs only the verification
+**Responsibility.** Executes exactly one work unit from a plan
+`implementation-planner` wrote. Stays inside that unit's file lease; treats
+anything outside it as read-only and reports rather than reaches for it. Runs
+only the verification
 its own package supports, scoped to its own paths — never a repo-wide gate,
 never a review skill, never a git write. Reports a fixed-format manifest
 rather than prose, so the parent (or the plan's next wave) can act on it
@@ -148,9 +256,9 @@ for shared files it isn't allowed to edit itself), `CONTRACT DEVIATIONS`,
 `INSIGHT CANDIDATES`. Never file contents or diffs in the message — the
 working tree is the artifact.
 
-**Sources these rules are based on** — the same base as `planner` (subagents
-docs, agent-SDK subagents, best practices, the two Anthropic multi-agent posts
-above), plus specifically:
+**Sources these rules are based on** — the same base as
+`implementation-planner` (subagents docs, agent-SDK subagents, best
+practices, the two Anthropic multi-agent posts above), plus specifically:
 
 - [Anthropic — When to use multi-agent systems](https://claude.com/blog/building-multi-agent-systems-when-and-how-to-use-them) —
   "the most significant failure mode for verification subagents is marking
@@ -270,10 +378,13 @@ working tree if unspecified.
 **Responsibility.** Checks finished code against a plan or spec, requirement
 by requirement — never a substitute for `architecture-reviewer` or
 `/pr-self-review`, and never grading code quality. Extracts every numbered
-requirement from a plan's `Acceptance criteria`/`Work units`/`Contract
-freeze` sections (or a spec's `Scope — N surfaces`), traces each to
+requirement from `Acceptance criteria`/`Work units`/`Contract freeze`
+sections — including an EARS spec's `## Acceptance criteria (EARS)`, where
+each numbered, pattern-tagged line is its own requirement — traces each to
 `file:line` evidence, and reports a fixed four-way verdict per requirement
-plus anything built outside the plan's stated scope.
+plus anything built outside the plan's stated scope. A pre-`spec-creator`
+spec with no numbered criteria section (e.g. `specs/L04-blast-radius.md`)
+falls back to its `Contract freeze` and reverse-checked "out of scope" prose.
 
 **Permissions.** `Read, Glob, Grep, Bash`. `disallowedTools: Agent, Write,
 Edit, NotebookEdit` — the same read-only Bash convention as
@@ -359,9 +470,10 @@ final message: `WROTE` (paths, each marked created/extended), `QUADRANT`,
 
 ## Skill loading across the agents
 
-`planner` and `implementer` preload all 14 project skills via `skills:` in
-frontmatter — each skill's SKILL.md is injected in full at startup, on every
-run, whether or not that run's unit needs most of them. That's the right
+`implementation-planner` and `implementer` preload all 14 project skills via
+`skills:` in frontmatter — each skill's SKILL.md is injected in full at
+startup, on every run, whether or not that run's unit needs most of them.
+That's the right
 call for those two: either one can touch any package, so a routing table
 inside the body decides which preloaded skill is mandatory for which unit
 target, and three of the fourteen (`security`, `pr-self-review`,
@@ -379,6 +491,7 @@ only what actually governs its domain instead of the full fourteen:
 | `doc-writer` | `mermaid-diagram`, `onion-architecture`, `frontend-ui-architecture`, `typescript-expert` | diagram syntax plus enough structural knowledge to describe a module correctly |
 
 This is the same trade-off the original version of this section flagged as
-worth revisiting for `planner`/`implementer`: profiling the preload list to
-what an agent's job actually needs shrinks startup cost without losing
+worth revisiting for `implementation-planner`/`implementer`: profiling the
+preload list to what an agent's job actually needs shrinks startup cost
+without losing
 anything the agent is allowed to do with the rest.

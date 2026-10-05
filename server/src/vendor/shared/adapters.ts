@@ -202,6 +202,14 @@ export interface GitCommit {
   date: string;
 }
 
+/** L05b — bounded per-path commit churn. */
+export interface CommitChurn {
+  /** Commits actually walked (<= maxCommits). */
+  commits: number;
+  /** repo-relative path -> number of walked commits touching it. */
+  byPath: Record<string, number>;
+}
+
 export interface GitClient {
   clone(repo: RepoRef, url: string, opts?: CloneOptions): Promise<{ path: string }>;
   fetchPullHead(repo: RepoRef, n: number): Promise<void>;
@@ -225,6 +233,28 @@ export interface GitClient {
   log(repo: RepoRef, path?: string): Promise<GitCommit[]>;
   readFile(repo: RepoRef, path: string): Promise<string>;
   clonePathFor(repo: RepoRef): string;
+  /**
+   * L05 — true iff `sha` resolves to a commit object in the local clone
+   * (`git cat-file -e <sha>^{commit}`). Never throws; false on any error.
+   */
+  hasCommit(repo: RepoRef, sha: string): Promise<boolean>;
+  /**
+   * L05 — file content at a ref (`git cat-file blob <ref>:<path>`), utf8.
+   * Resolves null when the path does not exist at that ref. Never reads the
+   * working tree. Callers validate `path` as a safe repo-relative path first.
+   */
+  readFileAt(repo: RepoRef, ref: string, path: string): Promise<string | null>;
+  /**
+   * L05b — bounded churn: commits reachable from `sha`, committed within
+   * `sinceDays` before `sha`'s own commit date, at most `maxCommits`. May deepen
+   * a shallow clone (`git fetch --shallow-since=<date>`). Validates `sha` as hex.
+   * NEVER throws — resolves null on any error or when `timeoutMs` elapses.
+   */
+  commitChurnSince(
+    repo: RepoRef,
+    sha: string,
+    opts: { sinceDays: number; maxCommits: number; timeoutMs: number },
+  ): Promise<CommitChurn | null>;
 }
 
 // ---------- CodeIndex (ripgrep + tree-sitter) ----------

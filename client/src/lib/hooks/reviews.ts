@@ -10,6 +10,7 @@ import type {
   ActiveRun,
   BlastRadiusResponse,
   FindingActionKind,
+  PrBriefResponse,
   PrHistory,
   PrIntentRecord,
   PrReviewComment,
@@ -110,6 +111,26 @@ export function useDeriveIntent(prId: string | null | undefined) {
     mutationFn: () => api.post<PrIntentRecord>(`/pulls/${prId}/intent`, { force: true }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["pr-intent", prId] });
+    },
+  });
+}
+
+/** The cached PR brief (never calls the LLM). */
+export function usePrBrief(prId: string | null | undefined) {
+  return useQuery({
+    queryKey: ["pr-brief", prId],
+    queryFn: () => api.get<PrBriefResponse>(`/pulls/${prId}/brief`),
+    enabled: !!prId,
+  });
+}
+
+/** Generate (or refresh) the PR brief — one synchronous LLM call server-side. */
+export function useGenerateBrief(prId: string | null | undefined) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.post<PrBriefResponse>(`/pulls/${prId}/brief`),
+    onSuccess: (data) => {
+      qc.setQueryData(["pr-brief", prId], data);
     },
   });
 }

@@ -11,7 +11,7 @@ import { usePrIntent, useDeriveIntent } from "@/lib/hooks/reviews";
 import { CONFIDENCE_COLOR, SOURCE_STATUS_META } from "./constants";
 import { s } from "./styles";
 
-export function IntentCard({ prId }: { prId: string | null }) {
+export function IntentCard({ prId, children }: { prId: string | null; children?: React.ReactNode }) {
   const t = useTranslations("prReview");
   const { data, isLoading } = usePrIntent(prId);
   const derive = useDeriveIntent(prId);
@@ -23,6 +23,7 @@ export function IntentCard({ prId }: { prId: string | null }) {
           <Skeleton height={16} width={160} />
           <Skeleton height={14} width="60%" />
           <Skeleton height={48} />
+          {children && <div style={s.childrenDivider}>{children}</div>}
         </div>
       </Card>
     );
@@ -39,6 +40,7 @@ export function IntentCard({ prId }: { prId: string | null }) {
           onCta={() => prId && derive.mutate()}
           ctaLoading={derive.isPending}
         />
+        {children && <div style={{ ...s.childrenDivider, margin: "0 18px 18px" }}>{children}</div>}
       </Card>
     );
   }
@@ -129,6 +131,7 @@ export function IntentCard({ prId }: { prId: string | null }) {
             ))}
           </div>
         )}
+        {children && <div style={s.childrenDivider}>{children}</div>}
       </div>
     </Card>
   );

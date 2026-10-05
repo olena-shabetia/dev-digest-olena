@@ -16,10 +16,13 @@ import { FindingsTab } from "./_components/FindingsTab";
 import { DiffTab } from "./_components/DiffTab";
 import { IntentCard } from "./_components/IntentCard";
 import { BlastRadiusCard } from "./_components/BlastRadiusCard";
+import { PrBriefCard } from "./_components/PrBriefCard";
+import { RiskAreas } from "./_components/RiskAreas";
+import { ReviewFocus } from "./_components/ReviewFocus";
 import RunTraceDrawer from "./_components/RunTraceDrawer";
 import { usePullDetail, usePulls } from "../../../../../lib/hooks";
 import { useQueryClient } from "@tanstack/react-query";
-import { usePrReviews, useCancelRun, usePrActiveRuns, usePrRuns, useDeleteRun } from "../../../../../lib/hooks/reviews";
+import { usePrReviews, usePrBrief, useCancelRun, usePrActiveRuns, usePrRuns, useDeleteRun } from "../../../../../lib/hooks/reviews";
 import { useActiveRepo, useRepoNotFound } from "../../../../../lib/repo-context";
 import { ApiError } from "../../../../../lib/api";
 import { githubPrUrl } from "../../../../../lib/github-urls";
@@ -87,6 +90,23 @@ export default function PRDetailPage() {
     router.replace(`/repos/${repoId}/pulls/${number}${sp.toString() ? `?${sp.toString()}` : ""}`);
   };
   const setTab = (t: string) => setParam("tab", t);
+
+  // Brief rows open the file on the Files tab. `push` (not `replace`) so Back
+  // returns to the Overview.
+  const openFile = (file: string, line: number | null) => {
+    const sp = new URLSearchParams(search.toString());
+    sp.set("tab", "diff");
+    sp.set("file", file);
+    if (line != null) sp.set("line", String(line));
+    else sp.delete("line");
+    router.push(`/repos/${repoId}/pulls/${number}?${sp.toString()}`);
+  };
+  const { data: briefData } = usePrBrief(tab === "overview" ? prId : null);
+  const prFiles = pr?.files;
+  const knownPaths = React.useMemo<ReadonlySet<string>>(
+    () => new Set((prFiles ?? []).map((f) => f.path)),
+    [prFiles],
+  );
 
   // Reviews come newest-first; each is its own run (grouped into accordions).
   const runs = reviews ?? [];
@@ -157,14 +177,26 @@ export default function PRDetailPage() {
       <div style={{ padding: "24px 32px 44px", display: "flex", flexDirection: "column", gap: 24, maxWidth: 1080, margin: "0 auto" }}>
         {tab === "overview" && (
           <>
+            <PrBriefCard prId={prId} reviews={reviews} />
             <div style={{ display: "flex", gap: 24, alignItems: "flex-start", flexWrap: "wrap" }}>
               <div style={{ flex: "1 1 420px", minWidth: 0 }}>
-                <IntentCard prId={prId} />
+                <IntentCard prId={prId}>
+                  <RiskAreas
+                    risks={briefData?.brief?.risks.risks ?? null}
+                    knownPaths={knownPaths}
+                    onOpenFile={openFile}
+                  />
+                </IntentCard>
               </div>
               <div style={{ flex: "1 1 420px", minWidth: 0 }}>
                 <BlastRadiusCard prId={prId} repoId={repoId} repoFullName={repoFullName} headSha={pr.head_sha} />
               </div>
             </div>
+            <ReviewFocus
+              items={briefData?.brief?.review_focus ?? []}
+              knownPaths={knownPaths}
+              onOpenFile={openFile}
+            />
             <OverviewTab prBody={pr.body} />
           </>
         )}
@@ -205,6 +237,8 @@ export default function PRDetailPage() {
             canComment={pr.status === "open"}
             repoFullName={repoFullName}
             headSha={pr.head_sha}
+            targetFile={search.get("file")}
+            targetLine={search.get("line")}
           />
         )}
       </div>

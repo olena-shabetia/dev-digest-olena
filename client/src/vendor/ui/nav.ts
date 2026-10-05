@@ -23,6 +23,10 @@ export const NAV: NavGroup[] = [
     section: "WORKSPACE",
     items: [
       { key: "pulls", label: "Pull Requests", icon: "GitPullRequest", href: "/repos/:repoId/pulls", gKey: "p" },
+      // L05b — deliberate scoped vendor exception (SPEC-07 C-2; precedent: L05 entry below)
+      { key: "onboarding-tour", label: "Onboarding Tour", icon: "FileText", href: "/repos/:repoId/onboarding" },
+      // L05 — deliberate scoped vendor exception (SPEC-03 AC-20a; precedent 455a987)
+      { key: "context", label: "Project Context", icon: "FileText", href: "/repos/:repoId/context" },
     ],
   },
   {

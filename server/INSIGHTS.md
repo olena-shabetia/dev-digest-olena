@@ -11,6 +11,26 @@ _None yet._
 
 ## What Doesn't Work
 
+### 2026-09-30 — `tsc` does not see `server/test/**`, so replacing a shared contract breaks tests only at runtime
+
+**Symptom:** L05b replaced `Onboarding`/`OnboardingSection`/`OnboardingLink` in
+`vendor/shared/contracts/knowledge.ts`. `pnpm typecheck` and eslint stayed
+green, but `vitest` failed 1 of 271 tests: `test/contracts.test.ts:133` still
+called the removed `Onboarding.parse(...)`. The work unit that made the change
+finished `partial` because no unit owned that test file.
+
+**Cause:** `tsconfig.json:28` has `"include": ["src/**/*.ts"]`, so nothing under
+`test/` is type-checked; a removed or renamed export is only found when the
+test file actually runs.
+
+**Fix:** replaced the stale assertion with a parse of the new
+`OnboardingTourContent` (`test/contracts.test.ts:133`). The plan had also missed
+this file because its pre-change `rg` covered only `src/`.
+
+**Rule:** before removing or renaming any symbol exported from `vendor/shared`,
+`rg` for it under `server/test/**` as well as `src/`, and give every hit an
+owner — a green `pnpm typecheck` says nothing about tests.
+
 ### 2026-09-27 — copying a whole `factsByFile`-shaped record forward leaks facts for callers the facade already dropped
 
 **Symptom:** the L04 Blast Radius mapping (`blast/helpers.ts`) built

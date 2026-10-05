@@ -117,6 +117,42 @@ export function renderIntent(intent: PrIntentRecord): string {
 }
 
 /**
+ * L05 — resolve the effective, ordered, deduped set of project-context doc
+ * paths for one agent run: the agent's own attached paths first (in their
+ * stored order), then each ENABLED linked skill's attached paths (each
+ * skill's own `order`), visited in the agent's skill-link order. First
+ * occurrence of a path wins — a path re-attached via a later skill (or a
+ * second skill) is not repeated.
+ */
+export function resolveEffectiveDocPaths(
+  agentPaths: readonly string[],
+  enabledSkillIdsInLinkOrder: readonly string[],
+  skillDocs: readonly { skillId: string; path: string; order: number }[],
+): string[] {
+  const seen = new Set<string>();
+  const result: string[] = [];
+
+  for (const path of agentPaths) {
+    if (seen.has(path)) continue;
+    seen.add(path);
+    result.push(path);
+  }
+
+  for (const skillId of enabledSkillIdsInLinkOrder) {
+    const docsForSkill = skillDocs
+      .filter((d) => d.skillId === skillId)
+      .sort((a, b) => a.order - b.order);
+    for (const { path } of docsForSkill) {
+      if (seen.has(path)) continue;
+      seen.add(path);
+      result.push(path);
+    }
+  }
+
+  return result;
+}
+
+/**
  * One-line, Live-Log-safe summary of an intent derivation's `sources[]` —
  * kinds, statuses, ref and character COUNTS only, never source text
  * (`server/specs/L03-intent-layer.api.md` §Logging: no secrets, no source

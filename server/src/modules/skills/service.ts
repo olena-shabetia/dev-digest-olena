@@ -1,7 +1,19 @@
 import type { Container } from '../../platform/container.js';
-import type { Skill, SkillImportPreview, SkillStats, SkillVersion } from '@devdigest/shared';
+import type {
+  ContextAttachmentList,
+  Skill,
+  SkillImportPreview,
+  SkillStats,
+  SkillVersion,
+} from '@devdigest/shared';
 import { SkillsRepository } from './repository.js';
-import { toSkillDto, parseSkillMarkdown, parseSkillArchive } from './helpers.js';
+import {
+  toSkillDto,
+  parseSkillMarkdown,
+  parseSkillArchive,
+  validateContextDocPaths,
+} from './helpers.js';
+import { listRepoDocs } from '../../platform/project-context/index.js';
 import { ValidationError } from '../../platform/errors.js';
 
 /**
@@ -137,5 +149,56 @@ export class SkillsService {
       return parseSkillArchive(filename, buffer);
     }
     throw new ValidationError('Unsupported file type — expected .md, .markdown, or .zip');
+  }
+
+  /**
+   * The skill's attached project-context docs for one repo (L05,
+   * `GET /skills/:id/context/:repoId`). `undefined` when the skill isn't in
+   * this workspace or the repo isn't in this workspace (route → 404).
+   */
+  async contextDocs(
+    workspaceId: string,
+    skillId: string,
+    repoId: string,
+  ): Promise<ContextAttachmentList | undefined> {
+    const skill = await this.repo.getById(workspaceId, skillId);
+    if (!skill) return undefined;
+    const repo = await this.container.reviewRepo.getRepo(repoId);
+    if (repo?.workspaceId !== workspaceId) return undefined;
+    const paths = await this.repo.listContextDocs(skillId, repoId);
+    return { repo_id: repoId, paths };
+  }
+
+  /**
+   * Replace the skill's attached project-context docs for one repo (L05,
+   * `PUT /skills/:id/context/:repoId`). Every path must be a safe doc path
+   * AND a member of the repo's CURRENT discovered set — otherwise throws
+   * `ValidationError` (422) and writes nothing. `undefined` when the skill or
+   * repo isn't in this workspace (route → 404).
+   */
+  async setContextDocs(
+    workspaceId: string,
+    skillId: string,
+    repoId: string,
+    paths: string[],
+  ): Promise<ContextAttachmentList | undefined> {
+    const skill = await this.repo.getById(workspaceId, skillId);
+    if (!skill) return undefined;
+    const repo = await this.container.reviewRepo.getRepo(repoId);
+    if (repo?.workspaceId !== workspaceId) return undefined;
+
+    if (paths.length > 0) {
+      const { status, docs } = await listRepoDocs(
+        { owner: repo.owner, name: repo.name, clonePath: repo.clonePath },
+        this.container.config.projectContextGlobs,
+      );
+      const discovered = new Set(docs.map((d) => d.path));
+      if (status !== 'ok' || !validateContextDocPaths(paths, discovered)) {
+        throw new ValidationError("One or more paths are not in the repo's current discovered doc set");
+      }
+    }
+
+    await this.repo.setContextDocs(skillId, repoId, paths);
+    return { repo_id: repoId, paths };
   }
 }

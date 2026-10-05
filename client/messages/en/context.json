@@ -8,17 +8,13 @@
   "indexStatus": "Index status: {status}",
   "loadError": "Couldn’t load specs",
   "kb": "{kb}kb",
+  "rescan": "Rescan",
+  "rootsHint": "Looked for markdown under: {roots}",
+  "indexedFiles": "Indexed: {count, plural, one {# file} other {# files}}",
+  "notCloned": "This repository hasn’t been cloned yet. Sync it, then rescan to discover documents.",
+  "selectDoc": "Select a document from the list to preview it.",
   "empty": {
-    "title": "No spec files yet",
-    "body": "Drop your PRDs, tech specs, and acceptance criteria under .devdigest/specs/. Every agent and the PR brief read them as grounding context."
-  },
-  "mode": {
-    "preview": "preview",
-    "edit": "edit"
-  },
-  "editor": {
-    "loadError": "Couldn’t load spec",
-    "save": "Save",
-    "saving": "Saving…"
+    "title": "No project context documents yet",
+    "body": "No markdown files found under {roots}. Every agent and the PR brief read them as grounding context."
   }
 }

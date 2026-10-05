@@ -29,11 +29,36 @@ export type {
   PrStatus,
   SpecFile,
   IndexStatus,
+  ProjectDocType,
+  ProjectContextStatus,
+  ProjectContextListing,
+  ContextAttachmentList,
+  SetContextAttachments,
+} from "@devdigest/shared";
+
+export type {
+  OnboardingTour,
+  OnboardingTourResponse,
+  OnboardingGenerateAccepted,
+  OnboardingSection,
+  OnboardingSectionKind,
+  OnboardingSkeletonReason,
+  OnboardingState,
+  OnboardingCriticalPath,
+  OnboardingCommand,
+  OnboardingReadingItem,
+  OnboardingFirstTask,
+  OnboardingIndexSummary,
 } from "@devdigest/shared";
 
 export type { Review, Finding, Severity, Verdict } from "@devdigest/shared";
 export type {
   PrBrief,
+  PrBriefRecord,
+  PrBriefResponse,
+  ReviewFocusItem,
+  BriefDataGap,
+  Risk,
   SmartDiff,
   SmartDiffFile,
   SmartDiffGroup,
