@@ -14,7 +14,15 @@ Depth: in-context | deep
 ### Cost (see reference/data-sources.md — no fabricated numbers)
 - Agents launched: N (<model breakdown>)
 - Re-runs / fix rounds: <count and why>
+- Run metrics (table below), measured values only, `n/a` where not observable
 - Session-wide token/cost figure, only if the host actually surfaced one
+
+| Agent | Tokens | Cache-read | Tool calls | Duration |
+|---|---|---|---|---|
+| <subagent_type / unit> | <total_tokens> | <n or n/a> | <tool_uses> | <duration_ms → s> |
+| **Total** | Σ | Σ | Σ | Σ agent-time; wall-clock <s or n/a> |
+
+Parallelism: max <N> concurrent, <M> waves.
 
 ### Friction
 - <what an agent struggled with, or where the orchestrator had to
@@ -60,6 +68,30 @@ docs/retro/ledger/<workflow-slug>.md
 Create the file (with the header below) the first time a workflow is
 retro'd; append to it every time after.
 
+### Shared trend ledger — `docs/retro/ledger.md`
+
+Besides the per-workflow entry, every approved retro also appends **one table
+row** to the shared `docs/retro/ledger.md`, so cost and parallelism can be
+compared across runs and across workflows at a glance. Newest row last. Create
+the file with this header the first time:
+
+```markdown
+# Retro trend ledger
+
+One row per `workflow-retro` run, all workflows together. Append-only; the
+narrative lives in `ledger/<workflow>.md`. `n/a` = not observable, never a guess.
+
+| Date | Workflow | Agents | Tokens | Cache-read | Tool calls | Agent-time (s) | Parallelism | Fix rounds | Entry |
+|---|---|---|---|---|---|---|---|---|---|
+```
+
+Row shape: `| YYYY-MM-DD | <workflow-slug> | N | Σ tokens | Σ cache-read or n/a |
+Σ tool calls | Σ seconds | max N / M waves | <count> | [entry](ledger/<slug>.md) |`.
+Compare against the previous row for the same workflow and, if tokens, tool
+calls or fix rounds moved by more than ~25%, say so in the chat output's
+recommendations. The row goes through the same propose-then-approve gate as
+the entry (below) and the same append-only rule.
+
 ### File header (new files only)
 
 ```markdown
@@ -77,6 +109,7 @@ edit or delete an old one. Manual runs only; nothing here was auto-generated.
 
 **Agents:** N launched (<model breakdown>), order: <a> → <b> → <c>
 **Cost:** <counts/ratios, per reference/data-sources.md — no invented numbers>
+**Metrics:** tokens <Σ> · cache-read <Σ or n/a> · tool calls <Σ> · agent-time <Σ s> · parallelism <max N concurrent, M waves>
 
 **Friction:** <1-4 bullets, actionable cold — see engineering-insights'
 entry-quality bar: cite what happened concretely, not "agent X struggled">
@@ -106,7 +139,7 @@ the chat output alone can be the whole deliverable for that run.
 
 ## Append-only rules
 
-Same as `INSIGHTS.md`: never edit or reorder an existing entry. To correct
+Same as `INSIGHTS.md`: never edit or reorder an existing entry or table row. To correct
 one, append a new dated entry that says what was wrong and links back to the
 entry it supersedes (`see YYYY-MM-DD above`).
 

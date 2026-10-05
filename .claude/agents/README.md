@@ -15,7 +15,7 @@ the full rules. When you add an agent, add a row here and a section below.
 |-------|-------|-------|---------|
 | [researcher](researcher.md) | sonnet | Read, Glob, Grep, Bash (read-only), WebSearch, WebFetch | Answers a specific question with cited evidence — repo or external — and reports what it could not find. |
 | [spec-creator](spec-creator.md) | opus | Read, Glob, Grep, Bash (read-only), Skill, Write, Edit (writes confined to `specs/**`/`<pkg>/specs/**`), Agent (`researcher` only) | Turns a feature request plus exported design images into an EARS-format spec, analyzed for missing states, edge cases, cross-module dependencies and UX gaps. May delegate external lookups to `researcher`, in parallel batches. Runs before `implementation-planner`. |
-| [implementation-planner](implementation-planner.md) | opus | Read, Glob, Grep, Bash (read-only), Skill, Write (writes confined to `plans/**`) | Reviews the stated requirements, confirms multi-agent vs. single-agent execution mode, then turns a feature request into a `plans/<slug>.md` Development Plan decomposed into work units. Never writes a spec. |
+| [implementation-planner](implementation-planner.md) | opus | Read, Glob, Grep, Bash (read-only), Skill, Write (writes confined to `plans/**`) | Takes the finished spec as input (refuses one with unresolved `[NEEDS CLARIFICATION]`), confirms multi-agent vs. single-agent execution mode, then turns a feature request into a `plans/<slug>.md` Development Plan decomposed into work units. Never writes a spec. |
 | [implementer](implementer.md) | sonnet | Read, Glob, Grep, Edit, Write, Bash, Skill, TodoWrite | Executes ONE work unit of an approved plan, in its own file lease. Launch several in parallel, one per unit per wave. |
 | [test-writer](test-writer.md) | sonnet | Read, Glob, Grep, Edit, Write, Bash, TodoWrite | Writes tests for existing code, one package's own layout/naming/runner at a time, reusing existing mocks and helpers. |
 | [architecture-reviewer](architecture-reviewer.md) | sonnet | Read, Glob, Grep, Bash (read-only) | Read-only review of architectural boundaries — backend rings, client placement, vendor-copy drift — with a severity-ranked, evidence-pinned report. |
@@ -153,9 +153,9 @@ multi-agent posts), plus:
 ## implementation-planner
 
 **Responsibility.** Reads a feature request plus this repo's `AGENTS.md`,
-`INSIGHTS.md`, specs and code, reviews the stated requirements for blocking
-gaps or ambiguity (returning clarifying questions instead of guessing when one
-is found), confirms with the caller whether the plan targets **multi-agent**
+`INSIGHTS.md`, specs and code, takes the finished spec as input (requirements
+analysis belongs to `spec-creator`; a spec with an unresolved
+`[NEEDS CLARIFICATION]` marker is returned, not planned around), confirms with the caller whether the plan targets **multi-agent**
 execution (several `implementer` instances running concurrently, file-lease
 partitioned) or a **single-agent** sequential pass, then decomposes the work
 accordingly — in multi-agent mode each unit gets an exclusive file lease and
@@ -186,7 +186,7 @@ HTTP surface, DB schema delta, i18n namespaces, shared client components) →
 Serialization ledger → Work units → Execution waves → Deferred verification →
 Abort/rollback → Open questions. Final message is short: plan path, execution
 mode, unit list, waves, any blocking open question. If it stopped at the
-execution-mode gate or a blocking requirements ambiguity, the question itself
+execution-mode gate or an unresolved spec marker, the question itself
 is the entire final message — no plan is written.
 
 **Sources these rules are based on** — established via the `researcher`

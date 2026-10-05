@@ -8,8 +8,8 @@ description: >-
   several subagents) — how many agents ran, in what order, how expensive the
   session was, what each agent found hard or easy, what got duplicated across
   agents, and what was skipped. Ends with recommendations for the reviewed
-  workflow AND for this skill itself. Writes a chat summary plus a dated
-  entry in docs/retro/ledger/<workflow>.md. MANUAL ONLY — never invoke this
+  workflow AND for this skill itself. Writes a chat summary, a dated entry in
+  docs/retro/ledger/<workflow>.md, and one trend row in docs/retro/ledger.md. MANUAL ONLY — never invoke this
   automatically at the end of another skill or workflow; it runs only when
   the user explicitly asks for a retro or invokes /workflow-retro.
 ---
@@ -53,14 +53,15 @@ Copy this checklist and tick off as you go:
 - [ ] 2. Reconstruct the agent timeline from in-context history: every Agent
          tool call, in order, with subagent_type, description, and a
          one-line take on its returned result.
-- [ ] 3. Estimate cost: agent count, model per agent (from the agent
-         definitions or overrides used), and rough token usage — see
-         reference/data-sources.md for what's actually measurable vs.
-         estimated, and always label estimates as estimates.
+- [ ] 3. Collect run metrics per agent: total tokens, tool calls and duration
+         from each completion notice, plus parallelism (max concurrent, waves).
+         Cache-read needs the transcripts (step 4) — `n/a` without them. See
+         reference/data-sources.md; never fill a cell you did not observe.
 - [ ] 4. If `--deep` was passed: pull in the on-disk artifacts listed in
-         reference/data-sources.md (plan files, gate JSON reports, git log/
-         diff since session start) to verify or sharpen step 2–3, and to
-         catch things the in-context summaries glossed over.
+         reference/data-sources.md (session + subagent transcripts for
+         cache-read, plan files, gate JSON reports, git log/diff since session
+         start) to fill the metrics table and catch things the in-context
+         summaries glossed over.
 - [ ] 5. Extract friction, wins, duplication, and gaps from what the agents
          actually reported (their manifests/verdicts) and from where the
          orchestrator had to intervene, retry, or re-explain.
@@ -70,9 +71,9 @@ Copy this checklist and tick off as you go:
 - [ ] 7. Print the full retro to chat (reference/ledger-format.md, "Chat
          output" section).
 - [ ] 8. Propose the ledger entry (reference/ledger-format.md) targeting
-         docs/retro/ledger/<workflow-slug>.md. Wait for approval, same
-         propose-then-approve gate as engineering-insights. Append only what
-         is approved.
+         docs/retro/ledger/<workflow-slug>.md, plus the one-row trend line for
+         docs/retro/ledger.md. Wait for approval, same propose-then-approve
+         gate as engineering-insights. Append only what is approved.
 ```
 
 ## What this is not
@@ -96,4 +97,4 @@ Copy this checklist and tick off as you go:
   to report token/cost numbers honestly instead of inventing precision.
 - [reference/ledger-format.md](reference/ledger-format.md) — the chat output
   template, the ledger file format and routing (`docs/retro/ledger/<slug>.md`),
-  append-only rules, and the two-bucket recommendation format.
+  the shared trend ledger (`docs/retro/ledger.md`), append-only rules, and the two-bucket recommendation format.

@@ -19,17 +19,30 @@ extra tool calls beyond what's needed to read what's already there:
 This is fast and free of extra tool calls. It is the right depth for "how did
 that just go" asked right after a run.
 
+### Run metrics — collect these for every agent
+
+Each agent's completion notice (the `<usage>` block on its result) carries
+three measured numbers. Copy them as printed, per agent:
+
+| Metric | Where it comes from |
+|---|---|
+| `total_tokens` | completion notice `<usage>` |
+| `tool_uses` (tool-call count) | completion notice `<usage>` |
+| `duration_ms` (wall-clock) | completion notice `<usage>` |
+| **Parallelism** | derived: the largest number of agents in flight at once (agents launched in the same turn / the same wave), plus the wave count. Count it from launch order, not from durations |
+| **Cache-read tokens** | not in the notice — only from the on-disk transcripts, see `--deep` below |
+
+Sum tokens, tool calls and agent-seconds across agents for the run row, and
+report parallelism as `max N concurrent, M waves`. When an agent's notice has
+no `<usage>` block, write `n/a` for that cell — never back-fill it.
+
 ### What in-context does NOT give you — say so, don't guess
 
-- **Exact token counts per agent.** Subagent token usage is not surfaced to
-  the orchestrator as a number. Report agent *count* and *relative* cost
-  (e.g. "3 Sonnet agents + 1 Opus agent, the Opus one re-run twice") rather
-  than inventing a token figure. If the host surfaces a `/cost`-style figure
-  for the whole session, use that and label it as session-wide, not
-  per-agent.
-- **Wall-clock duration per agent**, unless timestamps were visible in the
-  transcript (e.g. background-agent completion notifications). Don't
-  fabricate durations.
+- **Cache-read tokens** (see `--deep`) and any **session-wide** `/cost`-style
+  figure unless the host actually printed one; if it did, label it
+  session-wide, not per-agent.
+- **Token figures are agent totals, not a cost.** Do not convert them to
+  dollars; the model mix and cache split make that a guess.
 - **A subagent's internal reasoning or intermediate tool calls.** Only its
   final returned report is visible. If a manifest says "fixed 3 of 4 files"
   without saying which one failed and why, that's a real gap to name in
@@ -51,19 +64,26 @@ the workflow being retro'd:
   `.devdigest/review/last-report.json` from `pr-self-review`) — these
   already contain a structured, timestamped record; prefer them over
   re-deriving the same facts from prose.
+- **Cache-read tokens, from the session transcripts.** The main session is
+  `~/.claude/projects/<project-dir>/<session-id>.jsonl` and each subagent has
+  its own `<session-id>/subagents/agent-<id>.jsonl`. Every assistant message
+  there has a `usage` object; sum `cache_read_input_tokens` per file to get
+  cache-read for that agent (and `input_tokens` / `cache_creation_input_tokens`
+  / `output_tokens` if useful). This reads token *accounting* only — it is not
+  license to quote an agent's reasoning. If the directory is missing or a
+  subagent file can't be matched to an agent, write `n/a` for that cell.
 - **`INSIGHTS.md` diffs from this session** — an entry appended during the
   session is itself a data point (a friction or a discovery worth noting in
   the retro too, cross-referenced rather than duplicated).
 
-`--deep` does **not** mean reading another agent's raw internal transcript —
-that is generally not accessible to the orchestrator at all, regardless of
-depth. If a claim needs that kind of evidence to settle, say the claim is
-unverifiable rather than fabricating a transcript read.
+`--deep` is for token accounting, not for mining another agent's reasoning:
+if a claim about *what an agent thought or why* needs its transcript to
+settle, say the claim is unverifiable rather than inferring it.
 
 ## Reporting cost honestly
 
-Never print a token number, dollar figure, or duration you did not actually
-observe. Prefer:
+Never print a token number, dollar figure, duration, tool-call count or
+cache-read figure you did not actually observe. Prefer:
 - counts ("6 agent invocations: 4 Sonnet, 2 Opus")
 - ratios ("the architecture-reviewer pass ran 3 times — once per fix round")
 - explicit estimate flags ("~large session, rough order of magnitude only")

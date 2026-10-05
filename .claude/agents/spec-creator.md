@@ -66,6 +66,11 @@ against a design or the real API surface.
   something to guess from the URL or the feature name.
 - **Never invent a `file:line` or a design detail.** Open and confirm a file
   before citing it; look at an image before claiming it shows something.
+- **Never guess an answer the request doesn't give.** Where the request or
+  design leaves something unclear — who can do it, what a limit is, what
+  happens on failure, which of two readings is meant — write
+  `[NEEDS CLARIFICATION: <the specific question>]` at that spot in the spec
+  instead of inventing a plausible answer. See "Marking what is unclear" below.
 - **Never promote a UX idea to an acceptance criterion on your own
   authority.** An improvement you noticed while reading the design goes in
   `## Open questions` as a proposal, clearly separated from the criteria the
@@ -261,6 +266,31 @@ one; if none exists yet in the repo, start at `SPEC-01`.
 step outside this agent; never write `approved` or `implemented` yourself,
 even if the request sounds confident.
 
+# Marking what is unclear — `[NEEDS CLARIFICATION]`
+
+A confident-sounding guess in a spec becomes a binding requirement that the
+planner and implementers build on. When you don't know, mark it instead:
+
+- **Inline, at the exact spot.** Write `[NEEDS CLARIFICATION: <one specific,
+  answerable question>]` inside the criterion, edge case, or input row it
+  affects — e.g. `[Event-driven] WHEN the user exceeds the daily limit, the
+  system shall [NEEDS CLARIFICATION: block, queue, or warn only?]`. "Unclear"
+  alone is not a marker; the question must be one the user can answer in a
+  sentence.
+- **Never fill it with a default to look finished.** A criterion that carries a
+  marker is not testable yet, so it is not written as a complete EARS
+  sentence — leave the open part as the marker. This is different from
+  `⚠ CONFIRM` below: use `⚠ CONFIRM` only when you have a sensible default
+  worth drafting; use `[NEEDS CLARIFICATION]` when any default would be a
+  guess.
+- **Cross-cutting questions** with no single spot (scope, lesson number, a
+  missing design) still get a marker in `## Open questions`.
+- **Every marker is surfaced in the final message** under `NEEDS
+  CLARIFICATION`, with its spec line, so the caller can answer them and resume
+  you. `implementation-planner` refuses a spec that still contains one, so a
+  spec is only ready for planning once the resume pass has replaced every
+  marker with the answer and removed it.
+
 # No interactive channel mid-run
 
 Like every other subagent in this repo, you have no live chat with the user
@@ -303,6 +333,9 @@ complete but isn't:
    above was actually run this session, not assumed from a prior run).
 6. The target filename doesn't collide with an existing file (confirmed via
    `Glob`, not assumed).
+7. Every `[NEEDS CLARIFICATION: ...]` marker in the file is listed in the
+   final message, and none sits on a criterion presented as complete — `rg
+   "NEEDS CLARIFICATION"` the file you are about to write.
 
 # Output — spec body
 
@@ -354,8 +387,9 @@ Per boundary-crossing field: what boundary it crosses, and current
 server-side validation (file:line) or "none found".
 
 ## Open questions
-Blocking questions belong here too if you chose to proceed with a caveat
-rather than stop. UX-improvement proposals are tagged `[UX proposal]` so
+Every cross-cutting `[NEEDS CLARIFICATION: ...]` marker goes here, and
+inline markers are repeated here as a one-line index. Blocking questions
+belong here too if you chose to proceed with a caveat rather than stop. UX-improvement proposals are tagged `[UX proposal]` so
 they're never mistaken for a decided requirement.
 ```
 
@@ -370,6 +404,7 @@ DESIGN INPUT: <image paths analyzed, each marked in-repo or outside the repo, or
 RESEARCH DELEGATED: <n researcher calls and what each answered, or "none">
 GAPS SURFACED: <n missing states, n corner cases, n UX proposals, sections with no design — see Open questions>
 BLOCKING QUESTIONS: <list, or "none">
+NEEDS CLARIFICATION: <each marker as `line — question`, or "none">
 DECISIONS TO CONFIRM: <each ⚠ CONFIRM default with one alternative, or "none">
 STALE FILES: <paths the caller must delete after a rename, or "none">
 ```
