@@ -1,6 +1,6 @@
 ---
 name: onion-architecture
-version: 1.1.0
+version: 1.0.0
 description: >-
   Decides which backend ring a piece of code belongs to and who may import
   it — whether logic goes in routes.ts, service.ts, repository.ts, an
@@ -8,8 +8,7 @@ description: >-
   declared; and how to keep Fastify, Drizzle and vendor SDKs out of the
   core. Use before adding a file under server/src/ or reviewer-core/src/,
   before adding a query or an SDK call, when a module has no service or
-  repository tier, when auditing which tiers every module in
-  server/src/modules/ has, and when reviewing a change for layer violations. Does
+  repository tier, and when reviewing a change for layer violations. Does
   NOT cover Fastify route/plugin APIs (see fastify-best-practices), Drizzle
   query syntax (see drizzle-orm-patterns), or Zod schema authoring (see zod).
 ---
@@ -69,53 +68,6 @@ The gap is *consistency*, not absence — see `reference/anti-patterns.md`.
 | Cross-cutting (errors, sse, jobs, config) | `platform/**` |
 | Secrets | `SecretsProvider` only — single env read point is `adapters/secrets/local.ts` |
 
-## Module tier audit
-
-Use this when asked "which modules are missing a tier" or before a PR that
-adds a module. Per-file placement answers one question; the audit answers
-the whole-tree one that no single file review shows.
-
-For each folder `server/src/modules/<n>/` (skip `_shared/` and `index.ts`,
-which are not feature modules):
-
-| Tier | Present when | Required when |
-|---|---|---|
-| `routes.ts` | file exists | always |
-| `service.ts` | file exists | the module has any business rule or orchestration |
-| `repository.ts` or `repository/` | file or folder exists | the module has any Drizzle query |
-
-Then apply these rules, in order:
-
-1. **Routes importing the DB** — `routes.ts` that imports `drizzle-orm` or
-   `db/schema.js` / `db/client.js` is a violation, whatever else the module
-   has. Route handlers may not query.
-2. **Queries without a repository** — any Drizzle query outside a
-   `repository*` file is a violation; the module needs `repository.ts`.
-3. **Routes without a service** — a module whose `routes.ts` does
-   business work or DB work and has no `service.ts` is missing the service
-   tier. Report it even if the DB work is only in routes (rule 1 already
-   fires; say both).
-4. **Service without a repository** — `service.ts` that imports the DB
-   directly is a violation (see the cross-module example in the evals).
-
-A quick way to get the raw table (run from `server/`):
-
-```bash
-for m in src/modules/*/; do m=${m%/}; n=${m##*/}
-  [ "$n" = _shared ] && continue
-  r=$([ -f $m/routes.ts ] && echo R || echo -)
-  s=$([ -f $m/service.ts ] && echo S || echo -)
-  p=$([ -f $m/repository.ts ] || [ -d $m/repository ] && echo P || echo -)
-  d=$(grep -lE "drizzle-orm|db/(schema|client)\.js" $m/routes.ts 2>/dev/null | wc -l)
-  echo "$n routes=$r service=$s repo=$p routes_db_imports=$d"
-done
-```
-
-Read the output as evidence, not as the verdict: a module with `repo=-`
-and no Drizzle query is fine (e.g. a pure transform module), and a
-`repository/` folder counts as the repository tier. Confirm each flagged
-line by opening the file before reporting it with file:line.
-
 ## Adding a port + adapter
 
 1. Declare the interface in the canonical `server/src/vendor/shared/adapters.ts` (never the `client/` copy — that's derived).
@@ -143,9 +95,6 @@ Copy this and tick off before finishing a change under `server/` or `reviewer-co
 - [ ] Touching reviewer-core? → still zero I/O, still only openai + zod?
 - [ ] Returning a `$inferSelect` row outward? → map to a DTO in helpers.ts
 - [ ] Ran `pnpm arch` before finishing?
-- [ ] New or touched module? → run the module tier audit: routes.ts has no
-      DB import, service.ts exists if there is business logic, and
-      repository.ts (or repository/) exists if there is any query
 ```
 
 ## Reference

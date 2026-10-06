@@ -1,0 +1,13 @@
+{
+  "eval_id": 1,
+  "eval_name": "bookmarks-routes-sql",
+  "configuration": "with_skill",
+  "summary": { "pass_rate": 1.0, "passed": 4, "failed": 0, "total": 4 },
+  "timing": { "total_tokens": 34227, "duration_ms": 70183, "total_duration_seconds": 70.2 },
+  "expectations": [
+    { "text": "flags-sql-in-routes", "passed": true, "evidence": "Violation 1 at routes.ts:1,4,15-18,29-33,38-41,50-53 — Drizzle operators imported and four inline queries" },
+    { "text": "identifies-missing-repository", "passed": true, "evidence": "'repository ring is missing entirely'; recommended shape lists repository.ts" },
+    { "text": "identifies-missing-service", "passed": true, "evidence": "Violation 2 states 'service ring is missing entirely'" },
+    { "text": "suggests-concrete-fix", "passed": true, "evidence": "Fix for Violation 1 provides full skeleton code for repository.ts" }
+  ]
+}

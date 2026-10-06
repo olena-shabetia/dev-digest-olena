@@ -1,0 +1,25 @@
+{
+  "eval_id": 3,
+  "eval_name": "alerts-cross-module",
+  "configuration": "without_skill",
+  "expectations": [
+    {
+      "text": "flags-cross-module-import: Flags that service.ts imports from ../repos/constants.ts (cross-module import)",
+      "passed": true,
+      "evidence": "Medium finding — 'AlertService cross-imports DEFAULT_BRANCH from the sibling repos module... Sibling modules must not import each other's internals'"
+    },
+    {
+      "text": "flags-service-bypasses-repo: Flags that service.ts queries container.db directly instead of using the repository",
+      "passed": true,
+      "evidence": "High finding 2 — 'service.ts:1,3,23-29 — The service imports drizzle-orm query builders and ../../db/schema.js directly, then issues a raw SELECT against this.container.db to check for duplicate webhook URLs, bypassing AlertChannelRepository'"
+    },
+    {
+      "text": "suggests-repo-delegation: Recommends moving the duplicate-check query into the repository",
+      "passed": true,
+      "evidence": "'the duplicate-check query belongs in a new findByWebhookUrl method on the repository'"
+    }
+  ],
+  "pass_count": 3,
+  "total_count": 3,
+  "pass_rate": 1.0
+}

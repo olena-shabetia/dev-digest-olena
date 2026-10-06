@@ -1,0 +1,30 @@
+{
+  "eval_id": 1,
+  "eval_name": "bookmarks-routes-sql",
+  "configuration": "without_skill",
+  "expectations": [
+    {
+      "text": "flags-sql-in-routes: Identifies that SQL/Drizzle queries appear directly in routes.ts",
+      "passed": true,
+      "evidence": "Two CRITICAL findings: 'Routes import the database schema directly' (routes.ts:4) and 'Raw Drizzle queries live inside route handlers' (routes.ts:15-18,29-33,38-41,50-53)"
+    },
+    {
+      "text": "identifies-missing-repository: Notes that no repository.ts exists for the bookmarks module",
+      "passed": true,
+      "evidence": "HIGH finding 'Missing service layer' mentions standard structure; CRITICAL finding says 'Introduce a repository.ts... that owns all Drizzle queries'"
+    },
+    {
+      "text": "identifies-missing-service: Notes that no service.ts exists for the bookmarks module",
+      "passed": true,
+      "evidence": "HIGH finding explicitly titled 'Missing service layer' with canonical routes/service/repository structure"
+    },
+    {
+      "text": "suggests-concrete-fix: Recommends extracting or creating repository.ts",
+      "passed": true,
+      "evidence": "Fix section recommends 'Introduce a repository.ts (or repository/ folder) that owns all Drizzle queries'"
+    }
+  ],
+  "pass_count": 4,
+  "total_count": 4,
+  "pass_rate": 1.0
+}

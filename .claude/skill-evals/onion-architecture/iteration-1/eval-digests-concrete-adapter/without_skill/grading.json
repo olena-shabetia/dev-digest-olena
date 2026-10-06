@@ -1,0 +1,25 @@
+{
+  "eval_id": 2,
+  "eval_name": "digests-concrete-adapter",
+  "configuration": "without_skill",
+  "expectations": [
+    {
+      "text": "flags-concrete-adapter-import: Flags that service.ts imports the concrete OpenAICompletionClient by path rather than through a port",
+      "passed": true,
+      "evidence": "CRITICAL finding 1 — 'Service imports and directly instantiates OpenAICompletionClient (concrete adapter ring), bypassing the LLMProvider port'"
+    },
+    {
+      "text": "flags-new-in-service: Flags that the service instantiates the adapter with `new` instead of using the container",
+      "passed": true,
+      "evidence": "Mentioned in CRITICAL finding 1 and MEDIUM finding 5 — 'Service constructs its own collaborators (DigestRepository, OpenAICompletionClient) in the constructor instead of receiving them via injection'"
+    },
+    {
+      "text": "mentions-port-solution: Recommends declaring a port interface and wiring through the container",
+      "passed": true,
+      "evidence": "CRITICAL finding 2 — 'OpenAICompletionClient does not implement LLMProvider'; HIGH finding 4 — 'No llm(): Promise<LLMProvider> accessor on Container'; fix implies implementing LLMProvider"
+    }
+  ],
+  "pass_count": 3,
+  "total_count": 3,
+  "pass_rate": 1.0
+}

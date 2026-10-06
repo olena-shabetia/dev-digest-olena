@@ -1,0 +1,11 @@
+{
+  "eval_id": 1,
+  "eval_name": "bookmarks-routes-sql",
+  "prompt": "I'm adding a bookmarks feature to our Fastify API. I've already put some code together — can you review the module and tell me if it's placed correctly across the layers, and what (if anything) needs to change before I ship it?",
+  "assertions": [
+    { "name": "flags-sql-in-routes", "description": "Identifies that SQL/Drizzle queries appear directly in routes.ts" },
+    { "name": "identifies-missing-repository", "description": "Notes that no repository.ts exists for the bookmarks module" },
+    { "name": "identifies-missing-service", "description": "Notes that no service.ts exists for the bookmarks module" },
+    { "name": "suggests-concrete-fix", "description": "Recommends extracting or creating repository.ts" }
+  ]
+}

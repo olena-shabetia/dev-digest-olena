@@ -1,0 +1,12 @@
+{
+  "eval_id": 2,
+  "eval_name": "digests-concrete-adapter",
+  "configuration": "without_skill",
+  "summary": { "pass_rate": 1.0, "passed": 3, "failed": 0, "total": 3 },
+  "timing": { "total_tokens": 33127, "duration_ms": 73637, "total_duration_seconds": 73.6 },
+  "expectations": [
+    { "text": "flags-concrete-adapter-import", "passed": true, "evidence": "CRITICAL 1 — 'imports and directly instantiates OpenAICompletionClient, bypassing LLMProvider port'" },
+    { "text": "flags-new-in-service", "passed": true, "evidence": "MEDIUM 5 — 'Service constructs its own collaborators in the constructor instead of receiving them via injection'" },
+    { "text": "mentions-port-solution", "passed": true, "evidence": "CRITICAL 2 — 'does not implement LLMProvider'; HIGH 4 — 'No llm() accessor on Container'" }
+  ]
+}

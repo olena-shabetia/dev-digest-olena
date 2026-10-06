@@ -1,0 +1,1325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Eval Review</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600&family=Lora:wght@400;500&display=swap" rel="stylesheet">
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js" integrity="sha384-EnyY0/GSHQGSxSgMwaIPzSESbqoOLSexfnSMN2AP+39Ckmn92stwABZynq1JyzdT" crossorigin="anonymous"></script>
+  <style>
+    :root {
+      --bg: #faf9f5;
+      --surface: #ffffff;
+      --border: #e8e6dc;
+      --text: #141413;
+      --text-muted: #b0aea5;
+      --accent: #d97757;
+      --accent-hover: #c4613f;
+      --green: #788c5d;
+      --green-bg: #eef2e8;
+      --red: #c44;
+      --red-bg: #fceaea;
+      --header-bg: #141413;
+      --header-text: #faf9f5;
+      --radius: 6px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Lora', Georgia, serif;
+      background: var(--bg);
+      color: var(--text);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ---- Header ---- */
+    .header {
+      background: var(--header-bg);
+      color: var(--header-text);
+      padding: 1rem 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-shrink: 0;
+    }
+    .header h1 {
+      font-family: 'Poppins', sans-serif;
+      font-size: 1.25rem;
+      font-weight: 600;
+    }
+    .header .instructions {
+      font-size: 0.8rem;
+      opacity: 0.7;
+      margin-top: 0.25rem;
+    }
+    .header .progress {
+      font-size: 0.875rem;
+      opacity: 0.8;
+      text-align: right;
+    }
+
+    /* ---- Main content ---- */
+    .main {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1.5rem 2rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+    }
+
+    /* ---- Sections ---- */
+    .section {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      flex-shrink: 0;
+    }
+    .section-header {
+      font-family: 'Poppins', sans-serif;
+      padding: 0.75rem 1rem;
+      font-size: 0.75rem;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      border-bottom: 1px solid var(--border);
+      background: var(--bg);
+    }
+    .section-body {
+      padding: 1rem;
+    }
+
+    /* ---- Config badge ---- */
+    .config-badge {
+      display: inline-block;
+      padding: 0.2rem 0.625rem;
+      border-radius: 9999px;
+      font-family: 'Poppins', sans-serif;
+      font-size: 0.6875rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      margin-left: 0.75rem;
+      vertical-align: middle;
+    }
+    .config-badge.config-primary {
+      background: rgba(33, 150, 243, 0.12);
+      color: #1976d2;
+    }
+    .config-badge.config-baseline {
+      background: rgba(255, 193, 7, 0.15);
+      color: #f57f17;
+    }
+
+    /* ---- Prompt ---- */
+    .prompt-text {
+      white-space: pre-wrap;
+      font-size: 0.9375rem;
+      line-height: 1.6;
+    }
+
+    /* ---- Outputs ---- */
+    .output-file {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+    .output-file + .output-file {
+      margin-top: 1rem;
+    }
+    .output-file-header {
+      padding: 0.5rem 0.75rem;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+      font-family: 'SF Mono', SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .output-file-header .dl-btn {
+      font-size: 0.7rem;
+      color: var(--accent);
+      text-decoration: none;
+      cursor: pointer;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-weight: 500;
+      opacity: 0.8;
+    }
+    .output-file-header .dl-btn:hover {
+      opacity: 1;
+      text-decoration: underline;
+    }
+    .output-file-content {
+      padding: 0.75rem;
+      overflow-x: auto;
+    }
+    .output-file-content pre {
+      font-size: 0.8125rem;
+      line-height: 1.5;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-family: 'SF Mono', SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace;
+    }
+    .output-file-content img {
+      max-width: 100%;
+      height: auto;
+      border-radius: 4px;
+    }
+    .output-file-content iframe {
+      width: 100%;
+      height: 600px;
+      border: none;
+    }
+    .output-file-content table {
+      border-collapse: collapse;
+      font-size: 0.8125rem;
+      width: 100%;
+    }
+    .output-file-content table td,
+    .output-file-content table th {
+      border: 1px solid var(--border);
+      padding: 0.375rem 0.5rem;
+      text-align: left;
+    }
+    .output-file-content table th {
+      background: var(--bg);
+      font-weight: 600;
+    }
+    .output-file-content .download-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem 1rem;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: var(--accent);
+      text-decoration: none;
+      font-size: 0.875rem;
+      cursor: pointer;
+    }
+    .output-file-content .download-link:hover {
+      background: var(--border);
+    }
+    .empty-state {
+      color: var(--text-muted);
+      font-style: italic;
+      padding: 2rem;
+      text-align: center;
+    }
+
+    /* ---- Feedback ---- */
+    .prev-feedback {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 0.625rem 0.75rem;
+      margin-top: 0.75rem;
+      font-size: 0.8125rem;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+    .prev-feedback-label {
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin-bottom: 0.25rem;
+      color: var(--text-muted);
+    }
+    .feedback-textarea {
+      width: 100%;
+      min-height: 100px;
+      padding: 0.75rem;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      font-family: inherit;
+      font-size: 0.9375rem;
+      line-height: 1.5;
+      resize: vertical;
+      color: var(--text);
+    }
+    .feedback-textarea:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+    }
+    .feedback-status {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-top: 0.5rem;
+      min-height: 1.1em;
+    }
+
+    /* ---- Grades (collapsible) ---- */
+    .grades-toggle {
+      display: flex;
+      align-items: center;
+      cursor: pointer;
+      user-select: none;
+    }
+    .grades-toggle:hover {
+      color: var(--accent);
+    }
+    .grades-toggle .arrow {
+      margin-right: 0.5rem;
+      transition: transform 0.15s;
+      font-size: 0.75rem;
+    }
+    .grades-toggle .arrow.open {
+      transform: rotate(90deg);
+    }
+    .grades-content {
+      display: none;
+      margin-top: 0.75rem;
+    }
+    .grades-content.open {
+      display: block;
+    }
+    .grades-summary {
+      font-size: 0.875rem;
+      margin-bottom: 0.75rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .grade-badge {
+      display: inline-block;
+      padding: 0.125rem 0.5rem;
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+    .grade-pass { background: var(--green-bg); color: var(--green); }
+    .grade-fail { background: var(--red-bg); color: var(--red); }
+    .assertion-list {
+      list-style: none;
+    }
+    .assertion-item {
+      padding: 0.625rem 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.8125rem;
+    }
+    .assertion-item:last-child { border-bottom: none; }
+    .assertion-status {
+      font-weight: 600;
+      margin-right: 0.5rem;
+    }
+    .assertion-status.pass { color: var(--green); }
+    .assertion-status.fail { color: var(--red); }
+    .assertion-evidence {
+      color: var(--text-muted);
+      font-size: 0.75rem;
+      margin-top: 0.25rem;
+      padding-left: 1.5rem;
+    }
+
+    /* ---- View tabs ---- */
+    .view-tabs {
+      display: flex;
+      gap: 0;
+      padding: 0 2rem;
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .view-tab {
+      font-family: 'Poppins', sans-serif;
+      padding: 0.625rem 1.25rem;
+      font-size: 0.8125rem;
+      font-weight: 500;
+      cursor: pointer;
+      border: none;
+      background: none;
+      color: var(--text-muted);
+      border-bottom: 2px solid transparent;
+      transition: all 0.15s;
+    }
+    .view-tab:hover { color: var(--text); }
+    .view-tab.active {
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+    }
+    .view-panel { display: none; }
+    .view-panel.active { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
+
+    /* ---- Benchmark view ---- */
+    .benchmark-view {
+      padding: 1.5rem 2rem;
+      overflow-y: auto;
+      flex: 1;
+    }
+    .benchmark-table {
+      border-collapse: collapse;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      font-size: 0.8125rem;
+      width: 100%;
+      margin-bottom: 1.5rem;
+    }
+    .benchmark-table th, .benchmark-table td {
+      padding: 0.625rem 0.75rem;
+      text-align: left;
+      border: 1px solid var(--border);
+    }
+    .benchmark-table th {
+      font-family: 'Poppins', sans-serif;
+      background: var(--header-bg);
+      color: var(--header-text);
+      font-weight: 500;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .benchmark-table tr:hover { background: var(--bg); }
+    .benchmark-table tr.benchmark-row-with { background: rgba(33, 150, 243, 0.06); }
+    .benchmark-table tr.benchmark-row-without { background: rgba(255, 193, 7, 0.06); }
+    .benchmark-table tr.benchmark-row-with:hover { background: rgba(33, 150, 243, 0.12); }
+    .benchmark-table tr.benchmark-row-without:hover { background: rgba(255, 193, 7, 0.12); }
+    .benchmark-table tr.benchmark-row-avg { font-weight: 600; border-top: 2px solid var(--border); }
+    .benchmark-table tr.benchmark-row-avg.benchmark-row-with { background: rgba(33, 150, 243, 0.12); }
+    .benchmark-table tr.benchmark-row-avg.benchmark-row-without { background: rgba(255, 193, 7, 0.12); }
+    .benchmark-delta-positive { color: var(--green); font-weight: 600; }
+    .benchmark-delta-negative { color: var(--red); font-weight: 600; }
+    .benchmark-notes {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem;
+    }
+    .benchmark-notes h3 {
+      font-family: 'Poppins', sans-serif;
+      font-size: 0.875rem;
+      margin-bottom: 0.75rem;
+    }
+    .benchmark-notes ul {
+      list-style: disc;
+      padding-left: 1.25rem;
+    }
+    .benchmark-notes li {
+      font-size: 0.8125rem;
+      line-height: 1.6;
+      margin-bottom: 0.375rem;
+    }
+    .benchmark-empty {
+      color: var(--text-muted);
+      font-style: italic;
+      text-align: center;
+      padding: 3rem;
+    }
+
+    /* ---- Navigation ---- */
+    .nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1rem 2rem;
+      border-top: 1px solid var(--border);
+      background: var(--surface);
+      flex-shrink: 0;
+    }
+    .nav-btn {
+      font-family: 'Poppins', sans-serif;
+      padding: 0.5rem 1.25rem;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface);
+      cursor: pointer;
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: var(--text);
+      transition: all 0.15s;
+    }
+    .nav-btn:hover:not(:disabled) {
+      background: var(--bg);
+      border-color: var(--text-muted);
+    }
+    .nav-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+    .done-btn {
+      font-family: 'Poppins', sans-serif;
+      padding: 0.5rem 1.5rem;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface);
+      color: var(--text);
+      cursor: pointer;
+      font-size: 0.875rem;
+      font-weight: 500;
+      transition: all 0.15s;
+    }
+    .done-btn:hover {
+      background: var(--bg);
+      border-color: var(--text-muted);
+    }
+    .done-btn.ready {
+      border: none;
+      background: var(--accent);
+      color: white;
+      font-weight: 600;
+    }
+    .done-btn.ready:hover {
+      background: var(--accent-hover);
+    }
+    /* ---- Done overlay ---- */
+    .done-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 100;
+      justify-content: center;
+      align-items: center;
+    }
+    .done-overlay.visible {
+      display: flex;
+    }
+    .done-card {
+      background: var(--surface);
+      border-radius: 12px;
+      padding: 2rem 3rem;
+      text-align: center;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      max-width: 500px;
+    }
+    .done-card h2 {
+      font-size: 1.5rem;
+      margin-bottom: 0.5rem;
+    }
+    .done-card p {
+      color: var(--text-muted);
+      margin-bottom: 1.5rem;
+      line-height: 1.5;
+    }
+    .done-card .btn-row {
+      display: flex;
+      gap: 0.5rem;
+      justify-content: center;
+    }
+    .done-card button {
+      padding: 0.5rem 1.25rem;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface);
+      cursor: pointer;
+      font-size: 0.875rem;
+    }
+    .done-card button:hover {
+      background: var(--bg);
+    }
+    /* ---- Toast ---- */
+    .toast {
+      position: fixed;
+      bottom: 5rem;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--header-bg);
+      color: var(--header-text);
+      padding: 0.625rem 1.25rem;
+      border-radius: var(--radius);
+      font-size: 0.875rem;
+      opacity: 0;
+      transition: opacity 0.3s;
+      pointer-events: none;
+      z-index: 200;
+    }
+    .toast.visible {
+      opacity: 1;
+    }
+  </style>
+</head>
+<body>
+  <div id="app" style="height:100vh; display:flex; flex-direction:column;">
+    <div class="header">
+      <div>
+        <h1>Eval Review: <span id="skill-name"></span></h1>
+        <div class="instructions">Review each output and leave feedback below. Navigate with arrow keys or buttons. When done, copy feedback and paste into Claude Code.</div>
+      </div>
+      <div class="progress" id="progress"></div>
+    </div>
+
+    <!-- View tabs (only shown when benchmark data exists) -->
+    <div class="view-tabs" id="view-tabs" style="display:none;">
+      <button class="view-tab active" onclick="switchView('outputs')">Outputs</button>
+      <button class="view-tab" onclick="switchView('benchmark')">Benchmark</button>
+    </div>
+
+    <!-- Outputs panel (qualitative review) -->
+    <div class="view-panel active" id="panel-outputs">
+    <div class="main">
+      <!-- Prompt -->
+      <div class="section">
+        <div class="section-header">Prompt <span class="config-badge" id="config-badge" style="display:none;"></span></div>
+        <div class="section-body">
+          <div class="prompt-text" id="prompt-text"></div>
+        </div>
+      </div>
+
+      <!-- Outputs -->
+      <div class="section">
+        <div class="section-header">Output</div>
+        <div class="section-body" id="outputs-body">
+          <div class="empty-state">No output files found</div>
+        </div>
+      </div>
+
+      <!-- Previous Output (collapsible) -->
+      <div class="section" id="prev-outputs-section" style="display:none;">
+        <div class="section-header">
+          <div class="grades-toggle" onclick="togglePrevOutputs()">
+            <span class="arrow" id="prev-outputs-arrow">&#9654;</span>
+            Previous Output
+          </div>
+        </div>
+        <div class="grades-content" id="prev-outputs-content"></div>
+      </div>
+
+      <!-- Grades (collapsible) -->
+      <div class="section" id="grades-section" style="display:none;">
+        <div class="section-header">
+          <div class="grades-toggle" onclick="toggleGrades()">
+            <span class="arrow" id="grades-arrow">&#9654;</span>
+            Formal Grades
+          </div>
+        </div>
+        <div class="grades-content" id="grades-content"></div>
+      </div>
+
+      <!-- Feedback -->
+      <div class="section">
+        <div class="section-header">Your Feedback</div>
+        <div class="section-body">
+          <textarea
+            class="feedback-textarea"
+            id="feedback"
+            placeholder="What do you think of this output? Any issues, suggestions, or things that look great?"
+          ></textarea>
+          <div class="feedback-status" id="feedback-status"></div>
+          <div class="prev-feedback" id="prev-feedback" style="display:none;">
+            <div class="prev-feedback-label">Previous feedback</div>
+            <div id="prev-feedback-text"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="nav" id="outputs-nav">
+      <button class="nav-btn" id="prev-btn" onclick="navigate(-1)">&#8592; Previous</button>
+      <button class="done-btn" id="done-btn" onclick="showDoneDialog()">Submit All Reviews</button>
+      <button class="nav-btn" id="next-btn" onclick="navigate(1)">Next &#8594;</button>
+    </div>
+    </div><!-- end panel-outputs -->
+
+    <!-- Benchmark panel (quantitative stats) -->
+    <div class="view-panel" id="panel-benchmark">
+      <div class="benchmark-view" id="benchmark-content">
+        <div class="benchmark-empty">No benchmark data available. Run a benchmark to see quantitative results here.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Done overlay -->
+  <div class="done-overlay" id="done-overlay">
+    <div class="done-card">
+      <h2>Review Complete</h2>
+      <p>Your feedback has been saved. Go back to your Claude Code session and tell Claude you're done reviewing.</p>
+      <div class="btn-row">
+        <button onclick="closeDoneDialog()">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast" id="toast"></div>
+
+  <script>
+    // ---- Embedded data (injected by generate_review.py) ----
+    const EMBEDDED_DATA = {"skill_name": "onion-architecture", "runs": [{"id": "eval-bookmarks-routes-sql-with_skill", "prompt": "I'm adding a bookmarks feature to our Fastify API. I've already put some code together \u2014 can you review the module and tell me if it's placed correctly across the layers, and what (if anything) needs to change before I ship it?", "eval_id": 1, "outputs": [{"name": "review.md", "type": "text", "content": "# Architecture Review: `modules/bookmarks/routes.ts`\n\nReviewed against the onion-architecture skill and the placement table therein.\n\n---\n\n## Summary\n\nThe file ships with **five distinct violations**. Every ring between `routes.ts`\nand the database is collapsed: there is no `service.ts`, no `repository.ts`,\nno DTO mapping, and business errors are expressed as raw HTTP codes rather than\ndomain errors. Nothing is correctly placed; only the Fastify plugin scaffold\nand Zod body schema are in the right layer.\n\n---\n\n## Violation 1 \u2014 SQL queries live in `routes.ts` (routes bypass repository)\n\n**Rings affected:** routes \u2192 ~~repository~~ (repository ring is missing entirely)\n\n**Files / lines:**\n\n| Location | Detail |\n|---|---|\n| `routes.ts:1` | `import { eq, and } from 'drizzle-orm'` \u2014 Drizzle operators belong in `repository.ts` |\n| `routes.ts:4` | `import * as t from '../../db/schema.js'` \u2014 schema import belongs in `repository.ts` |\n| `routes.ts:15-18` | `db.select().from(t.bookmarks).where(\u2026)` \u2014 SELECT for list handler |\n| `routes.ts:29-33` | `db.select().from(t.bookmarks).where(and(\u2026))` \u2014 SELECT for duplicate check |\n| `routes.ts:38-41` | `db.insert(t.bookmarks).values(\u2026).returning()` \u2014 INSERT |\n| `routes.ts:50-53` | `db.delete(t.bookmarks).where(and(\u2026))` \u2014 DELETE |\n\n**Rule:** The placement table is unambiguous \u2014 *\"Any Drizzle query \u2192 `modules/<n>/repository.ts`\"*. Routes must never touch `drizzle-orm` operators or `db/schema.ts` directly.\n\n**Fix:** Create `modules/bookmarks/repository.ts` and move all four queries there as named functions. Routes call the repository functions; they never see a Drizzle query.\n\n```ts\n// modules/bookmarks/repository.ts\nimport { eq, and } from 'drizzle-orm';\nimport type { Db } from '../../db/client.js';\nimport * as t from '../../db/schema.js';\n\nexport async function listBookmarks(db: Db, workspaceId: string) {\n  return db.select().from(t.bookmarks).where(eq(t.bookmarks.workspaceId, workspaceId));\n}\n\nexport async function findBookmarkByUrl(db: Db, workspaceId: string, url: string) {\n  return db.select().from(t.bookmarks)\n    .where(and(eq(t.bookmarks.workspaceId, workspaceId), eq(t.bookmarks.url, url)));\n}\n\nexport async function createBookmark(db: Db, values: { workspaceId: string; url: string; title: string; tags: string[]; createdBy: string }) {\n  const [row] = await db.insert(t.bookmarks).values(values).returning();\n  return row;\n}\n\nexport async function deleteBookmark(db: Db, workspaceId: string, id: string) {\n  await db.delete(t.bookmarks)\n    .where(and(eq(t.bookmarks.id, id), eq(t.bookmarks.workspaceId, workspaceId)));\n}\n```\n\n---\n\n## Violation 2 \u2014 Business logic (duplicate URL invariant) lives in `routes.ts` (routes bypass service)\n\n**Rings affected:** routes \u2192 ~~service~~ (service ring is missing entirely)\n\n**Files / lines:**\n\n| Location | Detail |\n|---|---|\n| `routes.ts:29-35` | Duplicate-URL check: `if (existing.length > 0) { \u2026 }` \u2014 a business invariant |\n\n**Rule:** *\"Orchestration, invariants, business rules \u2192 `modules/<n>/service.ts` \u2014 zero SQL\"*. The question \"can this URL be bookmarked in this workspace?\" is a business rule, not an HTTP concern. Routes must not encode it.\n\n**Fix:** Create `modules/bookmarks/service.ts` that owns this invariant and throws a typed domain error (see Violation 4). Routes call `bookmarkService.create(\u2026)` and let any thrown error propagate to Fastify's error handler.\n\n```ts\n// modules/bookmarks/service.ts  (abbreviated)\nimport { ConflictError } from '../../platform/errors.js';\nimport * as repo from './repository.js';\n\nexport async function createBookmark(db: Db, workspaceId: string, userId: string, body: CreateBookmarkBody) {\n  const existing = await repo.findBookmarkByUrl(db, workspaceId, body.url);\n  if (existing.length > 0) throw new ConflictError('Bookmark already exists');\n  const row = await repo.createBookmark(db, { ...body, workspaceId, createdBy: userId });\n  return toBookmarkDto(row);   // see Violation 3\n}\n```\n\n---\n\n## Violation 3 \u2014 Raw `$inferSelect` rows returned directly to the caller (no DTO mapping)\n\n**Rings affected:** repository \u2192 routes (missing helpers.ts mapper)\n\n**Files / lines:**\n\n| Location | Detail |\n|---|---|\n| `routes.ts:19` | `reply.send(rows)` \u2014 `rows` is `typeof t.bookmarks.$inferSelect[]`, a raw DB row type |\n| `routes.ts:43` | `reply.status(201).send(row)` \u2014 same: `row` is `$inferSelect` |\n\n**Rule:** *\"Returning a `$inferSelect` row outward? \u2192 map to a DTO in helpers.ts\"*. DB row types are an implementation detail of the repository ring. Leaking them through the HTTP response couples the API shape to the table schema and makes future schema changes breaking changes.\n\n**Fix:** Add `modules/bookmarks/helpers.ts` with a `toBookmarkDto` function. Call it in the service before returning, and in the routes layer only through the service's return type.\n\n```ts\n// modules/bookmarks/helpers.ts\nimport type { bookmarks } from '../../db/schema.js';\nimport type { InferSelectModel } from 'drizzle-orm';\n\nexport type BookmarkDto = {\n  id: string;\n  url: string;\n  title: string;\n  tags: string[];\n  createdAt: string;\n};\n\nexport function toBookmarkDto(row: InferSelectModel<typeof bookmarks>): BookmarkDto {\n  return {\n    id: row.id,\n    url: row.url,\n    title: row.title,\n    tags: row.tags,\n    createdAt: row.createdAt.toISOString(),\n  };\n}\n```\n\n---\n\n## Violation 4 \u2014 HTTP status code for conflict hardcoded in `routes.ts` instead of using `platform/errors.ts`\n\n**Rings affected:** routes (misuse of platform layer)\n\n**Files / lines:**\n\n| Location | Detail |\n|---|---|\n| `routes.ts:35-36` | `reply.status(409).send({ error: { code: 'conflict', message: 'Bookmark already exists' } })` |\n\n**Rule:** `platform/errors.ts` exports `ConflictError` (status 409) and `NotFoundError` (status 404) precisely so that domain errors are expressed once and translated uniformly by Fastify's error handler. Hard-coding `reply.status(409)` in a route handler bypasses that translation path and scatters HTTP status logic across handlers.\n\nNote that the DELETE handler (`routes.ts:50-54`) silently succeeds even when no row is found (no `404` is returned). With a proper service layer, the service would throw `NotFoundError` after checking the delete result, and the error handler would translate it to 404 automatically.\n\n**Fix:** Remove the inline `reply.status(409).send(\u2026)` block. Throw `new ConflictError('Bookmark already exists')` from the service (see Violation 2). Fastify's error handler (already wired via `platform/`) will send the correct 409 shape.\n\n---\n\n## Violation 5 \u2014 Route params cast with `as` instead of validated with Zod\n\n**Rings affected:** routes (HTTP validation gap)\n\n**Files / lines:**\n\n| Location | Detail |\n|---|---|\n| `routes.ts:48` | `const { id } = req.params as { id: string }` \u2014 unsafe cast, bypasses Fastify schema validation |\n\n**Rule:** Routes own HTTP validation; the Zod schema passed to `schema:` is the correct mechanism, not a TypeScript cast. A cast does not validate at runtime.\n\n**Fix:** Add a `ParamsSchema` and pass it in the route's `schema` option:\n\n```ts\nconst BookmarkParams = z.object({ id: z.string().uuid() });\n\napp.delete('/bookmarks/:id', {\n  schema: { params: BookmarkParams },\n}, async (req, reply) => {\n  const { id } = req.params as z.infer<typeof BookmarkParams>; // safe after schema validation\n  \u2026\n});\n```\n\n---\n\n## Recommended final shape\n\nAfter all fixes, the module should contain exactly these files \u2014 none more, none fewer:\n\n```\nmodules/bookmarks/\n  routes.ts       HTTP handlers, Zod schemas, status codes \u2014 no SQL, no business logic\n  service.ts      Business invariants (duplicate check, existence guard) \u2014 no SQL, no HTTP\n  repository.ts   All Drizzle queries, always scoped by workspace_id \u2014 no HTTP, no business logic\n  helpers.ts      toBookmarkDto mapper \u2014 pure transform, no I/O\n```\n\n`routes.ts` calls `service.ts`; `service.ts` calls `repository.ts`; `repository.ts` calls `db`; `helpers.ts` is called by `service.ts`. No ring imports a ring that is farther from the center than itself.\n"}], "grading": {"eval_id": 1, "eval_name": "bookmarks-routes-sql", "configuration": "with_skill", "expectations": [{"text": "flags-sql-in-routes: Identifies that SQL/Drizzle queries appear directly in routes.ts", "passed": true, "evidence": "Violation 1 explicitly lists routes.ts:1,4,15-18,29-33,38-41,50-53 as SQL/Drizzle query locations with exact line numbers"}, {"text": "identifies-missing-repository: Notes that no repository.ts exists for the bookmarks module", "passed": true, "evidence": "States 'the repository ring is missing entirely' and 'modules/bookmarks/ [has] no repository.ts' in the recommended final shape"}, {"text": "identifies-missing-service: Notes that no service.ts exists for the bookmarks module", "passed": true, "evidence": "Violation 2 states 'service ring is missing entirely'; recommended shape lists service.ts as missing"}, {"text": "suggests-concrete-fix: Recommends extracting or creating repository.ts", "passed": true, "evidence": "Fix section for Violation 1 provides full skeleton code for repository.ts with named query functions"}], "pass_count": 4, "total_count": 4, "pass_rate": 1.0}}, {"id": "eval-bookmarks-routes-sql-without_skill", "prompt": "I'm adding a bookmarks feature to our Fastify API. I've already put some code together \u2014 can you review the module and tell me if it's placed correctly across the layers, and what (if anything) needs to change before I ship it?", "eval_id": 1, "outputs": [{"name": "review.md", "type": "text", "content": "# Architecture Review: Bookmarks Module\n\n**File reviewed:** `modules/bookmarks/routes.ts`  \n**Date:** 2026-10-06\n\n---\n\n## Summary\n\nThe bookmarks module collapses three distinct architectural concerns \u2014 HTTP\nrouting, business logic, and data access \u2014 into a single file.  In a\nlayered/onion architecture the rule is that each ring may only depend on rings\ninward from it; the HTTP layer (routes) must not reach directly into the\ndatabase layer.  Every issue below is a consequence of that collapsed structure.\n\n---\n\n## Findings\n\n### CRITICAL \u2014 Routes import the database schema directly\n\n**File:** `modules/bookmarks/routes.ts:4`\n\n```ts\nimport * as t from '../../db/schema.js';\n```\n\nThe database schema (`db/schema.ts`) belongs to the infrastructure/persistence\nring.  Routes belong to the outermost delivery ring.  A route file importing DB\nschema directly skips both the service and repository layers, welding HTTP\nconcerns to storage concerns.  Any change to the DB column names or table\nstructure now forces edits in the HTTP handler.\n\n**Fix:** Introduce a `repository.ts` (or `repository/` folder) that owns all\nDrizzle queries.  The routes file should never reference `db/schema.ts`.\n\n---\n\n### CRITICAL \u2014 Raw Drizzle queries live inside route handlers\n\n**File:** `modules/bookmarks/routes.ts:15\u201318, 29\u201333, 38\u201341, 50\u201353`\n\n```ts\nconst rows = await app.container.db\n  .select()\n  .from(t.bookmarks)\n  .where(eq(t.bookmarks.workspaceId, ws.id));\n```\n\nData-access code (constructing and executing queries) is the repository layer's\njob.  Having it in route handlers means the HTTP handler knows about Drizzle,\ntable names, and column predicates.  This breaks the dependency rule: the\ndelivery layer now depends on the persistence layer directly.\n\n**Fix:** Move every query into a `BookmarksRepository` class (or module-level\nfunctions in `repository.ts`).  Route handlers should call something like\n`repo.listByWorkspace(ws.id)`, not build a Drizzle query inline.\n\n---\n\n### HIGH \u2014 Business logic lives in a route handler\n\n**File:** `modules/bookmarks/routes.ts:29\u201335`\n\n```ts\nconst existing = await app.container.db\n  .select()\n  .from(t.bookmarks)\n  .where(and(eq(t.bookmarks.workspaceId, ws.id), eq(t.bookmarks.url, body.url)));\n\nif (existing.length > 0) {\n  return reply.status(409).send({ error: { code: 'conflict', message: 'Bookmark already exists' } });\n}\n```\n\nThe rule \"a URL may not be bookmarked twice in a workspace\" is a domain\ninvariant, not an HTTP concern.  Embedding it in the route handler means the\nbusiness rule cannot be reused, tested independently of HTTP, or enforced by any\nnon-HTTP caller (e.g. a future CLI or background job).\n\n**Fix:** Move the duplicate-URL guard into a `BookmarksService.create()` method\nthat throws a `ConflictError` (see below).  The route handler's responsibility\nends at translating the HTTP request into a service call and the service result\ninto an HTTP response.\n\n---\n\n### HIGH \u2014 Manual 409 response instead of `ConflictError`\n\n**File:** `modules/bookmarks/routes.ts:35`\n\n```ts\nreturn reply.status(409).send({ error: { code: 'conflict', message: 'Bookmark already exists' } });\n```\n\nThe project already has `platform/errors.ts` with a `ConflictError` class whose\npurpose is exactly this.  Bypassing it produces an inconsistent error-response\nshape (the manual payload may not match what the central Fastify error handler\nproduces from an `AppError`) and means this endpoint behaves differently from\nevery other endpoint that uses the shared error hierarchy.\n\n**Fix:** Throw `new ConflictError('Bookmark already exists')` from the service\nlayer and let the platform error handler serialize it uniformly.\n\n---\n\n### HIGH \u2014 Missing service layer\n\nThere is no `modules/bookmarks/service.ts`.  In a layered architecture the\ncanonical module structure for `server/src/modules/<name>/` is:\n\n```\nroutes.ts      \u2190 HTTP delivery only\nservice.ts     \u2190 orchestration + business rules\nrepository.ts  \u2190 data access\n```\n\nThe absence of a service layer is what forced both the business logic and the\nDB queries to leak into the routes file.\n\n**Fix:** Create `service.ts` with at minimum `list(workspaceId)`, `create(data)`,\nand `remove(id, workspaceId)`.  Routes call the service; the service calls the\nrepository.\n\n---\n\n### MEDIUM \u2014 `req.params` cast is unvalidated\n\n**File:** `modules/bookmarks/routes.ts:48`\n\n```ts\nconst { id } = req.params as { id: string };\n```\n\nThe POST handler validates its body with a Zod schema, but the DELETE handler\ncasts `req.params` unsafely.  If the route is registered with a dynamic segment\nthe value is always a string, but there is no schema attached to the route\ndefinition, so Fastify performs no coercion or validation.  More importantly,\nthe inconsistency is a signal: params should be declared in the route schema just\nas the body is.\n\n**Fix:** Declare a params schema for the DELETE route:\n\n```ts\nconst BookmarkParams = z.object({ id: z.string().uuid() });\n\napp.delete('/bookmarks/:id', {\n  schema: { params: BookmarkParams },\n}, async (req, reply) => { ... });\n```\n\n---\n\n### MEDIUM \u2014 DELETE silently succeeds for non-existent IDs\n\n**File:** `modules/bookmarks/routes.ts:50\u201353`\n\n```ts\nawait app.container.db\n  .delete(t.bookmarks)\n  .where(and(eq(t.bookmarks.id, id), eq(t.bookmarks.workspaceId, ws.id)));\n\nreturn reply.status(204).send();\n```\n\nThe handler always returns `204` regardless of whether any row was deleted.\nBecause `NotFoundError` exists in `platform/errors.ts`, the project convention\nis to surface 404 when a requested resource does not exist.  Returning `204` for\na non-existent ID is misleading to callers.\n\n**Fix:** Use Drizzle's `.returning()` (or check affected row count) to detect a\nno-op delete.  If no row was deleted, throw `new NotFoundError('Bookmark')`.\nMove this check into the service layer.\n\n---\n\n### LOW \u2014 Zod schema passed to Fastify `schema` without a type provider\n\n**File:** `modules/bookmarks/routes.ts:22\u201324`\n\n```ts\napp.post('/bookmarks', {\n  schema: { body: CreateBookmarkBody },\n}, async (req, reply) => {\n```\n\nFastify's native JSON Schema validator does not understand a Zod object.  Without\n`@fastify/type-provider-zod` (or equivalent) configured globally, Fastify will\neither ignore the schema entirely or throw at startup.  The subsequent manual\ncast on line 27 (`req.body as z.infer<typeof CreateBookmarkBody>`) suggests the\nauthor knows Fastify is not actually parsing with Zod, which makes the schema\ndeclaration misleading \u2014 it appears to be validation but may not be.\n\n**Fix:** Either configure the Zod type provider globally so Fastify uses the\nschema for both validation and type inference (making the cast on line 27\nunnecessary), or convert `CreateBookmarkBody` to a plain JSON Schema object and\nuse `z.infer` only for the TypeScript type.\n\n---\n\n### LOW \u2014 GET returns unbounded result set\n\n**File:** `modules/bookmarks/routes.ts:15\u201319`\n\n```ts\nconst rows = await app.container.db\n  .select()\n  .from(t.bookmarks)\n  .where(eq(t.bookmarks.workspaceId, ws.id));\nreturn reply.send(rows);\n```\n\nNo `limit`, `offset`, or cursor is applied.  For workspaces with many bookmarks\nthis will return an arbitrarily large payload in a single request.\n\n**Fix:** Add pagination (at minimum a `limit`/`offset` query-param pair validated\nin the route schema).  Move the paginated query into the repository.\n\n---\n\n## Recommended module structure\n\n```\nsrc/modules/bookmarks/\n  routes.ts       # HTTP only: parse \u2192 call service \u2192 respond\n  service.ts      # Domain rules: duplicate guard, ownership checks\n  repository.ts   # Drizzle queries only; no business logic\n```\n\nAfter refactoring, `routes.ts` should contain zero imports from `db/schema.ts`,\nzero inline Drizzle queries, and zero business-rule conditionals.\n"}], "grading": {"eval_id": 1, "eval_name": "bookmarks-routes-sql", "configuration": "without_skill", "expectations": [{"text": "flags-sql-in-routes: Identifies that SQL/Drizzle queries appear directly in routes.ts", "passed": true, "evidence": "Two CRITICAL findings: 'Routes import the database schema directly' (routes.ts:4) and 'Raw Drizzle queries live inside route handlers' (routes.ts:15-18,29-33,38-41,50-53)"}, {"text": "identifies-missing-repository: Notes that no repository.ts exists for the bookmarks module", "passed": true, "evidence": "HIGH finding 'Missing service layer' mentions standard structure; CRITICAL finding says 'Introduce a repository.ts... that owns all Drizzle queries'"}, {"text": "identifies-missing-service: Notes that no service.ts exists for the bookmarks module", "passed": true, "evidence": "HIGH finding explicitly titled 'Missing service layer' with canonical routes/service/repository structure"}, {"text": "suggests-concrete-fix: Recommends extracting or creating repository.ts", "passed": true, "evidence": "Fix section recommends 'Introduce a repository.ts (or repository/ folder) that owns all Drizzle queries'"}], "pass_count": 4, "total_count": 4, "pass_rate": 1.0}}, {"id": "eval-digests-concrete-adapter-with_skill", "prompt": "Here's our new digests module \u2014 a service that calls OpenAI to summarise PRs and stores the results. Please review it for architectural correctness against our onion-architecture conventions before I open a PR.", "eval_id": 2, "outputs": [{"name": "review.md", "type": "text", "content": "# Architecture Review \u2014 `modules/digests`\n\nReviewed against the onion-architecture conventions in `server/src/`:\nrings flow inward-only, adapters implement ports defined in\n`vendor/shared/adapters.ts`, the container is the only place adapters are\nwired, and secrets flow exclusively through `SecretsProvider`.\n\n---\n\n## Findings\n\n### V1 \u2014 Service imports a concrete adapter by path (CRITICAL)\n\n**File:** `modules/digests/service.ts:2`\n\n```ts\nimport { OpenAICompletionClient } from '../../adapters/openai/client.js';\n```\n\n**Ring violated:** Use Cases (service) \u2192 Adapters. The rule is that the\nservice tier couples only to _ports_ (interfaces in `vendor/shared/adapters.ts`),\nnever to a concrete adapter class. A direct import from `adapters/**` in a\nservice is the same anti-pattern documented in `reference/anti-patterns.md`\nunder \"Service importing concrete adapters instead of ports\"\n(`modules/repo-intel/service.ts:22,28`).\n\nThe consequence: any test that instantiates `DigestService` is forced to\nload the real `openai` SDK. There is no test seam.\n\n**Fix:** Declare an `LLMProvider` port (one already exists at\n`vendor/shared/adapters.ts:21\u201323`) and resolve it through the container \u2014 see\nV4 and V5 below for the companion changes required.\n\n---\n\n### V2 \u2014 Service reads `process.env` for a secret and constructs the adapter itself (CRITICAL)\n\n**File:** `modules/digests/service.ts:12`\n\n```ts\nthis.llm = new OpenAICompletionClient(process.env.OPENAI_API_KEY ?? '');\n```\n\nTwo violations in one line:\n\n1. **Secret bypasses `SecretsProvider`.** `process.env` must never be read in\n   feature code. The single env-read point is `adapters/secrets/local.ts`.\n   All feature code calls `container.secrets.get('OPENAI_API_KEY')` (async).\n   A synchronous `process.env` read here means a missing key silently produces\n   an empty string; `SecretsProvider.get` can throw a typed error or be mocked\n   to an always-missing value in tests.\n\n2. **Adapter is `new`-ed inside the service.** The service constructs the\n   adapter rather than receiving it from the container. Even if the import were\n   fixed, the `new` call means the container can never inject a mock. See the\n   \"Service importing concrete adapters\" anti-pattern in `reference/anti-patterns.md`.\n\n**Fix:**\n- Add an `llm` getter to `Container` (see V5).\n- Change `DigestService` to accept `LLMProvider` as a constructor argument\n  (or resolve it from the container before constructing the service in\n  `routes.ts`).\n- The `OpenAICompletionClient` constructor should read its key via\n  `SecretsProvider`, or `container.llm` should call `secrets.get` when it\n  lazily initialises the client (mirror the `github()` getter pattern in\n  `platform/container.ts:30\u201338`).\n\n---\n\n### V3 \u2014 `OpenAICompletionClient` does not implement the `LLMProvider` port (HIGH)\n\n**File:** `adapters/openai/client.ts:10`\n\n```ts\nasync complete(prompt: string, model = 'gpt-4o-mini'): Promise<string>\n```\n\nThe existing `LLMProvider` port at `vendor/shared/adapters.ts:21\u201323` has a\ndifferent signature:\n\n```ts\ncomplete(input: { model: string; prompt: string }): Promise<{ text: string; costUsd: number }>\n```\n\n`OpenAICompletionClient` is not declared `implements LLMProvider`, its\nparameter order differs, and it returns a bare `string` instead of\n`{ text, costUsd }`. This means the adapter cannot be swapped into any code\nthat types its dependency as `LLMProvider`, and the port provides no safety\nnet.\n\n**Fix:** Update `OpenAICompletionClient` to match the `LLMProvider` signature\nand add `implements LLMProvider`. If cost tracking is not yet available from\nthe OpenAI response, return `costUsd: 0` as a placeholder until the\ncompletions API response object is inspected for usage data.\n\n---\n\n### V4 \u2014 No `llm` entry in `Container` or `ContainerOverrides` (HIGH)\n\n**File:** `platform/container.ts` (entire file)\n\n`ContainerOverrides` (lines 6\u201311) has no `llm?: LLMProvider` field, and\n`Container` (lines 13\u201339) has no `llm` getter. This means:\n\n- There is no authorised injection point for the LLM provider.\n- Tests have no way to override the adapter without monkey-patching\n  `process.env` (which is the exact pattern V2 creates).\n- `pnpm arch` cannot verify the dependency edge because it is not wired\n  through the container at all.\n\n**Fix:** Following the `secrets` / `github()` pattern already in the container:\n\n```ts\n// platform/container.ts\nimport type { LLMProvider } from '../vendor/shared/adapters.js';\n\nexport interface ContainerOverrides {\n  // ...existing fields...\n  llm?: LLMProvider;\n}\n\nexport class Container {\n  private llmClient?: LLMProvider;\n\n  // lazy getter (async, mirrors github())\n  async llm(): Promise<LLMProvider> {\n    if (this.overrides.llm) return this.overrides.llm;\n    if (!this.llmClient) {\n      const apiKey = await this.secrets.get('OPENAI_API_KEY');\n      if (!apiKey) throw new Error('OPENAI_API_KEY is not configured');\n      this.llmClient = new OpenAICompletionClient(apiKey);\n    }\n    return this.llmClient;\n  }\n}\n```\n\n---\n\n### V5 \u2014 `findByRepo` ignores the `repoId` argument (MEDIUM)\n\n**File:** `modules/digests/repository.ts:10\u201314`\n\n```ts\nasync findByRepo(workspaceId: string, repoId: string): Promise<DigestRow[]> {\n  return this.db\n    .select()\n    .from(t.digests)\n    .where(eq(t.digests.workspaceId, workspaceId))   // repoId never used\n    .orderBy(t.digests.createdAt);\n}\n```\n\nThe method accepts `repoId` but the WHERE clause filters only by\n`workspaceId`. The result set will include digests from every repo in the\nworkspace. This is both a functional bug and a data-isolation risk.\n\n**Fix:**\n\n```ts\nimport { and, eq } from 'drizzle-orm';\n\nasync findByRepo(workspaceId: string, repoId: string): Promise<DigestRow[]> {\n  return this.db\n    .select()\n    .from(t.digests)\n    .where(\n      and(\n        eq(t.digests.workspaceId, workspaceId),\n        eq(t.digests.repoId, repoId),\n      )\n    )\n    .orderBy(t.digests.createdAt);\n}\n```\n\n---\n\n### V6 \u2014 `DigestRow` (`$inferSelect`) used as the public domain type (MEDIUM)\n\n**Files:**\n- `modules/digests/repository.ts:5` \u2014 `export type DigestRow = typeof t.digests.$inferSelect`\n- `modules/digests/service.ts:4,15,22` \u2014 return type of both public methods\n- `modules/digests/routes.ts:15,26` \u2014 HTTP response body\n\nThe raw Drizzle inferred type is the module's only domain type. Persistence\ndetails (exact column names, nullable inference, `Date` vs `string` coercion)\nleak from the repository outward through the service and directly into the\nHTTP response. This is the \"DB row type as the domain model\" anti-pattern\ndocumented in `reference/anti-patterns.md`.\n\nThe HTTP layer sends the raw row to the client, meaning any schema migration\nimmediately changes the API contract without a mapping step to absorb it.\n\n**Fix:** Define a `DigestDto` in a sibling `helpers.ts` and map to it in the\nrepository (or at the service boundary) before returning:\n\n```ts\n// modules/digests/helpers.ts\nimport type { DigestRow } from './repository.js';\n\nexport interface DigestDto {\n  id: string;\n  repoId: string;\n  prNumber: string;\n  summary: string;\n  createdAt: string; // ISO string, not Date\n}\n\nexport function toDigestDto(row: DigestRow): DigestDto {\n  return {\n    id: row.id,\n    repoId: row.repoId,\n    prNumber: row.prNumber,\n    summary: row.summary,\n    createdAt: row.createdAt.toISOString(),\n  };\n}\n```\n\n---\n\n## Pre-flight checklist (from the skill) applied to this module\n\n| Check | Result |\n|---|---|\n| New SDK import (`openai`) behind a port? | **FAIL** \u2014 V1, V3 |\n| Service calling `new SomeAdapter()`? | **FAIL** \u2014 V2 |\n| Secret read via `SecretsProvider`? | **FAIL** \u2014 V2 |\n| Container getter + `ContainerOverrides` key for the new adapter? | **FAIL** \u2014 V4 |\n| Query scoped by `workspace_id`? | Pass (present, but `repoId` missing \u2014 V5) |\n| `$inferSelect` row returned outward? | **FAIL** \u2014 V6 |\n| `repository.ts` exists for queries? | Pass |\n| `service.ts` has zero SQL? | Pass |\n| `routes.ts` has zero business logic? | Pass |\n\n---\n\n## Summary\n\n| # | File | Line(s) | Severity | Ring affected |\n|---|---|---|---|---|\n| V1 | `service.ts` | 2 | CRITICAL | Use Cases \u2192 Adapters (wrong direction) |\n| V2 | `service.ts` | 12 | CRITICAL | Use Cases reads env + constructs adapter |\n| V3 | `adapters/openai/client.ts` | 10 | HIGH | Adapters \u2014 port not implemented |\n| V4 | `platform/container.ts` | (absent) | HIGH | Composition root \u2014 no wiring for `LLMProvider` |\n| V5 | `repository.ts` | 10\u201314 | MEDIUM | Persistence \u2014 missing `repoId` filter |\n| V6 | `repository.ts` | 5 | MEDIUM | Persistence details leak through all three tiers |\n\nV1 and V2 are blockers for the PR. V3 and V4 must be fixed together with V1/V2\nas part of the same change \u2014 they are the other half of the same port+adapter\npattern. V5 is a functional bug. V6 is lower priority but should be addressed\nbefore the module grows a third consumer of `DigestRow`.\n"}], "grading": {"eval_id": 2, "eval_name": "digests-concrete-adapter", "configuration": "with_skill", "expectations": [{"text": "flags-concrete-adapter-import: Flags that service.ts imports the concrete OpenAICompletionClient by path rather than through a port", "passed": true, "evidence": "V1 at service.ts:2 \u2014 'Service imports a concrete adapter by path' with exact import path ../../adapters/openai/client.js cited"}, {"text": "flags-new-in-service: Flags that the service instantiates the adapter with `new` instead of using the container", "passed": true, "evidence": "V2 at service.ts:12 \u2014 'Adapter is new-ed inside the service. The service constructs the adapter rather than receiving it from the container'"}, {"text": "mentions-port-solution: Recommends declaring a port interface and wiring through the container", "passed": true, "evidence": "V1 fix: 'Declare an LLMProvider port (one already exists at vendor/shared/adapters.ts:21-23) and resolve it through the container'; V4 provides complete Container getter skeleton"}], "pass_count": 3, "total_count": 3, "pass_rate": 1.0}}, {"id": "eval-digests-concrete-adapter-without_skill", "prompt": "Here's our new digests module \u2014 a service that calls OpenAI to summarise PRs and stores the results. Please review it for architectural correctness against our onion-architecture conventions before I open a PR.", "eval_id": 2, "outputs": [{"name": "review.md", "type": "text", "content": "# Architecture Review: `digests` Module\n\n**Reviewer:** General best-practice review (no framework skill loaded)\n**Files reviewed:**\n- `_base/server/src/vendor/shared/adapters.ts`\n- `_base/server/src/db/schema.ts`\n- `_base/server/src/platform/container.ts`\n- `tc2/server/src/adapters/openai/client.ts`\n- `tc2/server/src/modules/digests/repository.ts`\n- `tc2/server/src/modules/digests/service.ts`\n- `tc2/server/src/modules/digests/routes.ts`\n\n---\n\n## Summary\n\nThe module has **four architectural violations** and **two secondary issues** that should be resolved before merging. The most serious violation is that the service layer imports a concrete infrastructure adapter directly, inverting the dependency rule at the heart of onion/hexagonal architecture.\n\n---\n\n## Violations\n\n### 1. CRITICAL \u2014 Service imports the concrete adapter, bypassing the port\n\n**File:** `service.ts:2`, `service.ts:8`, `service.ts:12`, `service.ts:21`\n\n```ts\nimport { OpenAICompletionClient } from '../../adapters/openai/client.js'; // line 2\nprivate readonly llm: OpenAICompletionClient;                              // line 8\nthis.llm = new OpenAICompletionClient(process.env.OPENAI_API_KEY ?? '');  // line 12\nconst summary = await this.llm.complete(prompt);                          // line 21\n```\n\nThe project already defines a `LLMProvider` port in `vendor/shared/adapters.ts:21\u201323`:\n\n```ts\nexport interface LLMProvider {\n  complete(input: { model: string; prompt: string }): Promise<{ text: string; costUsd: number }>;\n}\n```\n\nIn an onion/hexagonal architecture the rule is: **domain and application rings (service) depend only on ports (interfaces), never on adapters (concrete implementations)**. The adapter ring depends inward on those ports, not the reverse.\n\nHere the service depends directly on `OpenAICompletionClient`, a concrete class in the adapter ring. This means:\n- You cannot swap the LLM provider (e.g. for tests or a different vendor) without touching the service.\n- Cost tracking (`costUsd`) defined on the port is silently lost.\n- The dependency arrow points outward, violating the onion constraint.\n\n**Fix:** Have `DigestService` accept `LLMProvider` (the port interface) via constructor injection; let the `Container` resolve the concrete adapter and supply it.\n\n---\n\n### 2. CRITICAL \u2014 `OpenAICompletionClient` does not implement `LLMProvider`\n\n**File:** `adapters/openai/client.ts:10`\n\n```ts\nasync complete(prompt: string, model = 'gpt-4o-mini'): Promise<string>\n```\n\nThe `LLMProvider` port specifies:\n\n```ts\ncomplete(input: { model: string; prompt: string }): Promise<{ text: string; costUsd: number }>\n```\n\nThe concrete adapter's signature differs in both argument shape (positional `string` vs. `{ model, prompt }` object) and return type (`string` vs. `{ text, costUsd }`). `OpenAICompletionClient` does **not** declare `implements LLMProvider`, so TypeScript will not catch this mismatch.\n\nConsequences:\n- The `LLMProvider` port is effectively dead \u2014 nothing satisfies it.\n- Cost data (`costUsd`) is never captured or stored.\n- If a future caller depends on the port contract, the adapter will fail at runtime.\n\n**Fix:** Add `implements LLMProvider` to `OpenAICompletionClient`, align the method signature to `complete(input: { model: string; prompt: string }): Promise<{ text: string; costUsd: number }>`, and compute or estimate the cost from the API response's `usage` field.\n\n---\n\n### 3. HIGH \u2014 Service reads `process.env` directly, bypassing `SecretsProvider`\n\n**File:** `service.ts:12`\n\n```ts\nthis.llm = new OpenAICompletionClient(process.env.OPENAI_API_KEY ?? '');\n```\n\nThe project's declared convention (CLAUDE.md) is that secrets **never** go through `process.env` in feature code \u2014 the single env-read point is `server/src/adapters/secrets/local.ts`, and all other code obtains secrets through `SecretsProvider.get(key)`. The `Container` already exposes `container.secrets`.\n\nBeyond the convention breach, reading `process.env` here means:\n- The secret cannot be rotated or mocked in tests without patching the environment.\n- An empty key string is silently swallowed (`?? ''`), causing an authentication failure at runtime with no meaningful error.\n\n**Fix:** The `Container` (or a factory function it owns) should resolve the API key via `container.secrets.get('OPENAI_API_KEY')` and construct the adapter there; the service receives the already-built `LLMProvider` port via injection.\n\n---\n\n### 4. HIGH \u2014 `LLMProvider` not registered in `Container`\n\n**File:** `platform/container.ts` (entire file)\n\nThe container wires `GitHubClient`, `SecretsProvider`, `AuthProvider`, and `Db`, but has no `llm` accessor for `LLMProvider`. Because the service bypasses the container and constructs the adapter itself, the omission has no immediate runtime effect \u2014 but it is the structural gap that forced both violation 1 and violation 3.\n\n**Fix:** Add an `async llm(): Promise<LLMProvider>` accessor on `Container` (mirroring the pattern of `github()`) that resolves the API key via `this.secrets` and lazily constructs an `OpenAICompletionClient`. Add `llm?: LLMProvider` to `ContainerOverrides` so tests can inject a mock.\n\n---\n\n## Secondary Issues\n\n### 5. MEDIUM \u2014 `DigestService` constructs its own dependencies instead of receiving them\n\n**File:** `service.ts:11\u201312`\n\n```ts\nthis.repo = new DigestRepository(container.db);\nthis.llm = new OpenAICompletionClient(process.env.OPENAI_API_KEY ?? '');\n```\n\nEven setting aside the port violation, constructing collaborators inside the constructor couples the service tightly to its dependencies and makes unit testing require real database and API objects. In this project's style (illustrated by `Container`), collaborators are resolved externally and injected.\n\n**Fix:** Accept `DigestRepository` and `LLMProvider` as constructor parameters:\n\n```ts\nconstructor(\n  private readonly repo: DigestRepository,\n  private readonly llm: LLMProvider,\n) {}\n```\n\nThe routes create the service via a factory or ask the container for it.\n\n---\n\n### 6. MEDIUM \u2014 `DigestRepository.findByRepo` ignores the `repoId` parameter\n\n**File:** `repository.ts:10\u201316`\n\n```ts\nasync findByRepo(workspaceId: string, repoId: string): Promise<DigestRow[]> {\n  return this.db\n    .select()\n    .from(t.digests)\n    .where(eq(t.digests.workspaceId, workspaceId))  // repoId never used\n    .orderBy(t.digests.createdAt);\n}\n```\n\nThe `repoId` argument is accepted but silently dropped. Every call will return all digests for the workspace, not just those for the requested repo. The `digests` table has a `repo_id` column (`schema.ts:22`).\n\n**Fix:** Add a second condition to the `where` clause:\n\n```ts\n.where(\n  and(\n    eq(t.digests.workspaceId, workspaceId),\n    eq(t.digests.repoId, repoId),\n  )\n)\n```\n\n---\n\n### 7. LOW \u2014 Route handler casts `req.params` with `as` instead of validating it\n\n**File:** `routes.ts:13`, `routes.ts:23`\n\n```ts\nconst { repoId } = req.params as { repoId: string };\n```\n\nFastify 5 supports JSON Schema or a Zod-based type provider for route params. A type assertion bypasses runtime validation; a malformed `repoId` will propagate into service and DB calls silently. The `body` is validated via Zod schema on the same routes, so the asymmetry is notable.\n\n**Fix:** Add a `params` schema to both route definitions, matching the pattern used for `body`.\n\n---\n\n## Dependency-direction summary\n\n```\nroutes.ts  \u2192  service.ts  \u2192  LLMProvider (port)  \u2190  OpenAICompletionClient\n                          \u2192  DigestRepository\n                          (no direct import of adapters)\n```\n\nThe current code shortcircuits this to:\n\n```\nroutes.ts  \u2192  service.ts  \u2192  OpenAICompletionClient  (wrong \u2014 inward ring imports outward ring)\n                          \u2192  DigestRepository\n```\n\nFixing violations 1\u20134 restores the correct direction.\n"}], "grading": {"eval_id": 2, "eval_name": "digests-concrete-adapter", "configuration": "without_skill", "expectations": [{"text": "flags-concrete-adapter-import: Flags that service.ts imports the concrete OpenAICompletionClient by path rather than through a port", "passed": true, "evidence": "CRITICAL finding 1 \u2014 'Service imports and directly instantiates OpenAICompletionClient (concrete adapter ring), bypassing the LLMProvider port'"}, {"text": "flags-new-in-service: Flags that the service instantiates the adapter with `new` instead of using the container", "passed": true, "evidence": "Mentioned in CRITICAL finding 1 and MEDIUM finding 5 \u2014 'Service constructs its own collaborators (DigestRepository, OpenAICompletionClient) in the constructor instead of receiving them via injection'"}, {"text": "mentions-port-solution: Recommends declaring a port interface and wiring through the container", "passed": true, "evidence": "CRITICAL finding 2 \u2014 'OpenAICompletionClient does not implement LLMProvider'; HIGH finding 4 \u2014 'No llm(): Promise<LLMProvider> accessor on Container'; fix implies implementing LLMProvider"}], "pass_count": 3, "total_count": 3, "pass_rate": 1.0}}, {"id": "eval-alerts-cross-module-with_skill", "prompt": "We're building an alerts module for webhook notification channels. I've written the routes, service, and repository \u2014 can you do a quick architecture check and let me know if anything violates our onion-architecture rules?", "eval_id": 3, "outputs": [{"name": "review.md", "type": "text", "content": "# Onion Architecture Review \u2014 `modules/alerts`\n\nReviewed files:\n- `modules/alerts/repository.ts`\n- `modules/alerts/service.ts`\n- `modules/alerts/routes.ts`\n- `modules/repos/constants.ts` (imported by service)\n- `vendor/shared/adapters.ts`, `db/schema.ts`, `platform/container.ts` (base)\n\n---\n\n## Summary\n\nThree violations found. The repository layer is clean. The service layer has two\nviolations (SQL bypass + cross-module import). All three layers share one\nadditional violation: raw DB rows are returned outward without DTO mapping,\nwhich leaks a sensitive field (`signingSecret`) to callers.\n\n---\n\n## Violation 1 \u2014 SQL in the service layer\n\n**Severity: HIGH**\n**Ring affected: service (use-case) ring**\n**Files:** `service.ts:1`, `service.ts:3`, `service.ts:23\u201329`\n\n```\n// service.ts\n1  import { eq, and } from 'drizzle-orm';\n3  import * as t from '../../db/schema.js';\n\n23     const existing = await this.container.db\n24       .select()\n25       .from(t.alertChannels)\n26       .where(and(\n27         eq(t.alertChannels.workspaceId, workspaceId),\n28         eq(t.alertChannels.webhookUrl, data.webhookUrl),\n29       ));\n```\n\nThe rule is absolute: `service.ts` must contain **zero SQL**. The duplicate-URL\ncheck is a valid business invariant, but implementing it with a raw Drizzle\nquery inside the service is the exact pattern flagged in\n`reference/anti-patterns.md` under \"Service tier reaching past its repository\"\n(`modules/settings/feature-models.ts:41` is the canonical example).\n\nThe consequence is that SQL now lives in two places \u2014 `repository.ts` (for\n`findAll`/`findById`/`insert`) and `service.ts` (for the duplicate check).\n`workspace_id` scoping can no longer be verified in a single file, which is the\nprimary reason the repository abstraction exists.\n\n**Fix:** Add a `findByWebhookUrl` method to `AlertChannelRepository` and remove\nthe Drizzle imports from `service.ts`:\n\n```ts\n// repository.ts \u2014 add this method\nasync findByWebhookUrl(workspaceId: string, webhookUrl: string) {\n  const rows = await this.db\n    .select()\n    .from(t.alertChannels)\n    .where(and(\n      eq(t.alertChannels.workspaceId, workspaceId),\n      eq(t.alertChannels.webhookUrl, webhookUrl),\n    ));\n  return rows[0] ?? null;\n}\n\n// service.ts \u2014 replace the inline query\nasync createChannel(workspaceId: string, data: { ... }) {\n  const existing = await this.repo.findByWebhookUrl(workspaceId, data.webhookUrl);\n  if (existing) {\n    throw new Error('A channel with this webhook URL already exists');\n  }\n  return this.repo.insert({ ...data, workspaceId, enabled: true });\n}\n```\n\nAfter the fix, `service.ts` no longer needs `drizzle-orm` or `db/schema`\nimports and `this.container.db` is only used in the constructor to pass `db`\nto the repository.\n\n---\n\n## Violation 2 \u2014 Cross-module import\n\n**Severity: MEDIUM**\n**Ring affected: service (use-case) ring**\n**Files:** `service.ts:4`, `service.ts:38\u201340`\n\n```\n// service.ts\n4  import { DEFAULT_BRANCH } from '../repos/constants.js';\n\n38   async getDefaultBranch(): Promise<string> {\n39     return DEFAULT_BRANCH;\n40   }\n```\n\nFeature modules are siblings, not a hierarchy. `alerts/service.ts` importing\ndirectly from `../repos/constants.js` creates an undeclared dependency between\ntwo modules that bypasses the composition root \u2014 identical in structure to the\ndocumented violation at `modules/repos/service.ts:14` (`anti-patterns.md`\n\"Cross-module import\" section).\n\n`getDefaultBranch()` is also semantically misplaced: the alerts module is\nresponsible for webhook notification channels, not for Git branch configuration.\nIts presence here suggests either the method was added for convenience or it\nbelongs in a different module entirely.\n\n**Fix \u2014 two options, pick one:**\n\nOption A (if `getDefaultBranch` is genuinely needed in the alerts module):\nPromote `DEFAULT_BRANCH` to a cross-cutting location that modules may share:\n```\nserver/src/platform/git-defaults.ts   // or vendor/shared, if shared with client\nexport const DEFAULT_BRANCH = 'main';\n```\nThen both `repos/` and `alerts/` import from there, with no sibling dependency.\n\nOption B (if `getDefaultBranch` is not actually needed by alerts callers):\nDelete the method from `AlertService` entirely. If a route or another service\nneeds the default branch value, have it import from a shared platform constant\nor call the `repos` service through the container.\n\n---\n\n## Violation 3 \u2014 Raw `$inferSelect` rows returned outward (includes sensitive field)\n\n**Severity: HIGH**\n**Ring affected: repository \u2192 service \u2192 routes chain**\n**Files:** `repository.ts:8\u201312` (findAll), `repository.ts:15\u201321` (findById),\n`repository.ts:23\u201326` (insert), `routes.ts:15`, `routes.ts:25`\n\n```\n// repository.ts \u2014 all three methods return raw Drizzle rows\nasync findAll(workspaceId: string) {\n  return this.db.select().from(t.alertChannels)...  // returns $inferSelect[]\n}\nasync insert(data: ...) {\n  const [row] = await this.db.insert(...).returning();\n  return row;  // returns $inferSelect\n}\n\n// routes.ts\n15   return reply.send(await svc.listChannels(ws.id));  // raw rows to HTTP\n25   return reply.status(201).send(channel);             // raw row to HTTP\n```\n\nThe skill checklist item: *\"Returning a `$inferSelect` row outward? \u2192 map to a\nDTO in `helpers.ts`.\"* The `alertChannels` schema (`db/schema.ts:28\u201336`) includes\na `signingSecret` column. Because no DTO mapping exists, that secret is\nserialised into every `GET /alert-channels` and `POST /alert-channels` response\nbody \u2014 an active security leak, not just an architectural tidiness concern.\n\nThe same anti-pattern is documented in `reference/anti-patterns.md` under\n\"DB row type as the domain model\" (`modules/reviews/repository.ts:19`).\n\n**Fix:** Add a `helpers.ts` file in `modules/alerts/` with a DTO type and a\nmapping function:\n\n```ts\n// modules/alerts/helpers.ts\nimport type * as t from '../../db/schema.js';\n\nexport type AlertChannelDto = {\n  id: string;\n  workspaceId: string;\n  name: string;\n  webhookUrl: string;\n  enabled: boolean;\n  createdAt: Date;\n  // signingSecret intentionally omitted\n};\n\nexport function toAlertChannelDto(\n  row: typeof t.alertChannels.$inferSelect,\n): AlertChannelDto {\n  return {\n    id: row.id,\n    workspaceId: row.workspaceId,\n    name: row.name,\n    webhookUrl: row.webhookUrl,\n    enabled: row.enabled,\n    createdAt: row.createdAt,\n  };\n}\n```\n\nThen update service methods to map through the DTO before returning:\n\n```ts\n// service.ts\nasync listChannels(workspaceId: string): Promise<AlertChannelDto[]> {\n  const rows = await this.repo.findAll(workspaceId);\n  return rows.map(toAlertChannelDto);\n}\n\nasync createChannel(...): Promise<AlertChannelDto> {\n  ...\n  return toAlertChannelDto(await this.repo.insert({ ... }));\n}\n```\n\nRoutes then receive `AlertChannelDto` objects and the secret never reaches the\nwire.\n\n---\n\n## What is clean\n\n- **`repository.ts` query structure** \u2014 all three query methods correctly scope\n  by `workspaceId` (lines 12, 19\u201320). This is the single most important\n  invariant in the repository ring and it holds.\n- **`routes.ts` HTTP shape** \u2014 Zod schema is declared at the module level\n  (lines 5\u20139) and passed to the Fastify `schema` option (line 19). The route\n  handlers contain no business logic beyond delegating to the service.\n- **`routes.ts` service instantiation** \u2014 `new AlertService(app.container)` is\n  acceptable; the container carries all infrastructure, and constructing the\n  service in the route handler is the established pattern in this codebase.\n- **`repository.ts` Drizzle imports** \u2014 importing `eq`/`and` from `drizzle-orm`\n  and `* as t` from `db/schema` is correct and expected at the repository ring.\n\n---\n\n## Pre-flight checklist state\n\n```\n- [ ] Adding a query? \u2192 repository.ts exists and is used \u2014 YES\n- [x] Query scoped by workspace_id? \u2014 YES (repository.ts:12, 19, 23)\n- [ ] New SDK import? \u2014 no new SDK\n- [x] Service calling new SomeAdapter()? \u2014 no adapters instantiated\n- [ ] Importing another module's folder? \u2014 VIOLATION: service.ts:4\n- [ ] Returning a $inferSelect row outward? \u2014 VIOLATION: routes.ts:15, 25\n- [ ] SQL in service.ts? \u2014 VIOLATION: service.ts:23\u201329\n```\n\n---\n\n## Required changes before merging\n\n| # | File | Lines | Action |\n|---|------|-------|--------|\n| 1 | `modules/alerts/repository.ts` | \u2014 | Add `findByWebhookUrl(workspaceId, webhookUrl)` |\n| 2 | `modules/alerts/service.ts` | 1, 3, 23\u201329 | Remove Drizzle imports; replace inline query with `this.repo.findByWebhookUrl(...)` |\n| 3 | `modules/alerts/service.ts` | 4, 38\u201340 | Remove cross-module import and `getDefaultBranch()`; if constant is needed, promote to `platform/` or `vendor/shared` |\n| 4 | `modules/alerts/helpers.ts` | \u2014 | Create with `AlertChannelDto` type and `toAlertChannelDto` mapper (omit `signingSecret`) |\n| 5 | `modules/alerts/service.ts` | 14\u201316, 33\u201335 | Map rows through `toAlertChannelDto` before returning |\n"}], "grading": {"eval_id": 3, "eval_name": "alerts-cross-module", "configuration": "with_skill", "expectations": [{"text": "flags-cross-module-import: Flags that service.ts imports from ../repos/constants.ts (cross-module import)", "passed": true, "evidence": "Violation 2 \u2014 'service.ts:4 \u2014 import { DEFAULT_BRANCH } from ../repos/constants.js. Feature modules are siblings, not a hierarchy' with direct citation of anti-patterns.md cross-module section"}, {"text": "flags-service-bypasses-repo: Flags that service.ts queries container.db directly instead of using the repository", "passed": true, "evidence": "Violation 1 \u2014 'service.ts:1,3,23-29 \u2014 Drizzle eq/and and db/schema are imported into service.ts, and a raw query runs inside createChannel'; 'SQL now lives in two places'"}, {"text": "suggests-repo-delegation: Recommends moving the duplicate-check query into the repository", "passed": true, "evidence": "Fix for Violation 1 provides full skeleton for findByWebhookUrl in AlertChannelRepository with exact code"}], "pass_count": 3, "total_count": 3, "pass_rate": 1.0}}, {"id": "eval-alerts-cross-module-without_skill", "prompt": "We're building an alerts module for webhook notification channels. I've written the routes, service, and repository \u2014 can you do a quick architecture check and let me know if anything violates our onion-architecture rules?", "eval_id": 3, "outputs": [{"name": "review.md", "type": "text", "content": "# Architecture Review: Alerts Module (Webhook Notification Channels)\n\n## Summary\n\nThree violations were found across the `service.ts` file. The `repository.ts` and `routes.ts` files are largely clean with one medium-severity design smell in routes.\n\n---\n\n## Violations\n\n### VIOLATION 1 \u2014 Service imports a concrete infrastructure type (Dependency Inversion broken)\n\n**File:** `service.ts:2`  \n**Severity:** High\n\n```ts\nimport type { Container } from '../../platform/container.js';\n```\n\n`Container` is a platform/infrastructure assembly class. In onion architecture the application layer (services) must depend on **abstractions** (interfaces or ports), never on concrete infrastructure types. By taking `Container` as its constructor argument, `AlertService` is coupled to the entire platform assembly \u2014 it can only be tested or reused in contexts where a real `Container` can be constructed.\n\n**Fix:** Extract the two things the service actually needs from `Container` into a plain object or interface and inject only those:\n\n```ts\n// Define a minimal port for what the service needs\ninterface AlertServiceDeps {\n  db: Db;\n}\n\nexport class AlertService {\n  private readonly repo: AlertChannelRepository;\n\n  constructor(deps: AlertServiceDeps) {\n    this.repo = new AlertChannelRepository(deps.db);\n  }\n  // ...\n}\n```\n\nAlternatively, inject `AlertChannelRepository` directly so the service does not need to know about `Db` at all.\n\n---\n\n### VIOLATION 2 \u2014 Service bypasses its own repository and runs raw DB queries\n\n**File:** `service.ts:1, 3, 23\u201329`  \n**Severity:** High\n\n```ts\nimport { eq, and } from 'drizzle-orm';         // line 1\nimport * as t from '../../db/schema.js';         // line 3\n// \u2026\nconst existing = await this.container.db         // line 23\n  .select()\n  .from(t.alertChannels)\n  .where(and(\n    eq(t.alertChannels.workspaceId, workspaceId),\n    eq(t.alertChannels.webhookUrl, data.webhookUrl),\n  ));\n```\n\nThe service imports Drizzle ORM query-builder primitives and the raw DB schema and uses them to issue a SELECT directly against `this.container.db`, bypassing `AlertChannelRepository` entirely. This is a textbook layer-inversion: infrastructure concerns (SQL, ORM constructs) have leaked into the application layer.\n\nIn onion architecture all DB access must go through the repository abstraction. The service should only call named methods on `this.repo`; it must never hold a reference to `db`, `schema`, or any ORM type.\n\n**Fix:** Add a `findByWebhookUrl` (or `existsByWebhookUrl`) method to `AlertChannelRepository` and call that from the service:\n\n```ts\n// repository.ts \u2014 add:\nasync findByWebhookUrl(workspaceId: string, webhookUrl: string) {\n  const rows = await this.db\n    .select()\n    .from(t.alertChannels)\n    .where(and(\n      eq(t.alertChannels.workspaceId, workspaceId),\n      eq(t.alertChannels.webhookUrl, webhookUrl),\n    ));\n  return rows[0] ?? null;\n}\n\n// service.ts \u2014 replace the inline query with:\nconst existing = await this.repo.findByWebhookUrl(workspaceId, data.webhookUrl);\nif (existing) {\n  throw new Error('A channel with this webhook URL already exists');\n}\n```\n\nRemove the `drizzle-orm` and `../../db/schema.js` imports from `service.ts` entirely once this is done.\n\n---\n\n### VIOLATION 3 \u2014 Cross-module import of a sibling module's constant, and misplaced method\n\n**File:** `service.ts:4, 38\u201340`  \n**Severity:** Medium\n\n```ts\nimport { DEFAULT_BRANCH } from '../repos/constants.js';  // line 4\n// \u2026\nasync getDefaultBranch(): Promise<string> {              // line 38\n  return DEFAULT_BRANCH;\n}\n```\n\n`AlertService` reaches into the `repos` module to import `DEFAULT_BRANCH` and then exposes it through `getDefaultBranch()`. This is wrong on two levels:\n\n1. **Cross-module coupling.** Modules at the same layer (both are under `src/modules/`) must not import directly from each other's internals. If a shared constant is genuinely needed by multiple modules it should live in a shared location (e.g. `src/shared/constants.ts` or a dedicated domain package), not inside one module's private namespace.\n\n2. **Wrong home for the method.** `getDefaultBranch()` is a repos-domain concern, not an alerts concern. Placing it on `AlertService` violates single-responsibility and will confuse callers who look to this service for anything related to default branches.\n\n**Fix:** Remove `getDefaultBranch()` from `AlertService` and delete the `../repos/constants.js` import. If callers genuinely need a default-branch value, they should call into the repos module's own service/helper or read from a shared constants location \u2014 not through the alerts service.\n\n---\n\n### DESIGN SMELL \u2014 Service instantiated per-request\n\n**File:** `routes.ts:14, 23`  \n**Severity:** Low (not a layering violation, but a design issue)\n\n```ts\nconst svc = new AlertService(app.container);  // constructed on every request\n```\n\n`AlertService` is constructed anew on each HTTP request. This defeats the purpose of dependency injection, creates unnecessary object churn, and means any per-instance state would be reset per request. Services should be constructed once (at startup or plugin registration time) and reused.\n\n**Fix:** Construct the service once during plugin registration and close over it:\n\n```ts\nconst alertRoutes: FastifyPluginAsync = async (app) => {\n  const svc = new AlertService(app.container);\n\n  app.get('/alert-channels', async (req, reply) => {\n    const ws = await app.container.auth.currentWorkspace();\n    return reply.send(await svc.listChannels(ws.id));\n  });\n\n  app.post('/alert-channels', { schema: { body: CreateChannelBody } }, async (req, reply) => {\n    const ws = await app.container.auth.currentWorkspace();\n    const body = req.body as z.infer<typeof CreateChannelBody>;\n    const channel = await svc.createChannel(ws.id, body);\n    return reply.status(201).send(channel);\n  });\n};\n```\n\n---\n\n## What is correct\n\n- **`repository.ts`** \u2014 clean and well-scoped. It accepts `Db` via constructor injection, uses the schema and ORM only at this layer (appropriate), exposes named query methods, and does not leak any business logic. No changes needed.\n- **`routes.ts` structure** \u2014 routes correctly delegate to a service, resolve workspace identity through `app.container.auth`, and use Zod for input validation at the boundary.\n- **`schema.ts`** \u2014 `alertChannels` table definition is appropriate and self-contained.\n\n---\n\n## Violation Summary\n\n| # | File | Lines | Severity | Rule broken |\n|---|------|--------|----------|-------------|\n| 1 | `service.ts` | 2 | High | Service depends on concrete infrastructure type (`Container`) instead of an abstraction |\n| 2 | `service.ts` | 1, 3, 23\u201329 | High | Service issues raw DB/ORM queries, bypassing the repository layer |\n| 3 | `service.ts` | 4, 38\u201340 | Medium | Cross-module import from sibling (`repos`); method misplaced on wrong service |\n| 4 | `routes.ts` | 14, 23 | Low | Service re-instantiated per request instead of once at startup |\n"}], "grading": {"eval_id": 3, "eval_name": "alerts-cross-module", "configuration": "without_skill", "expectations": [{"text": "flags-cross-module-import: Flags that service.ts imports from ../repos/constants.ts (cross-module import)", "passed": true, "evidence": "Medium finding \u2014 'AlertService cross-imports DEFAULT_BRANCH from the sibling repos module... Sibling modules must not import each other's internals'"}, {"text": "flags-service-bypasses-repo: Flags that service.ts queries container.db directly instead of using the repository", "passed": true, "evidence": "High finding 2 \u2014 'service.ts:1,3,23-29 \u2014 The service imports drizzle-orm query builders and ../../db/schema.js directly, then issues a raw SELECT against this.container.db to check for duplicate webhook URLs, bypassing AlertChannelRepository'"}, {"text": "suggests-repo-delegation: Recommends moving the duplicate-check query into the repository", "passed": true, "evidence": "'the duplicate-check query belongs in a new findByWebhookUrl method on the repository'"}], "pass_count": 3, "total_count": 3, "pass_rate": 1.0}}], "previous_feedback": {}, "previous_outputs": {}, "benchmark": {"metadata": {"skill_name": "onion-architecture", "skill_path": "<path/to/skill>", "executor_model": "<model-name>", "analyzer_model": "<model-name>", "timestamp": "2026-10-06T12:41:20Z", "evals_run": [1, 2, 3], "runs_per_configuration": 3}, "runs": [{"eval_id": 3, "configuration": "with_skill", "run_number": 1, "result": {"pass_rate": 1.0, "passed": 3, "failed": 0, "total": 3, "time_seconds": 100.4, "tokens": 0, "tool_calls": 0, "errors": 0}, "expectations": [{"text": "flags-cross-module-import", "passed": true, "evidence": "Violation 2 at service.ts:4 \u2014 'import { DEFAULT_BRANCH } from ../repos/constants.js; feature modules are siblings'"}, {"text": "flags-service-bypasses-repo", "passed": true, "evidence": "Violation 1 at service.ts:1,3,23-29 \u2014 raw Drizzle query inside createChannel bypasses AlertChannelRepository"}, {"text": "suggests-repo-delegation", "passed": true, "evidence": "Fix provides complete findByWebhookUrl skeleton for AlertChannelRepository"}], "notes": []}, {"eval_id": 1, "configuration": "with_skill", "run_number": 1, "result": {"pass_rate": 1.0, "passed": 4, "failed": 0, "total": 4, "time_seconds": 70.2, "tokens": 0, "tool_calls": 0, "errors": 0}, "expectations": [{"text": "flags-sql-in-routes", "passed": true, "evidence": "Violation 1 at routes.ts:1,4,15-18,29-33,38-41,50-53 \u2014 Drizzle operators imported and four inline queries"}, {"text": "identifies-missing-repository", "passed": true, "evidence": "'repository ring is missing entirely'; recommended shape lists repository.ts"}, {"text": "identifies-missing-service", "passed": true, "evidence": "Violation 2 states 'service ring is missing entirely'"}, {"text": "suggests-concrete-fix", "passed": true, "evidence": "Fix for Violation 1 provides full skeleton code for repository.ts"}], "notes": []}, {"eval_id": 2, "configuration": "with_skill", "run_number": 1, "result": {"pass_rate": 1.0, "passed": 3, "failed": 0, "total": 3, "time_seconds": 94.5, "tokens": 0, "tool_calls": 0, "errors": 0}, "expectations": [{"text": "flags-concrete-adapter-import", "passed": true, "evidence": "V1 at service.ts:2 \u2014 'Service imports concrete adapter by path ../../adapters/openai/client.js'"}, {"text": "flags-new-in-service", "passed": true, "evidence": "V2 at service.ts:12 \u2014 'Adapter is new-ed inside the service rather than received from the container'"}, {"text": "mentions-port-solution", "passed": true, "evidence": "V1 fix: 'LLMProvider port exists at vendor/shared/adapters.ts:21-23; resolve through container'; V4 provides container getter skeleton"}], "notes": []}, {"eval_id": 3, "configuration": "without_skill", "run_number": 1, "result": {"pass_rate": 1.0, "passed": 3, "failed": 0, "total": 3, "time_seconds": 66.7, "tokens": 0, "tool_calls": 0, "errors": 0}, "expectations": [{"text": "flags-cross-module-import", "passed": true, "evidence": "Medium finding \u2014 'AlertService cross-imports DEFAULT_BRANCH from sibling repos module; sibling modules must not import each other's internals'"}, {"text": "flags-service-bypasses-repo", "passed": true, "evidence": "High finding 2 \u2014 'service.ts issues raw SELECT against this.container.db bypassing AlertChannelRepository'"}, {"text": "suggests-repo-delegation", "passed": true, "evidence": "'duplicate-check query belongs in a new findByWebhookUrl method on the repository'"}], "notes": []}, {"eval_id": 1, "configuration": "without_skill", "run_number": 1, "result": {"pass_rate": 1.0, "passed": 4, "failed": 0, "total": 4, "time_seconds": 72.0, "tokens": 0, "tool_calls": 0, "errors": 0}, "expectations": [{"text": "flags-sql-in-routes", "passed": true, "evidence": "CRITICAL findings at routes.ts:4 and routes.ts:15-18,29-33,38-41,50-53 \u2014 raw Drizzle queries in handlers"}, {"text": "identifies-missing-repository", "passed": true, "evidence": "CRITICAL fix: 'Introduce a repository.ts that owns all Drizzle queries'"}, {"text": "identifies-missing-service", "passed": true, "evidence": "HIGH finding 'Missing service layer' with standard routes/service/repository structure"}, {"text": "suggests-concrete-fix", "passed": true, "evidence": "Fix recommends creating BookmarksRepository class or module-level functions in repository.ts"}], "notes": []}, {"eval_id": 2, "configuration": "without_skill", "run_number": 1, "result": {"pass_rate": 1.0, "passed": 3, "failed": 0, "total": 3, "time_seconds": 73.6, "tokens": 0, "tool_calls": 0, "errors": 0}, "expectations": [{"text": "flags-concrete-adapter-import", "passed": true, "evidence": "CRITICAL 1 \u2014 'imports and directly instantiates OpenAICompletionClient, bypassing LLMProvider port'"}, {"text": "flags-new-in-service", "passed": true, "evidence": "MEDIUM 5 \u2014 'Service constructs its own collaborators in the constructor instead of receiving them via injection'"}, {"text": "mentions-port-solution", "passed": true, "evidence": "CRITICAL 2 \u2014 'does not implement LLMProvider'; HIGH 4 \u2014 'No llm() accessor on Container'"}], "notes": []}], "run_summary": {"with_skill": {"pass_rate": {"mean": 1.0, "stddev": 0.0, "min": 1.0, "max": 1.0}, "time_seconds": {"mean": 88.3667, "stddev": 16.007, "min": 70.2, "max": 100.4}, "tokens": {"mean": 0.0, "stddev": 0.0, "min": 0, "max": 0}}, "without_skill": {"pass_rate": {"mean": 1.0, "stddev": 0.0, "min": 1.0, "max": 1.0}, "time_seconds": {"mean": 70.7667, "stddev": 3.6116, "min": 66.7, "max": 73.6}, "tokens": {"mean": 0.0, "stddev": 0.0, "min": 0, "max": 0}}, "delta": {"pass_rate": "+0.00", "time_seconds": "+17.6", "tokens": "+0"}}, "notes": []}};
+
+    // ---- State ----
+    let feedbackMap = {};  // run_id -> feedback text
+    let currentIndex = 0;
+    let visitedRuns = new Set();
+
+    // ---- Init ----
+    async function init() {
+      // Load saved feedback from server — but only if this isn't a fresh
+      // iteration (indicated by previous_feedback being present). When
+      // previous feedback exists, the feedback.json on disk is stale from
+      // the prior iteration and should not pre-fill the textareas.
+      const hasPrevious = Object.keys(EMBEDDED_DATA.previous_feedback || {}).length > 0
+        || Object.keys(EMBEDDED_DATA.previous_outputs || {}).length > 0;
+      if (!hasPrevious) {
+        try {
+          const resp = await fetch("/api/feedback");
+          const data = await resp.json();
+          if (data.reviews) {
+            for (const r of data.reviews) feedbackMap[r.run_id] = r.feedback;
+          }
+        } catch { /* first run, no feedback yet */ }
+      }
+
+      document.getElementById("skill-name").textContent = EMBEDDED_DATA.skill_name;
+      showRun(0);
+
+      // Wire up feedback auto-save
+      const textarea = document.getElementById("feedback");
+      let saveTimeout = null;
+      textarea.addEventListener("input", () => {
+        clearTimeout(saveTimeout);
+        document.getElementById("feedback-status").textContent = "";
+        saveTimeout = setTimeout(() => saveCurrentFeedback(), 800);
+      });
+    }
+
+    // ---- Navigation ----
+    function navigate(delta) {
+      const newIndex = currentIndex + delta;
+      if (newIndex >= 0 && newIndex < EMBEDDED_DATA.runs.length) {
+        saveCurrentFeedback();
+        showRun(newIndex);
+      }
+    }
+
+    function updateNavButtons() {
+      document.getElementById("prev-btn").disabled = currentIndex === 0;
+      document.getElementById("next-btn").disabled =
+        currentIndex === EMBEDDED_DATA.runs.length - 1;
+    }
+
+    // ---- Show a run ----
+    function showRun(index) {
+      currentIndex = index;
+      const run = EMBEDDED_DATA.runs[index];
+
+      // Progress
+      document.getElementById("progress").textContent =
+        `${index + 1} of ${EMBEDDED_DATA.runs.length}`;
+
+      // Prompt
+      document.getElementById("prompt-text").textContent = run.prompt;
+
+      // Config badge
+      const badge = document.getElementById("config-badge");
+      const configMatch = run.id.match(/(with_skill|without_skill|new_skill|old_skill)/);
+      if (configMatch) {
+        const config = configMatch[1];
+        const isBaseline = config === "without_skill" || config === "old_skill";
+        badge.textContent = config.replace(/_/g, " ");
+        badge.className = "config-badge " + (isBaseline ? "config-baseline" : "config-primary");
+        badge.style.display = "inline-block";
+      } else {
+        badge.style.display = "none";
+      }
+
+      // Outputs
+      renderOutputs(run);
+
+      // Previous outputs
+      renderPrevOutputs(run);
+
+      // Grades
+      renderGrades(run);
+
+      // Previous feedback
+      const prevFb = (EMBEDDED_DATA.previous_feedback || {})[run.id];
+      const prevEl = document.getElementById("prev-feedback");
+      if (prevFb) {
+        document.getElementById("prev-feedback-text").textContent = prevFb;
+        prevEl.style.display = "block";
+      } else {
+        prevEl.style.display = "none";
+      }
+
+      // Feedback
+      document.getElementById("feedback").value = feedbackMap[run.id] || "";
+      document.getElementById("feedback-status").textContent = "";
+
+      updateNavButtons();
+
+      // Track visited runs and promote done button when all visited
+      visitedRuns.add(index);
+      const doneBtn = document.getElementById("done-btn");
+      if (visitedRuns.size >= EMBEDDED_DATA.runs.length) {
+        doneBtn.classList.add("ready");
+      }
+
+      // Scroll main content to top
+      document.querySelector(".main").scrollTop = 0;
+    }
+
+    // ---- Render outputs ----
+    function renderOutputs(run) {
+      const container = document.getElementById("outputs-body");
+      container.innerHTML = "";
+
+      const outputs = run.outputs || [];
+      if (outputs.length === 0) {
+        container.innerHTML = '<div class="empty-state">No output files</div>';
+        return;
+      }
+
+      for (const file of outputs) {
+        const fileDiv = document.createElement("div");
+        fileDiv.className = "output-file";
+
+        // Always show file header with download link
+        const header = document.createElement("div");
+        header.className = "output-file-header";
+        const nameSpan = document.createElement("span");
+        nameSpan.textContent = file.name;
+        header.appendChild(nameSpan);
+        const dlBtn = document.createElement("a");
+        dlBtn.className = "dl-btn";
+        dlBtn.textContent = "Download";
+        dlBtn.download = file.name;
+        dlBtn.href = getDownloadUri(file);
+        header.appendChild(dlBtn);
+        fileDiv.appendChild(header);
+
+        const content = document.createElement("div");
+        content.className = "output-file-content";
+
+        if (file.type === "text") {
+          const pre = document.createElement("pre");
+          pre.textContent = file.content;
+          content.appendChild(pre);
+        } else if (file.type === "image") {
+          const img = document.createElement("img");
+          img.src = file.data_uri;
+          img.alt = file.name;
+          content.appendChild(img);
+        } else if (file.type === "pdf") {
+          const iframe = document.createElement("iframe");
+          iframe.src = file.data_uri;
+          content.appendChild(iframe);
+        } else if (file.type === "xlsx") {
+          renderXlsx(content, file.data_b64);
+        } else if (file.type === "binary") {
+          const a = document.createElement("a");
+          a.className = "download-link";
+          a.href = file.data_uri;
+          a.download = file.name;
+          a.textContent = "Download " + file.name;
+          content.appendChild(a);
+        } else if (file.type === "error") {
+          const pre = document.createElement("pre");
+          pre.textContent = file.content;
+          pre.style.color = "var(--red)";
+          content.appendChild(pre);
+        }
+
+        fileDiv.appendChild(content);
+        container.appendChild(fileDiv);
+      }
+    }
+
+    // ---- XLSX rendering via SheetJS ----
+    function renderXlsx(container, b64Data) {
+      try {
+        const raw = Uint8Array.from(atob(b64Data), c => c.charCodeAt(0));
+        const wb = XLSX.read(raw, { type: "array" });
+
+        for (let i = 0; i < wb.SheetNames.length; i++) {
+          const sheetName = wb.SheetNames[i];
+          const ws = wb.Sheets[sheetName];
+
+          if (wb.SheetNames.length > 1) {
+            const sheetLabel = document.createElement("div");
+            sheetLabel.style.cssText =
+              "font-weight:600; font-size:0.8rem; color:#b0aea5; margin-top:0.5rem; margin-bottom:0.25rem;";
+            sheetLabel.textContent = "Sheet: " + sheetName;
+            container.appendChild(sheetLabel);
+          }
+
+          const htmlStr = XLSX.utils.sheet_to_html(ws, { editable: false });
+          const wrapper = document.createElement("div");
+          wrapper.innerHTML = htmlStr;
+          container.appendChild(wrapper);
+        }
+      } catch (err) {
+        container.textContent = "Error rendering spreadsheet: " + err.message;
+      }
+    }
+
+    // ---- Grades ----
+    function renderGrades(run) {
+      const section = document.getElementById("grades-section");
+      const content = document.getElementById("grades-content");
+
+      if (!run.grading) {
+        section.style.display = "none";
+        return;
+      }
+
+      const grading = run.grading;
+      section.style.display = "block";
+      // Reset to collapsed
+      content.classList.remove("open");
+      document.getElementById("grades-arrow").classList.remove("open");
+
+      const summary = grading.summary || {};
+      const expectations = grading.expectations || [];
+
+      let html = '<div style="padding: 1rem;">';
+
+      // Summary line
+      const passRate = summary.pass_rate != null
+        ? Math.round(summary.pass_rate * 100) + "%"
+        : "?";
+      const badgeClass = summary.pass_rate >= 0.8 ? "grade-pass" : summary.pass_rate >= 0.5 ? "" : "grade-fail";
+      html += '<div class="grades-summary">';
+      html += '<span class="grade-badge ' + badgeClass + '">' + passRate + '</span>';
+      html += '<span>' + (summary.passed || 0) + ' passed, ' + (summary.failed || 0) + ' failed of ' + (summary.total || 0) + '</span>';
+      html += '</div>';
+
+      // Assertions list
+      html += '<ul class="assertion-list">';
+      for (const exp of expectations) {
+        const statusClass = exp.passed ? "pass" : "fail";
+        const statusIcon = exp.passed ? "\u2713" : "\u2717";
+        html += '<li class="assertion-item">';
+        html += '<span class="assertion-status ' + statusClass + '">' + statusIcon + '</span>';
+        html += '<span>' + escapeHtml(exp.text) + '</span>';
+        if (exp.evidence) {
+          html += '<div class="assertion-evidence">' + escapeHtml(exp.evidence) + '</div>';
+        }
+        html += '</li>';
+      }
+      html += '</ul>';
+
+      html += '</div>';
+      content.innerHTML = html;
+    }
+
+    function toggleGrades() {
+      const content = document.getElementById("grades-content");
+      const arrow = document.getElementById("grades-arrow");
+      content.classList.toggle("open");
+      arrow.classList.toggle("open");
+    }
+
+    // ---- Previous outputs (collapsible) ----
+    function renderPrevOutputs(run) {
+      const section = document.getElementById("prev-outputs-section");
+      const content = document.getElementById("prev-outputs-content");
+      const prevOutputs = (EMBEDDED_DATA.previous_outputs || {})[run.id];
+
+      if (!prevOutputs || prevOutputs.length === 0) {
+        section.style.display = "none";
+        return;
+      }
+
+      section.style.display = "block";
+      // Reset to collapsed
+      content.classList.remove("open");
+      document.getElementById("prev-outputs-arrow").classList.remove("open");
+
+      // Render the files into the content area
+      content.innerHTML = "";
+      const wrapper = document.createElement("div");
+      wrapper.style.padding = "1rem";
+
+      for (const file of prevOutputs) {
+        const fileDiv = document.createElement("div");
+        fileDiv.className = "output-file";
+
+        const header = document.createElement("div");
+        header.className = "output-file-header";
+        const nameSpan = document.createElement("span");
+        nameSpan.textContent = file.name;
+        header.appendChild(nameSpan);
+        const dlBtn = document.createElement("a");
+        dlBtn.className = "dl-btn";
+        dlBtn.textContent = "Download";
+        dlBtn.download = file.name;
+        dlBtn.href = getDownloadUri(file);
+        header.appendChild(dlBtn);
+        fileDiv.appendChild(header);
+
+        const fc = document.createElement("div");
+        fc.className = "output-file-content";
+
+        if (file.type === "text") {
+          const pre = document.createElement("pre");
+          pre.textContent = file.content;
+          fc.appendChild(pre);
+        } else if (file.type === "image") {
+          const img = document.createElement("img");
+          img.src = file.data_uri;
+          img.alt = file.name;
+          fc.appendChild(img);
+        } else if (file.type === "pdf") {
+          const iframe = document.createElement("iframe");
+          iframe.src = file.data_uri;
+          fc.appendChild(iframe);
+        } else if (file.type === "xlsx") {
+          renderXlsx(fc, file.data_b64);
+        } else if (file.type === "binary") {
+          const a = document.createElement("a");
+          a.className = "download-link";
+          a.href = file.data_uri;
+          a.download = file.name;
+          a.textContent = "Download " + file.name;
+          fc.appendChild(a);
+        }
+
+        fileDiv.appendChild(fc);
+        wrapper.appendChild(fileDiv);
+      }
+
+      content.appendChild(wrapper);
+    }
+
+    function togglePrevOutputs() {
+      const content = document.getElementById("prev-outputs-content");
+      const arrow = document.getElementById("prev-outputs-arrow");
+      content.classList.toggle("open");
+      arrow.classList.toggle("open");
+    }
+
+    // ---- Feedback (saved to server -> feedback.json) ----
+    function saveCurrentFeedback() {
+      const run = EMBEDDED_DATA.runs[currentIndex];
+      const text = document.getElementById("feedback").value;
+
+      if (text.trim() === "") {
+        delete feedbackMap[run.id];
+      } else {
+        feedbackMap[run.id] = text;
+      }
+
+      // Build reviews array from map
+      const reviews = [];
+      for (const [run_id, feedback] of Object.entries(feedbackMap)) {
+        if (feedback.trim()) {
+          reviews.push({ run_id, feedback, timestamp: new Date().toISOString() });
+        }
+      }
+
+      fetch("/api/feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reviews, status: "in_progress" }),
+      }).then(() => {
+        document.getElementById("feedback-status").textContent = "Saved";
+      }).catch(() => {
+        // Static mode or server unavailable — no-op on auto-save,
+        // feedback will be downloaded on final submit
+        document.getElementById("feedback-status").textContent = "Will download on submit";
+      });
+    }
+
+    // ---- Done ----
+    function showDoneDialog() {
+      // Save current textarea to feedbackMap (but don't POST yet)
+      const run = EMBEDDED_DATA.runs[currentIndex];
+      const text = document.getElementById("feedback").value;
+      if (text.trim() === "") {
+        delete feedbackMap[run.id];
+      } else {
+        feedbackMap[run.id] = text;
+      }
+
+      // POST once with status: complete — include ALL runs so the model
+      // can distinguish "no feedback" (looks good) from "not reviewed"
+      const reviews = [];
+      const ts = new Date().toISOString();
+      for (const r of EMBEDDED_DATA.runs) {
+        reviews.push({ run_id: r.id, feedback: feedbackMap[r.id] || "", timestamp: ts });
+      }
+      const payload = JSON.stringify({ reviews, status: "complete" }, null, 2);
+      fetch("/api/feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: payload,
+      }).then(() => {
+        document.getElementById("done-overlay").classList.add("visible");
+      }).catch(() => {
+        // Server not available (static mode) — download as file
+        const blob = new Blob([payload], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "feedback.json";
+        a.click();
+        URL.revokeObjectURL(url);
+        document.getElementById("done-overlay").classList.add("visible");
+      });
+    }
+
+    function closeDoneDialog() {
+      // Reset status back to in_progress
+      saveCurrentFeedback();
+      document.getElementById("done-overlay").classList.remove("visible");
+    }
+
+    // ---- Toast ----
+    function showToast(message) {
+      const toast = document.getElementById("toast");
+      toast.textContent = message;
+      toast.classList.add("visible");
+      setTimeout(() => toast.classList.remove("visible"), 2000);
+    }
+
+    // ---- Keyboard nav ----
+    document.addEventListener("keydown", (e) => {
+      // Don't capture when typing in textarea
+      if (e.target.tagName === "TEXTAREA") return;
+
+      if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
+        e.preventDefault();
+        navigate(-1);
+      } else if (e.key === "ArrowRight" || e.key === "ArrowDown") {
+        e.preventDefault();
+        navigate(1);
+      }
+    });
+
+    // ---- Util ----
+    function getDownloadUri(file) {
+      if (file.data_uri) return file.data_uri;
+      if (file.data_b64) return "data:application/octet-stream;base64," + file.data_b64;
+      if (file.type === "text") return "data:text/plain;charset=utf-8," + encodeURIComponent(file.content);
+      return "#";
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement("div");
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    // ---- View switching ----
+    function switchView(view) {
+      document.querySelectorAll(".view-tab").forEach(t => t.classList.remove("active"));
+      document.querySelectorAll(".view-panel").forEach(p => p.classList.remove("active"));
+      document.querySelector(`[onclick="switchView('${view}')"]`).classList.add("active");
+      document.getElementById("panel-" + view).classList.add("active");
+    }
+
+    // ---- Benchmark rendering ----
+    function renderBenchmark() {
+      const data = EMBEDDED_DATA.benchmark;
+      if (!data) return;
+
+      // Show the tabs
+      document.getElementById("view-tabs").style.display = "flex";
+
+      const container = document.getElementById("benchmark-content");
+      const summary = data.run_summary || {};
+      const metadata = data.metadata || {};
+      const notes = data.notes || [];
+
+      let html = "";
+
+      // Header
+      html += "<h2 style='font-family: Poppins, sans-serif; margin-bottom: 0.5rem;'>Benchmark Results</h2>";
+      html += "<p style='color: var(--text-muted); font-size: 0.875rem; margin-bottom: 1.25rem;'>";
+      if (metadata.skill_name) html += "<strong>" + escapeHtml(metadata.skill_name) + "</strong> &mdash; ";
+      if (metadata.timestamp) html += metadata.timestamp + " &mdash; ";
+      if (metadata.evals_run) html += "Evals: " + metadata.evals_run.join(", ") + " &mdash; ";
+      html += (metadata.runs_per_configuration || "?") + " runs per configuration";
+      html += "</p>";
+
+      // Summary table
+      html += '<table class="benchmark-table">';
+
+      function fmtStat(stat, pct) {
+        if (!stat) return "—";
+        const suffix = pct ? "%" : "";
+        const m = pct ? (stat.mean * 100).toFixed(0) : stat.mean.toFixed(1);
+        const s = pct ? (stat.stddev * 100).toFixed(0) : stat.stddev.toFixed(1);
+        return m + suffix + " ± " + s + suffix;
+      }
+
+      function deltaClass(val) {
+        if (!val) return "";
+        const n = parseFloat(val);
+        if (n > 0) return "benchmark-delta-positive";
+        if (n < 0) return "benchmark-delta-negative";
+        return "";
+      }
+
+      // Discover config names dynamically (everything except "delta")
+      const configs = Object.keys(summary).filter(k => k !== "delta");
+      const configA = configs[0] || "config_a";
+      const configB = configs[1] || "config_b";
+      const labelA = configA.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+      const labelB = configB.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+      const a = summary[configA] || {};
+      const b = summary[configB] || {};
+      const delta = summary.delta || {};
+
+      html += "<thead><tr><th>Metric</th><th>" + escapeHtml(labelA) + "</th><th>" + escapeHtml(labelB) + "</th><th>Delta</th></tr></thead>";
+      html += "<tbody>";
+
+      html += "<tr><td><strong>Pass Rate</strong></td>";
+      html += "<td>" + fmtStat(a.pass_rate, true) + "</td>";
+      html += "<td>" + fmtStat(b.pass_rate, true) + "</td>";
+      html += '<td class="' + deltaClass(delta.pass_rate) + '">' + (delta.pass_rate || "—") + "</td></tr>";
+
+      // Time (only show row if data exists)
+      if (a.time_seconds || b.time_seconds) {
+        html += "<tr><td><strong>Time (s)</strong></td>";
+        html += "<td>" + fmtStat(a.time_seconds, false) + "</td>";
+        html += "<td>" + fmtStat(b.time_seconds, false) + "</td>";
+        html += '<td class="' + deltaClass(delta.time_seconds) + '">' + (delta.time_seconds ? delta.time_seconds + "s" : "—") + "</td></tr>";
+      }
+
+      // Tokens (only show row if data exists)
+      if (a.tokens || b.tokens) {
+        html += "<tr><td><strong>Tokens</strong></td>";
+        html += "<td>" + fmtStat(a.tokens, false) + "</td>";
+        html += "<td>" + fmtStat(b.tokens, false) + "</td>";
+        html += '<td class="' + deltaClass(delta.tokens) + '">' + (delta.tokens || "—") + "</td></tr>";
+      }
+
+      html += "</tbody></table>";
+
+      // Per-eval breakdown (if runs data available)
+      const runs = data.runs || [];
+      if (runs.length > 0) {
+        const evalIds = [...new Set(runs.map(r => r.eval_id))].sort((a, b) => a - b);
+
+        html += "<h3 style='font-family: Poppins, sans-serif; margin-bottom: 0.75rem;'>Per-Eval Breakdown</h3>";
+
+        const hasTime = runs.some(r => r.result && r.result.time_seconds != null);
+        const hasErrors = runs.some(r => r.result && r.result.errors > 0);
+
+        for (const evalId of evalIds) {
+          const evalRuns = runs.filter(r => r.eval_id === evalId);
+          const evalName = evalRuns[0] && evalRuns[0].eval_name ? evalRuns[0].eval_name : "Eval " + evalId;
+
+          html += "<h4 style='font-family: Poppins, sans-serif; margin: 1rem 0 0.5rem; color: var(--text);'>" + escapeHtml(evalName) + "</h4>";
+          html += '<table class="benchmark-table">';
+          html += "<thead><tr><th>Config</th><th>Run</th><th>Pass Rate</th>";
+          if (hasTime) html += "<th>Time (s)</th>";
+          if (hasErrors) html += "<th>Crashes During Execution</th>";
+          html += "</tr></thead>";
+          html += "<tbody>";
+
+          // Group by config and render with average rows
+          const configGroups = [...new Set(evalRuns.map(r => r.configuration))];
+          for (let ci = 0; ci < configGroups.length; ci++) {
+            const config = configGroups[ci];
+            const configRuns = evalRuns.filter(r => r.configuration === config);
+            if (configRuns.length === 0) continue;
+
+            const rowClass = ci === 0 ? "benchmark-row-with" : "benchmark-row-without";
+            const configLabel = config.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+
+            for (const run of configRuns) {
+              const r = run.result || {};
+              const prClass = r.pass_rate >= 0.8 ? "benchmark-delta-positive" : r.pass_rate < 0.5 ? "benchmark-delta-negative" : "";
+              html += '<tr class="' + rowClass + '">';
+              html += "<td>" + configLabel + "</td>";
+              html += "<td>" + run.run_number + "</td>";
+              html += '<td class="' + prClass + '">' + ((r.pass_rate || 0) * 100).toFixed(0) + "% (" + (r.passed || 0) + "/" + (r.total || 0) + ")</td>";
+              if (hasTime) html += "<td>" + (r.time_seconds != null ? r.time_seconds.toFixed(1) : "—") + "</td>";
+              if (hasErrors) html += "<td>" + (r.errors || 0) + "</td>";
+              html += "</tr>";
+            }
+
+            // Average row
+            const rates = configRuns.map(r => (r.result || {}).pass_rate || 0);
+            const avgRate = rates.reduce((a, b) => a + b, 0) / rates.length;
+            const avgPrClass = avgRate >= 0.8 ? "benchmark-delta-positive" : avgRate < 0.5 ? "benchmark-delta-negative" : "";
+            html += '<tr class="benchmark-row-avg ' + rowClass + '">';
+            html += "<td>" + configLabel + "</td>";
+            html += "<td>Avg</td>";
+            html += '<td class="' + avgPrClass + '">' + (avgRate * 100).toFixed(0) + "%</td>";
+            if (hasTime) {
+              const times = configRuns.map(r => (r.result || {}).time_seconds).filter(t => t != null);
+              html += "<td>" + (times.length ? (times.reduce((a, b) => a + b, 0) / times.length).toFixed(1) : "—") + "</td>";
+            }
+            if (hasErrors) html += "<td></td>";
+            html += "</tr>";
+          }
+          html += "</tbody></table>";
+
+          // Per-assertion detail for this eval
+          const runsWithExpectations = {};
+          for (const config of configGroups) {
+            runsWithExpectations[config] = evalRuns.filter(r => r.configuration === config && r.expectations && r.expectations.length > 0);
+          }
+          const hasAnyExpectations = Object.values(runsWithExpectations).some(runs => runs.length > 0);
+          if (hasAnyExpectations) {
+            // Collect all unique assertion texts across all configs
+            const allAssertions = [];
+            const seen = new Set();
+            for (const config of configGroups) {
+              for (const run of runsWithExpectations[config]) {
+                for (const exp of (run.expectations || [])) {
+                  if (!seen.has(exp.text)) {
+                    seen.add(exp.text);
+                    allAssertions.push(exp.text);
+                  }
+                }
+              }
+            }
+
+            html += '<table class="benchmark-table" style="margin-top: 0.5rem;">';
+            html += "<thead><tr><th>Assertion</th>";
+            for (const config of configGroups) {
+              const label = config.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+              html += "<th>" + escapeHtml(label) + "</th>";
+            }
+            html += "</tr></thead><tbody>";
+
+            for (const assertionText of allAssertions) {
+              html += "<tr><td>" + escapeHtml(assertionText) + "</td>";
+
+              for (const config of configGroups) {
+                html += "<td>";
+                for (const run of runsWithExpectations[config]) {
+                  const exp = (run.expectations || []).find(e => e.text === assertionText);
+                  if (exp) {
+                    const cls = exp.passed ? "benchmark-delta-positive" : "benchmark-delta-negative";
+                    const icon = exp.passed ? "\u2713" : "\u2717";
+                    html += '<span class="' + cls + '" title="Run ' + run.run_number + ': ' + escapeHtml(exp.evidence || "") + '">' + icon + "</span> ";
+                  } else {
+                    html += "— ";
+                  }
+                }
+                html += "</td>";
+              }
+              html += "</tr>";
+            }
+            html += "</tbody></table>";
+          }
+        }
+      }
+
+      // Notes
+      if (notes.length > 0) {
+        html += '<div class="benchmark-notes">';
+        html += "<h3>Analysis Notes</h3>";
+        html += "<ul>";
+        for (const note of notes) {
+          html += "<li>" + escapeHtml(note) + "</li>";
+        }
+        html += "</ul></div>";
+      }
+
+      container.innerHTML = html;
+    }
+
+    // ---- Start ----
+    init();
+    renderBenchmark();
+  </script>
+</body>
+</html>

@@ -1,0 +1,30 @@
+{
+  "eval_id": 1,
+  "eval_name": "bookmarks-routes-sql",
+  "configuration": "with_skill",
+  "expectations": [
+    {
+      "text": "flags-sql-in-routes: Identifies that SQL/Drizzle queries appear directly in routes.ts",
+      "passed": true,
+      "evidence": "Violation 1 explicitly lists routes.ts:1,4,15-18,29-33,38-41,50-53 as SQL/Drizzle query locations with exact line numbers"
+    },
+    {
+      "text": "identifies-missing-repository: Notes that no repository.ts exists for the bookmarks module",
+      "passed": true,
+      "evidence": "States 'the repository ring is missing entirely' and 'modules/bookmarks/ [has] no repository.ts' in the recommended final shape"
+    },
+    {
+      "text": "identifies-missing-service: Notes that no service.ts exists for the bookmarks module",
+      "passed": true,
+      "evidence": "Violation 2 states 'service ring is missing entirely'; recommended shape lists service.ts as missing"
+    },
+    {
+      "text": "suggests-concrete-fix: Recommends extracting or creating repository.ts",
+      "passed": true,
+      "evidence": "Fix section for Violation 1 provides full skeleton code for repository.ts with named query functions"
+    }
+  ],
+  "pass_count": 4,
+  "total_count": 4,
+  "pass_rate": 1.0
+}
