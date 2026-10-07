@@ -196,10 +196,25 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
-          cache-dependency-path: evals/pnpm-lock.yaml
+          cache-dependency-path: |
+            evals/pnpm-lock.yaml
+            server/pnpm-lock.yaml
 
       - run: pnpm install --frozen-lockfile
       - run: pnpm typecheck
+
+      # architecture-reviewer's own tool use runs `pnpm arch:report` for real against this
+      # checkout (tasks.ts hands it the tools it declares and runs it from REPO_ROOT, not
+      # content-only) — dependency-cruiser resolves BOTH server/src and ../reviewer-core/src in
+      # one graph (server/.dependency-cruiser.cjs), so without reviewer-core's deps installed it
+      # throws `no-unresolvable: ... → zod`, which the agent then has to work around and can
+      # misreport as a real finding. Same two installs repo-gates.yml's arch job always does.
+      - name: install server deps (architecture-reviewer runs real gate tools)
+        working-directory: server
+        run: pnpm install --frozen-lockfile
+      - name: install reviewer-core deps (dependency-cruiser resolves across both roots)
+        working-directory: reviewer-core
+        run: npm ci
 
       - name: guard missing secret
         if: env.OPENROUTER_API_KEY == ''
@@ -253,10 +268,21 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
-          cache-dependency-path: evals/pnpm-lock.yaml
+          cache-dependency-path: |
+            evals/pnpm-lock.yaml
+            server/pnpm-lock.yaml
 
       - run: pnpm install --frozen-lockfile
       - run: pnpm typecheck
+
+      # Same reasoning as agent-evals: the workflow tier's dispatch case can launch
+      # architecture-reviewer for real, which runs `pnpm arch:report` against this checkout.
+      - name: install server deps (a dispatched architecture-reviewer runs real gate tools)
+        working-directory: server
+        run: pnpm install --frozen-lockfile
+      - name: install reviewer-core deps (dependency-cruiser resolves across both roots)
+        working-directory: reviewer-core
+        run: npm ci
 
       - name: guard missing secret
         if: env.OPENROUTER_API_KEY == ''
