@@ -42,7 +42,13 @@ export const cases: SkillCase[] = [
     name: "full report follows the required 5-section structure with a Mermaid graph",
     kind: "quality",
     prompt: `Run a dependency check on this repo. I want the full report: graph, sizes, prioritized findings, recommendations.\n\n${REPO_DATA}`,
-    grounding: ["```mermaid", "flowchart"],
+    // Only the fenced block is a deterministic requirement. "flowchart" was here too, but
+    // Mermaid's flowchart diagram type accepts BOTH the `flowchart` and the legacy `graph`
+    // keyword — both models tested in CI correctly produce a flowchart-shaped diagram using
+    // `graph TD`, which is valid Mermaid, just not this literal substring. Whether the diagram
+    // actually shows dependency relationships is a semantic question for the judge-scored
+    // practice below, not a substring grounding gate.
+    grounding: ["```mermaid"],
     practices: [
       "the report has a section named 'Scope' listing which packages (client, server, reviewer-core, e2e) were analyzed",
       "the report includes a Mermaid diagram (a fenced ```mermaid code block using flowchart) showing dependency relationships between packages",
