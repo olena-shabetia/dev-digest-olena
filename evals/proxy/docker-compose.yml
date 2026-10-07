@@ -17,6 +17,11 @@ services:
       - "4000:4000"
     environment:
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:?set OPENROUTER_API_KEY in the environment}
+      # litellm:main-stable now refuses to boot at all without a master key, even in the
+      # deliberate no-auth mode litellm.config.yaml documents (ephemeral local/CI gateway, not
+      # exposed publicly — see that file's general_settings comment). This is the flag LiteLLM's
+      # own startup error names as the correct opt-in for exactly that case.
+      LITELLM_DANGEROUSLY_PERMIT_WEAK_OR_UNSET_MASTER_KEY: "true"
     volumes:
       - ./litellm.config.yaml:/app/config.yaml:ro
     command: ["--config", "/app/config.yaml", "--port", "4000", "--num_workers", "1"]

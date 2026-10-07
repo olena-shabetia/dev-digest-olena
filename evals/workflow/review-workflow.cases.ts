@@ -36,9 +36,15 @@ export const cases: WorkflowCase[] = [
     // server/AGENTS.md. Control runs in an empty tmpdir with no project config, so it has no way
     // to know that file exists. The prompt deliberately does not name the file.
     name: "CLAUDE.md routes a server/ API-route task to server/AGENTS.md",
+    // Observed on Gemini (PR #11): the model sometimes answers in prose — "I will read X" — and
+    // stops without an actual tool_use block, which ends the session at 1 turn with 0 tool calls
+    // (the SDK has nothing to continue on). Making the read an explicit first STEP, not a
+    // consequence of "before writing code", measurably reduces that: don't give the model room to
+    // treat narrating the plan as having completed the instruction.
     prompt:
-      "Я додаю новий HTTP-маршрут у server/. Перш ніж писати код — звірся з настановами цього репо " +
-      "(CLAUDE.md) щодо того, яку документацію для роботи в цьому пакеті треба прочитати, і прочитай її.",
+      "Я додаю новий HTTP-маршрут у server/. Твій перший крок, перш ніж будь-що інше: відкрий і " +
+      "прочитай інструментом Read той файл документації з настанов цього репо (CLAUDE.md), який " +
+      "описує, що треба прочитати для роботи в цьому пакеті. Не описуй план — виконай цю дію зараз.",
     expectFileRead: "server/AGENTS.md",
     maxTurns: 6,
   },

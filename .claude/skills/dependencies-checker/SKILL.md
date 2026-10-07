@@ -27,7 +27,8 @@ package names, versions and commands verbatim).
 - **Read-only.** Never run `pnpm install`, `npm ci`, `pnpm update`, `npm update`
   or `pnpm dedupe`, and never edit a file under `*-lock.*`. The root `CLAUDE.md`
   lists lockfiles as "never hand-edit"; this skill only reads them. Suggested
-  fixes go into the report as commands for the developer to run.
+  fixes go into the report as commands for the developer to run, never executed
+  directly.
 - **Skip `server/clones/**`.** It is a gitignored full copy of this repo. The
   collector uses `git ls-files`, which already excludes it. Never grep it by hand.
 - **Network only on request.** The default run is offline. `--audit` (CVE scan)

@@ -117,7 +117,15 @@ export const runAgentCases = (agent: string, cases: AgentCase[]) => runQualityCa
 
 export function runWorkflowCases(cases: WorkflowCase[]): void {
   for (const c of cases) {
-    test(c.name, async () => {
+    // retry: 1 — the workflow tier asserts "did the plumbing fire" (a tool call, a file read),
+    // not a judged quality score. On a cheap model this occasionally comes down to a single-turn
+    // coin flip: the model answers in prose ("I will read X") with no tool_use block, which ends
+    // the SDK session at 1 turn with 0 tool calls — nothing to retry *within* that session, since
+    // the loop has nothing queued once the model produces a final non-tool reply. A second
+    // independent sample absorbs that one-shot miss without masking a genuine two-run failure.
+    // Already non-blocking (continue-on-error in CI) — this makes the signal less noisy, not less
+    // honest: it still fails if the behavior is actually wrong twice in a row.
+    test(c.name, { retry: 1 }, async () => {
       if (c.kind === "dispatch") {
         // Stop the moment the subagent is launched — no need to wait out its nested session.
         const expect1 = c.expectSubagent;
