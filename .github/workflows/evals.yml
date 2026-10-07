@@ -1,0 +1,245 @@
+# Evals for the Claude Code harness (evals/) — skills, subagents and workflow-level behavior.
+#
+# Three independent tiers, gated by WHAT changed in the PR (see evals/scripts/detect-targets.sh):
+#   - a changed .claude/skills/<name>/**  -> run evals/skills/<name> only (content tier)
+#   - a changed .claude/agents/<name>.md  -> run evals/agents/<name> only (tool tier, needs the
+#                                            LiteLLM proxy — agentTask runs on the Claude Agent SDK)
+#   - a changed **/AGENTS.md              -> run the full workflow tier (tool tier, needs the
+#                                            proxy too — dispatch/activation assertions)
+# A skill or agent with no evals/<tier>/<name> directory is NOT a failure — the matrix step logs
+# a skip notice and exits 0. See evals/README.md "Which change -> which run" and "Wiring into
+# GitHub Actions (per-PR)" for the design this implements.
+#
+# Models: skill tier runs the content-tier call directly against OpenRouter (no proxy needed) on
+# DeepSeek (deepseek/deepseek-chat) — cheap, sufficient for judge-scored content evals. Agent tier
+# also defaults to DeepSeek through the proxy; README's own measurement only verified Gemini Flash
+# for *subagent dispatch* (workflow tier), so if agent-tier runs start flaking on tool use, swap
+# EVAL_MODEL/EVAL_JUDGE_MODEL in the agent-evals job to google/gemini-2.5-flash first. Workflow
+# tier always uses google/gemini-2.5-flash — the only model README verified actually dispatches
+# subagents instead of doing the work inline.
+#
+# workflow-evals is intentionally not a required check: activation-kind cases are indicative-only
+# on non-Anthropic models (README: a capable model may act directly instead of invoking the Skill
+# tool, which the assertion counts as a miss even though the behavior is fine).
+name: evals
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.claude/skills/**'
+      - '.claude/agents/**'
+      - '**/AGENTS.md'
+      - 'evals/**'
+  pull_request:
+    paths:
+      - '.claude/skills/**'
+      - '.claude/agents/**'
+      - '**/AGENTS.md'
+      - 'evals/**'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: evals-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  detect:
+    name: detect changed targets
+    runs-on: ubuntu-latest
+    outputs:
+      skills: ${{ steps.diff.outputs.skills }}
+      agents: ${{ steps.diff.outputs.agents }}
+      workflow_changed: ${{ steps.diff.outputs.workflow_changed }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - id: diff
+        run: |
+          base="${{ github.event.pull_request.base.sha || github.event.before }}"
+          # First push to a new branch / shallow history: fall back to the previous commit.
+          if ! git cat-file -e "${base}^{commit}" 2>/dev/null; then
+            base="$(git rev-parse HEAD~1 2>/dev/null || git rev-parse HEAD)"
+          fi
+          evals/scripts/detect-targets.sh "$base"
+
+  skill-evals:
+    name: skill evals (${{ matrix.name }})
+    needs: detect
+    if: needs.detect.outputs.skills != '[]'
+    strategy:
+      fail-fast: false
+      matrix:
+        name: ${{ fromJSON(needs.detect.outputs.skills) }}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: evals
+    env:
+      OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: evals/pnpm-lock.yaml
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+
+      - name: guard missing secret
+        if: env.OPENROUTER_API_KEY == ''
+        run: |
+          echo "::warning::OPENROUTER_API_KEY is empty (likely a fork PR without secret access) — skipping skill-evals for ${{ matrix.name }}"
+          exit 0
+
+      - name: run or skip
+        if: env.OPENROUTER_API_KEY != ''
+        run: |
+          if [ ! -f "skills/${{ matrix.name }}/${{ matrix.name }}.eval.ts" ]; then
+            echo "::notice::skip — no evals for skill '${{ matrix.name }}'"
+            exit 0
+          fi
+          pnpm vitest run "skills/${{ matrix.name }}"
+        env:
+          EVAL_BACKEND: openrouter
+          EVAL_MODEL: deepseek/deepseek-chat
+          EVAL_JUDGE_MODEL: deepseek/deepseek-chat
+
+  agent-evals:
+    name: agent evals (${{ matrix.name }})
+    needs: detect
+    if: needs.detect.outputs.agents != '[]'
+    strategy:
+      fail-fast: false
+      matrix:
+        name: ${{ fromJSON(needs.detect.outputs.agents) }}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: evals
+    env:
+      OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+      OPENROUTER_BASE_URL: http://localhost:4000
+      EVAL_BACKEND: openrouter
+      EVAL_MODEL: deepseek/deepseek-chat
+      EVAL_JUDGE_MODEL: deepseek/deepseek-chat
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: evals/pnpm-lock.yaml
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+
+      - name: guard missing secret
+        if: env.OPENROUTER_API_KEY == ''
+        run: |
+          echo "::warning::OPENROUTER_API_KEY is empty (likely a fork PR without secret access) — skipping agent-evals for ${{ matrix.name }}"
+          exit 0
+
+      - name: check evals exist
+        if: env.OPENROUTER_API_KEY != ''
+        id: check
+        run: |
+          if [ ! -f "agents/${{ matrix.name }}/${{ matrix.name }}.eval.ts" ]; then
+            echo "::notice::skip — no evals for agent '${{ matrix.name }}'"
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: start proxy
+        if: steps.check.outputs.exists == 'true'
+        run: docker compose -f proxy/docker-compose.yml up -d
+
+      - name: wait for proxy
+        if: steps.check.outputs.exists == 'true'
+        run: pnpm proxy:wait
+
+      - name: run
+        if: steps.check.outputs.exists == 'true'
+        run: pnpm vitest run "agents/${{ matrix.name }}"
+
+      - name: proxy logs on failure
+        if: failure() && steps.check.outputs.exists == 'true'
+        run: docker compose -f proxy/docker-compose.yml logs --tail 100
+
+      - name: stop proxy
+        if: always() && steps.check.outputs.exists == 'true'
+        run: docker compose -f proxy/docker-compose.yml down
+
+  workflow-evals:
+    name: workflow evals
+    needs: detect
+    if: needs.detect.outputs.workflow_changed == 'true'
+    continue-on-error: true   # indicative-only on non-Anthropic models — see header comment
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: evals
+    env:
+      OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+      OPENROUTER_BASE_URL: http://localhost:4000
+      EVAL_BACKEND: openrouter
+      EVAL_MODEL: google/gemini-2.5-flash
+      EVAL_JUDGE_MODEL: google/gemini-2.5-flash
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: evals/pnpm-lock.yaml
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+
+      - name: guard missing secret
+        if: env.OPENROUTER_API_KEY == ''
+        run: |
+          echo "::warning::OPENROUTER_API_KEY is empty (likely a fork PR without secret access) — skipping workflow-evals"
+          exit 0
+
+      - name: start proxy
+        if: env.OPENROUTER_API_KEY != ''
+        run: docker compose -f proxy/docker-compose.yml up -d
+
+      - name: wait for proxy
+        if: env.OPENROUTER_API_KEY != ''
+        run: pnpm proxy:wait
+
+      - name: run
+        if: env.OPENROUTER_API_KEY != ''
+        run: pnpm eval:workflow
+
+      - name: proxy logs on failure
+        if: failure() && env.OPENROUTER_API_KEY != ''
+        run: docker compose -f proxy/docker-compose.yml logs --tail 100
+
+      - name: stop proxy
+        if: always() && env.OPENROUTER_API_KEY != ''
+        run: docker compose -f proxy/docker-compose.yml down
