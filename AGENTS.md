@@ -24,6 +24,26 @@ already blocks `git push` on a CRITICAL finding, but run it explicitly rather
 than relying on the hook to catch it — it's cheaper to fix before a push is
 attempted than after one is denied.
 
+## Evals — which change needs which check
+
+`evals/` holds the harness's own test suite (skills, subagents, workflow
+behavior — see `evals/README.md`). Before pushing a change under any of these
+paths, run at least the minimum check below; `.github/workflows/evals.yml`
+runs the same checks per-PR, scoped to what actually changed.
+
+| Change | Minimum check |
+|---|---|
+| `.claude/skills/**` | `pnpm eval:quality` (blocking) + that skill's own `evals/skills/<name>` eval |
+| `.claude/agents/**` | that agent's `evals/agents/<name>` eval + the relevant `evals/workflow/*.cases.ts` case |
+| `CLAUDE.md` / `AGENTS.md` / routing rules | `pnpm eval:workflow` |
+| An eval case (`*.cases.ts`) or the grader (`evals/src/scoring/**`) | re-run `pnpm eval:repeat <pattern> -n 5 --label <name>` to recapture a baseline — the old one is no longer comparable once the measurement itself changed |
+
+`eval:quality` (static SKILL.md structure, no model) is the only one of these
+CI treats as a hard gate — a skill/agent change that fails it never reaches a
+model call. The model-based tiers (skill/agent/workflow evals, and baseline
+recalibration) publish a report and a baseline comparison to the job summary
+but do not block the PR — see the header comment in `evals.yml` for why.
+
 ## Map
 
 Five independent packages, **not** a pnpm workspace: each has its own lockfile,
