@@ -35,27 +35,38 @@
 # A changed skill/agent with NO evals/<tier>/<name> is NOT a failure — ci-detect.mjs puts it on
 # skipped_skills/skipped_agents, printed to the job summary instead of running anything for it.
 #
-# Models: all three content/tool tiers run on google/gemini-2.5-flash. DeepSeek was tried first for
-# skill/agent evals (cheaper) but dropped after a real test PR (#11) showed it missing
-# judge-threshold/grounding checks across repeated runs — e.g. writing a valid but
-# differently-shaped Mermaid block (`graph TD` vs a case's required `flowchart`), or not naming a
-# finding's rule identifier verbatim. README's own measurement already found Gemini Flash the only
-# model that reliably handles the *tool* tiers (subagent dispatch); this is the same capability gap
-# on the content tier too, so one model everywhere is simpler and more stable than two.
+# Models: split by what each tier actually needs, not one model everywhere.
+#   - skill-evals / recalibrate-skills (content tier — skillTask, a direct OpenRouter call, no
+#     Agent SDK tool loop, no proxy): deepseek/deepseek-chat. No tool-dispatch reliability is at
+#     stake here, the tier is non-blocking, and DeepSeek is meaningfully cheaper — see the PR #11
+#     budget note below for why this was Gemini for one round and isn't anymore.
+#   - agent-evals / workflow-evals / recalibrate-agents (tool tier — Claude Agent SDK through the
+#     LiteLLM proxy): google/gemini-2.5-flash. README's own measurement found it the only model
+#     that reliably dispatches a subagent instead of doing the work inline; DeepSeek and gpt-4.1-mini
+#     both failed that specifically. This is the one place reliability is worth the extra cost.
+# Earlier in PR #11 we ran Gemini everywhere (after DeepSeek missed judge-threshold/grounding
+# checks on the content tier too — e.g. writing a valid but differently-shaped Mermaid block,
+# `graph TD` vs a case's required `flowchart`, since fixed in the case itself) and then burned
+# through the OpenRouter key's spend limit from heavy iterative CI testing. Since the content
+# tier's reliability gap was really about two specific case/grounding issues (now fixed) rather
+# than DeepSeek being fundamentally unable to do the task, and the tier is informative-only anyway,
+# DeepSeek is back for cost — re-promote to Gemini only if content-tier results start looking
+# unreliable again for reasons that aren't a case-authoring problem.
 #
 # Required vs informative: `quality` is the only required/blocking job. skill-evals, agent-evals,
-# workflow-evals and the recalibrate-* jobs are all `continue-on-error: true` — even on Gemini, PR
-# #11's test run still missed a specific verbatim rule-id and a strict judge threshold on real
-# cases, and workflow-evals' activation-kind cases are indicative-only on non-Anthropic models
-# (README: a capable model may act directly instead of invoking the Skill tool, which the assertion
-# counts as a miss even though the behavior is fine). Treat them as "read the job summary," not
-# "red = can't merge." continue-on-error reports the job's own conclusion as failure in the Checks
-# list regardless — that's a GitHub Actions UI fact, not a bug here — but it does not fail the
-# overall workflow run or block anything that only needs: this workflow, not this specific job.
+# workflow-evals and the recalibrate-* jobs are all `continue-on-error: true` — even on a capable
+# model, a specific verbatim rule-id or a strict judge threshold can still miss on a real case, and
+# workflow-evals' activation-kind cases are indicative-only on non-Anthropic models (README: a
+# capable model may act directly instead of invoking the Skill tool, which the assertion counts as
+# a miss even though the behavior is fine). Treat them as "read the job summary," not "red = can't
+# merge." continue-on-error reports the job's own conclusion as failure in the Checks list
+# regardless — that's a GitHub Actions UI fact, not a bug here — but it does not fail the overall
+# workflow run or block anything that only needs: this workflow, not this specific job.
 #
 # Budget: max-parallel: 1 on every model-calling matrix (serialize OpenRouter spend, same as
-# upstream's reference eval-skills.yml/eval-agents.yml), EVAL_BENCHMARK_RUNS kept small, and
-# timeout-minutes on every job as a hard backstop.
+# upstream's reference eval-skills.yml/eval-agents.yml), EVAL_BENCHMARK_RUNS at 1 (halved from an
+# earlier 2 after the same key-exhaustion incident), DeepSeek instead of Gemini wherever reliability
+# doesn't require it, and timeout-minutes on every job as a hard backstop.
 name: evals
 
 on:
@@ -81,7 +92,10 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  EVAL_BENCHMARK_RUNS: 2
+  # n=1 for candidate+baseline — still produces a report, just a weaker (indicative-only, same as
+  # the tier already is) signal per run, at half the OpenRouter spend of n=2. Bump back up only
+  # for a deliberate one-off investigation, not as the steady-state default.
+  EVAL_BENCHMARK_RUNS: 1
   EVAL_REPEAT_RUNS: 5
 
 jobs:
@@ -195,8 +209,11 @@ jobs:
     env:
       OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
       EVAL_BACKEND: openrouter
-      EVAL_MODEL: google/gemini-2.5-flash
-      EVAL_JUDGE_MODEL: google/gemini-2.5-flash
+      # DeepSeek, not Gemini, for the content tier: no proxy/tool-dispatch reliability at stake
+      # here (skillTask is a direct call, no Agent SDK tool loop), the tier is non-blocking, and
+      # DeepSeek is the cheaper leg — see the budget note in the header comment.
+      EVAL_MODEL: deepseek/deepseek-chat
+      EVAL_JUDGE_MODEL: deepseek/deepseek-chat
       # Pass the matrix value through env, never interpolate ${{ matrix.name }} directly into a
       # run: script — it is a directory name taken from PR content (ci-detect.mjs regex-extracts
       # it from the changed-files list), so an attacker-chosen folder name containing shell
@@ -426,8 +443,9 @@ jobs:
     env:
       OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
       EVAL_BACKEND: openrouter
-      EVAL_MODEL: google/gemini-2.5-flash
-      EVAL_JUDGE_MODEL: google/gemini-2.5-flash
+      # Same reasoning as skill-evals above: DeepSeek, no proxy needed, non-blocking tier.
+      EVAL_MODEL: deepseek/deepseek-chat
+      EVAL_JUDGE_MODEL: deepseek/deepseek-chat
       SKILL_NAME: ${{ matrix.name }}
     steps:
       - uses: actions/checkout@v4
