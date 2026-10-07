@@ -9,7 +9,7 @@ import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test, expect } from "vitest";
-import { DEFAULT_THRESHOLD } from "../config.js";
+import { DEFAULT_THRESHOLD, WORKFLOW_DISALLOWED_TOOLS } from "../config.js";
 import { skillTask, agentTask, workflowTask } from "../tasks.js";
 import { runClaude, type Result, type RunOptions } from "../runtime/run-claude.js";
 import { patternMatch } from "../scoring/pattern-match.js";
@@ -187,6 +187,7 @@ export function runWorkflowCases(cases: WorkflowCase[]): void {
         const emptyCwd = mkdtempSync(join(tmpdir(), "eval-control-"));
         const control = await runClaude(c.prompt, {
           allowedTools: tools,
+          disallowedTools: WORKFLOW_DISALLOWED_TOOLS,
           maxTurns: c.maxTurns,
           cwd: emptyCwd,
           settingSources: [],

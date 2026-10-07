@@ -26,6 +26,9 @@ export const COST_REGRESSION_RATIO = 1.25; // candidate mean tokens > 125% of ba
 export const SPAWN_TOOLS = new Set(["Task", "Agent"]);
 // workflowTask runs against the LIVE repo with bypassPermissions — keep this read-only.
 export const WORKFLOW_ALLOWED_TOOLS = ["Read", "Grep", "Glob", "Task", "Agent", "Skill"];
+// allowedTools only auto-approves; under bypassPermissions it does NOT restrict. Mutating and shell
+// tools must be removed explicitly, or a workflow run can still act on the live repo.
+export const WORKFLOW_DISALLOWED_TOOLS = ["Bash", "Write", "Edit", "NotebookEdit"];
 
 // --- Output verbosity -------------------------------------------------------
 // Set EVAL_QUIET to suppress per-run trace/verdict spam during multi-run aggregation.
