@@ -88,18 +88,28 @@ jobs:
           node evals/scripts/ci-detect.mjs
 
       - name: publish detection summary
+        env:
+          # Same reasoning as the matrix jobs: these are derived from PR-controlled folder names
+          # (ci-detect.mjs regex-extracts them from the changed-files list) — go through env, not
+          # a direct ${{ }} splice into the script, which would let shell metacharacters in a
+          # crafted skill/agent folder name execute as code on checkout.
+          SKILLS: ${{ steps.detect.outputs.skills }}
+          AGENTS: ${{ steps.detect.outputs.agents }}
+          RUN_WORKFLOW: ${{ steps.detect.outputs.run_workflow }}
+          SKIPPED_SKILLS: ${{ steps.detect.outputs.skipped_skills }}
+          SKIPPED_AGENTS: ${{ steps.detect.outputs.skipped_agents }}
         run: |
           {
             echo "## Eval scope"
             echo ""
-            echo "- skills to run: \`${{ steps.detect.outputs.skills }}\`"
-            echo "- agents to run: \`${{ steps.detect.outputs.agents }}\`"
-            echo "- workflow tier: \`${{ steps.detect.outputs.run_workflow }}\`"
-            if [ -n "${{ steps.detect.outputs.skipped_skills }}" ]; then
-              echo "- skipped skills (no evals written yet): \`${{ steps.detect.outputs.skipped_skills }}\`"
+            echo "- skills to run: \`$SKILLS\`"
+            echo "- agents to run: \`$AGENTS\`"
+            echo "- workflow tier: \`$RUN_WORKFLOW\`"
+            if [ -n "$SKIPPED_SKILLS" ]; then
+              echo "- skipped skills (no evals written yet): \`$SKIPPED_SKILLS\`"
             fi
-            if [ -n "${{ steps.detect.outputs.skipped_agents }}" ]; then
-              echo "- skipped agents (no evals written yet): \`${{ steps.detect.outputs.skipped_agents }}\`"
+            if [ -n "$SKIPPED_AGENTS" ]; then
+              echo "- skipped agents (no evals written yet): \`$SKIPPED_AGENTS\`"
             fi
           } >> "$GITHUB_STEP_SUMMARY"
 
@@ -120,6 +130,12 @@ jobs:
       EVAL_BACKEND: openrouter
       EVAL_MODEL: deepseek/deepseek-chat
       EVAL_JUDGE_MODEL: deepseek/deepseek-chat
+      # Pass the matrix value through env, never interpolate ${{ matrix.name }} directly into a
+      # run: script — it is a directory name taken from PR content (ci-detect.mjs regex-extracts
+      # it from the changed-files list), so an attacker-chosen folder name containing shell
+      # metacharacters would otherwise be spliced into the script as code before bash even runs,
+      # on a trigger that (for same-repo PRs) has OPENROUTER_API_KEY in scope.
+      SKILL_NAME: ${{ matrix.name }}
     steps:
       - uses: actions/checkout@v4
 
@@ -139,14 +155,14 @@ jobs:
       - name: guard missing secret
         if: env.OPENROUTER_API_KEY == ''
         run: |
-          echo "::warning::OPENROUTER_API_KEY is empty (likely a fork PR without secret access) — skipping skill-evals for ${{ matrix.name }}"
+          echo "::warning::OPENROUTER_API_KEY is empty (likely a fork PR without secret access) — skipping skill-evals for $SKILL_NAME"
           exit 0
 
       # ci-detect.mjs already confirmed this skill has evals/<name>/*.eval.ts before putting it
       # in the matrix — no "does it exist" check needed here.
       - name: run
         if: env.OPENROUTER_API_KEY != ''
-        run: pnpm vitest run "skills/${{ matrix.name }}"
+        run: pnpm vitest run "skills/$SKILL_NAME"
 
   agent-evals:
     name: agent evals (${{ matrix.name }})
@@ -166,6 +182,8 @@ jobs:
       EVAL_BACKEND: openrouter
       EVAL_MODEL: deepseek/deepseek-chat
       EVAL_JUDGE_MODEL: deepseek/deepseek-chat
+      # See the same env-not-interpolation note in skill-evals above.
+      AGENT_NAME: ${{ matrix.name }}
     steps:
       - uses: actions/checkout@v4
 
@@ -185,7 +203,7 @@ jobs:
       - name: guard missing secret
         if: env.OPENROUTER_API_KEY == ''
         run: |
-          echo "::warning::OPENROUTER_API_KEY is empty (likely a fork PR without secret access) — skipping agent-evals for ${{ matrix.name }}"
+          echo "::warning::OPENROUTER_API_KEY is empty (likely a fork PR without secret access) — skipping agent-evals for $AGENT_NAME"
           exit 0
 
       - name: start proxy
@@ -198,7 +216,7 @@ jobs:
 
       - name: run
         if: env.OPENROUTER_API_KEY != ''
-        run: pnpm vitest run "agents/${{ matrix.name }}"
+        run: pnpm vitest run "agents/$AGENT_NAME"
 
       - name: proxy logs on failure
         if: failure() && env.OPENROUTER_API_KEY != ''
