@@ -1,14 +1,23 @@
 # Evals for the Claude Code harness (evals/) — skills, subagents and workflow-level behavior.
 #
-# Three independent tiers, gated by WHAT changed in the PR (see evals/scripts/detect-targets.sh):
-#   - a changed .claude/skills/<name>/**  -> run evals/skills/<name> only (content tier)
-#   - a changed .claude/agents/<name>.md  -> run evals/agents/<name> only (tool tier, needs the
-#                                            LiteLLM proxy — agentTask runs on the Claude Agent SDK)
-#   - a changed **/AGENTS.md              -> run the full workflow tier (tool tier, needs the
-#                                            proxy too — dispatch/activation assertions)
-# A skill or agent with no evals/<tier>/<name> directory is NOT a failure — the matrix step logs
-# a skip notice and exits 0. See evals/README.md "Which change -> which run" and "Wiring into
-# GitHub Actions (per-PR)" for the design this implements.
+# Three independent tiers, gated by WHAT changed in the PR. Detection itself is NOT hand-rolled
+# here — it reuses evals/scripts/ci-detect.mjs, which ships with the evals/ lesson package and
+# already does this exact job: maps changed files onto skill/agent names, checks each one for an
+# actual evals/<tier>/<name>/*.eval.ts (not just a path guess), and reports the rest on its
+# skipped_skills/skipped_agents outputs instead of silently doing nothing. We extended its
+# run_workflow detection by one clause (see the diff in ci-detect.mjs) to also catch a
+# package-local AGENTS.md, not just the root one — CLAUDE.md is a symlink to AGENTS.md
+# (AGENTS.md: "Edit tools refuse to write through a symlink"), so AGENTS.md is what actually
+# changes on disk in every package, not only at the repo root.
+#
+#   a changed .claude/skills/<name>/**  -> run evals/skills/<name>  (content tier, if it has evals)
+#   a changed .claude/agents/<name>.md  -> run evals/agents/<name>  (tool tier, if it has evals —
+#                                          needs the LiteLLM proxy, agentTask runs on the SDK)
+#   a changed **/AGENTS.md              -> run the full workflow tier (tool tier, needs the proxy
+#                                          too — dispatch/activation assertions)
+# A changed skill/agent with NO evals/<tier>/<name> is NOT a failure — ci-detect.mjs puts it on
+# skipped_skills/skipped_agents, which we print to the job summary instead of running anything for
+# it. See evals/README.md "Which change -> which run" and "Wiring into GitHub Actions (per-PR)".
 #
 # Models: skill tier runs the content-tier call directly against OpenRouter (no proxy needed) on
 # DeepSeek (deepseek/deepseek-chat) — cheap, sufficient for judge-scored content evals. Agent tier
@@ -50,22 +59,49 @@ jobs:
     name: detect changed targets
     runs-on: ubuntu-latest
     outputs:
-      skills: ${{ steps.diff.outputs.skills }}
-      agents: ${{ steps.diff.outputs.agents }}
-      workflow_changed: ${{ steps.diff.outputs.workflow_changed }}
+      skills: ${{ steps.detect.outputs.skills }}
+      agents: ${{ steps.detect.outputs.agents }}
+      workflow_changed: ${{ steps.detect.outputs.run_workflow }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - id: diff
+      - name: collect changed files
         run: |
-          base="${{ github.event.pull_request.base.sha || github.event.before }}"
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            base="${{ github.event.pull_request.base.sha }}"
+          else
+            base="${{ github.event.before }}"
+          fi
           # First push to a new branch / shallow history: fall back to the previous commit.
           if ! git cat-file -e "${base}^{commit}" 2>/dev/null; then
             base="$(git rev-parse HEAD~1 2>/dev/null || git rev-parse HEAD)"
           fi
-          evals/scripts/detect-targets.sh "$base"
+          git diff --name-only "$base" "${{ github.sha }}" > /tmp/eval-changed.txt
+
+      - id: detect
+        name: map changes to evals
+        run: |
+          CHANGED_FILES="$(cat /tmp/eval-changed.txt)"
+          export CHANGED_FILES
+          node evals/scripts/ci-detect.mjs
+
+      - name: publish detection summary
+        run: |
+          {
+            echo "## Eval scope"
+            echo ""
+            echo "- skills to run: \`${{ steps.detect.outputs.skills }}\`"
+            echo "- agents to run: \`${{ steps.detect.outputs.agents }}\`"
+            echo "- workflow tier: \`${{ steps.detect.outputs.run_workflow }}\`"
+            if [ -n "${{ steps.detect.outputs.skipped_skills }}" ]; then
+              echo "- skipped skills (no evals written yet): \`${{ steps.detect.outputs.skipped_skills }}\`"
+            fi
+            if [ -n "${{ steps.detect.outputs.skipped_agents }}" ]; then
+              echo "- skipped agents (no evals written yet): \`${{ steps.detect.outputs.skipped_agents }}\`"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
 
   skill-evals:
     name: skill evals (${{ matrix.name }})
@@ -81,6 +117,9 @@ jobs:
         working-directory: evals
     env:
       OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+      EVAL_BACKEND: openrouter
+      EVAL_MODEL: deepseek/deepseek-chat
+      EVAL_JUDGE_MODEL: deepseek/deepseek-chat
     steps:
       - uses: actions/checkout@v4
 
@@ -103,18 +142,11 @@ jobs:
           echo "::warning::OPENROUTER_API_KEY is empty (likely a fork PR without secret access) — skipping skill-evals for ${{ matrix.name }}"
           exit 0
 
-      - name: run or skip
+      # ci-detect.mjs already confirmed this skill has evals/<name>/*.eval.ts before putting it
+      # in the matrix — no "does it exist" check needed here.
+      - name: run
         if: env.OPENROUTER_API_KEY != ''
-        run: |
-          if [ ! -f "skills/${{ matrix.name }}/${{ matrix.name }}.eval.ts" ]; then
-            echo "::notice::skip — no evals for skill '${{ matrix.name }}'"
-            exit 0
-          fi
-          pnpm vitest run "skills/${{ matrix.name }}"
-        env:
-          EVAL_BACKEND: openrouter
-          EVAL_MODEL: deepseek/deepseek-chat
-          EVAL_JUDGE_MODEL: deepseek/deepseek-chat
+        run: pnpm vitest run "skills/${{ matrix.name }}"
 
   agent-evals:
     name: agent evals (${{ matrix.name }})
@@ -156,35 +188,24 @@ jobs:
           echo "::warning::OPENROUTER_API_KEY is empty (likely a fork PR without secret access) — skipping agent-evals for ${{ matrix.name }}"
           exit 0
 
-      - name: check evals exist
-        if: env.OPENROUTER_API_KEY != ''
-        id: check
-        run: |
-          if [ ! -f "agents/${{ matrix.name }}/${{ matrix.name }}.eval.ts" ]; then
-            echo "::notice::skip — no evals for agent '${{ matrix.name }}'"
-            echo "exists=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "exists=true" >> "$GITHUB_OUTPUT"
-          fi
-
       - name: start proxy
-        if: steps.check.outputs.exists == 'true'
+        if: env.OPENROUTER_API_KEY != ''
         run: docker compose -f proxy/docker-compose.yml up -d
 
       - name: wait for proxy
-        if: steps.check.outputs.exists == 'true'
+        if: env.OPENROUTER_API_KEY != ''
         run: pnpm proxy:wait
 
       - name: run
-        if: steps.check.outputs.exists == 'true'
+        if: env.OPENROUTER_API_KEY != ''
         run: pnpm vitest run "agents/${{ matrix.name }}"
 
       - name: proxy logs on failure
-        if: failure() && steps.check.outputs.exists == 'true'
+        if: failure() && env.OPENROUTER_API_KEY != ''
         run: docker compose -f proxy/docker-compose.yml logs --tail 100
 
       - name: stop proxy
-        if: always() && steps.check.outputs.exists == 'true'
+        if: always() && env.OPENROUTER_API_KEY != ''
         run: docker compose -f proxy/docker-compose.yml down
 
   workflow-evals:
