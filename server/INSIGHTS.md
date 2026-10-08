@@ -144,6 +144,23 @@ invisible to tooling.
 
 ## Codebase Patterns
 
+### 2026-10-08 — an `eval_runs` row is ONE case execution, not a run over a set
+
+The ready-made `eval_runs` table carries a `case_id` FK
+(`server/src/db/schema/eval.ts:24`) and has no `workspace_id` and no agent
+snapshot (version, prompt, model, skills). Nothing groups a "run all", so a
+pass count like 17/20, run history, or a two-run comparison has no row to
+attach to. Any feature that needs a set-level run requires a new migration via
+`pnpm db:generate` — it cannot be built as code on top of the shipped schema.
+
+### 2026-10-08 — changing an agent's linked skills does not bump `agents.version`
+
+`AgentsService.setSkills` (`server/src/modules/agents/service.ts:156`) only
+rewrites the `agent_skills` links (`server/src/modules/agents/repository.ts:229`);
+it never touches the version. Two runs taken before and after a skill change
+therefore carry the same `vN` label — tell them apart by a snapshot of the
+skill list stored on the run, never by the version number.
+
 ### 2026-09-22 — a Service class constructed with `container: Container` tripping `no-circular` is expected, not a bug to route around
 
 **Symptom:** `platform/container.ts` gained an `intentService` getter
