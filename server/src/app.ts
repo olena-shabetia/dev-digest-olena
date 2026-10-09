@@ -18,6 +18,9 @@ import { Container, type ContainerOverrides } from './platform/container.js';
 import { AppError } from './platform/errors.js';
 import { modules } from './modules/index.js';
 import { ReviewService } from './modules/reviews/service.js';
+import { REAP_REASON_BOOT, REAP_REASON_SWEEP, STALE_RUN_MAX_AGE_MS } from './modules/reviews/constants.js';
+import { EvalRunService } from './modules/eval/run-service.js';
+import { EVAL_RUN_STALE_MAX_AGE_MS, EVAL_STALE_ERROR } from './modules/eval/constants.js';
 
 // Attach the DI container to every request/instance.
 declare module 'fastify' {
@@ -79,22 +82,42 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
   // NOTE: assumes a SINGLE API instance per DB. With multiple replicas this
   // would need per-instance scoping / heartbeats (not this app's deployment).
   try {
-    const reaped = await new ReviewService(container).reapStaleRuns();
+    const reaped = await new ReviewService(container).reapStaleRuns({ reason: REAP_REASON_BOOT });
     if (reaped > 0) app.log.info({ reaped }, 'reaped stale running agent_runs on boot');
   } catch (err) {
     app.log.warn({ err: (err as Error).message }, 'stale-run reaping failed (non-fatal)');
   }
 
+  // Same for eval set runs left 'running' by a dead process (global, awaited).
+  try {
+    const reaped = await new EvalRunService(container).reapStaleRuns();
+    if (reaped > 0) app.log.info({ reaped }, 'reaped stale running eval_set_runs on boot');
+  } catch (err) {
+    app.log.warn({ err: (err as Error).message }, 'stale eval-run reaping failed (non-fatal)');
+  }
+
   // The boot-time reap above only catches runs orphaned by a PREVIOUS process —
   // a run can also go stale while THIS process stays up (e.g. a hung LLM call
   // that outlives its own run timeout). Sweep for that periodically too, on a
-  // cadence equivalent to schedule('*/5 * * * *') (every 5 minutes). Disabled
+  // cadence equivalent to schedule('*/5 * * * *') (every 5 minutes). Unlike the
+  // boot reap this runs inside the live process, so it must only fail rows
+  // older than STALE_RUN_MAX_AGE_MS — a young 'running' row is a healthy run
+  // (agents of one Run Review execute one after another, so rows wait their
+  // turn), and failing it by status alone is how in-flight runs got killed. Disabled
   // under test: hermetic/integration suites build short-lived apps and don't
   // want a live interval enqueuing DB jobs against them.
   if (config.nodeEnv !== 'test') {
     container.jobs.register('stale-run-sweep', async () => {
-      const reaped = await new ReviewService(container).reapStaleRuns();
+      const reaped = await new ReviewService(container).reapStaleRuns({
+        olderThanMs: STALE_RUN_MAX_AGE_MS,
+        reason: REAP_REASON_SWEEP,
+      });
       if (reaped > 0) app.log.info({ reaped }, 'reaped stale running agent_runs (scheduled sweep)');
+      const evalReaped = await new EvalRunService(container).reapStaleRuns({
+        olderThanMs: EVAL_RUN_STALE_MAX_AGE_MS,
+        error: EVAL_STALE_ERROR,
+      });
+      if (evalReaped > 0) app.log.info({ reaped: evalReaped }, 'reaped stale running eval_set_runs (scheduled sweep)');
     });
     const workspace = await container.auth.currentWorkspace(undefined);
     const sweepTimer = setInterval(() => {

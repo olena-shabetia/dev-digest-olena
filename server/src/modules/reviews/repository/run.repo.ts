@@ -1,4 +1,4 @@
-import { and, desc, eq } from 'drizzle-orm';
+import { and, desc, eq, lt } from 'drizzle-orm';
 import type { Db } from '../../../db/client.js';
 import * as t from '../../../db/schema.js';
 import type { RunSummary, RunTrace } from '@devdigest/shared';
@@ -141,13 +141,27 @@ export async function cancelRunIfRunning(db: Db, runId: string): Promise<boolean
   return rows.length > 0;
 }
 
-/** On boot: any run still 'running' is orphaned (its process died / restarted),
- *  so mark it failed. Prevents permanently stuck "running" runs in the UI. */
-export async function reapStaleRunningRuns(db: Db): Promise<number> {
+export interface ReapOptions {
+  /** Only reap rows whose `ran_at` is older than this many ms. Omit to reap
+   *  every 'running' row (correct on boot: a fresh process has none of its own). */
+  olderThanMs?: number;
+  /** Stored in `agent_runs.error` so the red "failed" mark explains itself. */
+  reason?: string;
+}
+
+/** Mark orphaned 'running' rows failed. On boot (no options) EVERY running row
+ *  is orphaned — its process died / restarted. The periodic sweep must pass
+ *  `olderThanMs`: it runs inside the live process, where a young 'running' row
+ *  is a healthy run that merely hasn't finished yet. */
+export async function reapStaleRunningRuns(db: Db, opts: ReapOptions = {}): Promise<number> {
+  const conditions = [eq(t.agentRuns.status, 'running')];
+  if (opts.olderThanMs !== undefined) {
+    conditions.push(lt(t.agentRuns.ranAt, new Date(Date.now() - opts.olderThanMs)));
+  }
   const rows = await db
     .update(t.agentRuns)
-    .set({ status: 'failed' })
-    .where(eq(t.agentRuns.status, 'running'))
+    .set({ status: 'failed', ...(opts.reason ? { error: opts.reason } : {}) })
+    .where(and(...conditions))
     .returning({ id: t.agentRuns.id });
   return rows.length;
 }

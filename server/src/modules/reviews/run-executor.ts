@@ -2,11 +2,12 @@ import type { Container } from '../../platform/container.js';
 import type { PrIntentRecord, Provider, Review, RunTrace, UnifiedDiff } from '@devdigest/shared';
 import { reviewPullRequest, countBlockers } from '@devdigest/reviewer-core';
 import { RunLogger } from '../../platform/run-logger.js';
+import { withTimeout } from '../../platform/resilience.js';
 import { resolveSkillBodies } from '../../platform/prompt.js';
 import * as schema from '../../db/schema.js';
 import type { AgentRow } from '../../db/rows.js';
 import type { ReviewRepository, FindingRow, PullRow, ReviewRow } from './repository.js';
-import { REVIEW_STRATEGY } from './constants.js';
+import { REVIEW_LLM_TIMEOUT_MS, REVIEW_STRATEGY } from './constants.js';
 import { renderIntent, resolveEffectiveDocPaths, summarizeIntentSources, taskLine } from './helpers.js';
 import { loadDiff } from './diff-loader.js';
 import { readProjectDocsAtRef, type InjectedDoc } from '../../platform/project-context/index.js';
@@ -274,7 +275,11 @@ export class ReviewRunExecutor {
       // The pure review pipeline lives in @devdigest/reviewer-core (shared with
       // the CI runner). The service owns only I/O: repo-intel context resolution
       // above, and persistence + observability below.
-      const outcome = await reviewPullRequest({
+      // Bounded: agents run one after another, so a hung provider call here would
+      // otherwise block every agent queued behind it. On timeout the catch below
+      // persists status='failed' + the error text; the abandoned call is not
+      // cancelled (it is not abortable), only no longer waited on.
+      const outcome = await withTimeout(reviewPullRequest({
         systemPrompt: agent.systemPrompt,
         model: agent.model,
         diff,
@@ -310,7 +315,7 @@ export class ReviewRunExecutor {
         checkCancelled: () => {
           if (this.container.runBus.isCancelled(runId)) throw new RunCancelledError();
         },
-      });
+      }), REVIEW_LLM_TIMEOUT_MS);
       const { tokensIn, tokensOut, costUsd, grounding } = outcome;
 
       const keptFindings = outcome.review.findings;

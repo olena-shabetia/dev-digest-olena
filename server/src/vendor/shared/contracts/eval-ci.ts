@@ -273,3 +273,246 @@ export const HookScanResult = z.object({
   findings: z.array(Finding),
 });
 export type HookScanResult = z.infer<typeof HookScanResult>;
+
+// ===========================================================================
+// L06 eval pipeline
+// ===========================================================================
+
+export const EvalExpectationType = z.enum(['must_find', 'must_not_flag']);
+export type EvalExpectationType = z.infer<typeof EvalExpectationType>;
+/** Stored / returned location: already validated. */
+export const EvalExpectationLocation = z.object({
+  file: z.string().min(1),
+  start_line: z.number().int().min(1),
+  end_line: z.number().int().min(1),
+});
+export type EvalExpectationLocation = z.infer<typeof EvalExpectationLocation>;
+/** Submitted location: deliberately loose (D-16); the service validates it. */
+export const EvalExpectationInput = z.object({
+  file: z.string(),
+  start_line: z.number(),
+  end_line: z.number(),
+});
+export type EvalExpectationInput = z.infer<typeof EvalExpectationInput>;
+export const EvalExpectation = EvalExpectationLocation.extend({
+  type: EvalExpectationType,
+  severity: z.string(),
+  category: z.string(),
+  title: z.string(),
+});
+export type EvalExpectation = z.infer<typeof EvalExpectation>;
+export const EvalCasePrMeta = z.object({
+  number: z.number().int(),
+  title: z.string(),
+  body: z.string().nullable(),
+  head_sha: z.string(),
+});
+export type EvalCasePrMeta = z.infer<typeof EvalCasePrMeta>;
+export const EvalCaseStatus = z.enum(['passed', 'failed', 'errored']);
+export type EvalCaseStatus = z.infer<typeof EvalCaseStatus>;
+export const EvalCaseLastResult = z.object({
+  run_id: z.string(),
+  ran_at: z.string(),
+  status: EvalCaseStatus,
+  matched: z.number().int(),
+  expected: z.number().int(),
+  surviving: z.number().int(),
+  duration_ms: z.number().int().nullable(),
+  cost_usd: z.number().nullable(),
+  error: z.string().nullable(),
+});
+export type EvalCaseLastResult = z.infer<typeof EvalCaseLastResult>;
+export const EvalCaseDraft = z.object({
+  finding_id: z.string(),
+  agent_id: z.string(),
+  agent_name: z.string(),
+  name: z.string(),
+  input_diff: z.string(),
+  pr: EvalCasePrMeta,
+  expectation: EvalExpectation,
+  needs_relocation: z.boolean(),
+});
+export type EvalCaseDraft = z.infer<typeof EvalCaseDraft>;
+export const EvalCaseDetail = z.object({
+  id: z.string(),
+  agent_id: z.string(),
+  agent_name: z.string(),
+  source_finding_id: z.string().nullable(),
+  name: z.string(),
+  input_diff: z.string(),
+  pr: EvalCasePrMeta,
+  expectation: EvalExpectation,
+  created_at: z.string(),
+  updated_at: z.string(),
+  last_result: EvalCaseLastResult.nullable(),
+});
+export type EvalCaseDetail = z.infer<typeof EvalCaseDetail>;
+export const EvalCaseDraftResponse = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('draft'), draft: EvalCaseDraft }),
+  z.object({ kind: z.literal('existing'), case: EvalCaseDetail }),
+]);
+export type EvalCaseDraftResponse = z.infer<typeof EvalCaseDraftResponse>;
+export const EvalCaseListItem = EvalCaseDetail.omit({ input_diff: true, pr: true });
+export type EvalCaseListItem = z.infer<typeof EvalCaseListItem>;
+export const EvalCaseListResponse = z.object({
+  agent_id: z.string(),
+  cases: z.array(EvalCaseListItem),
+  cases_total: z.number().int(),
+  cases_passing: z.number().int(),
+});
+export type EvalCaseListResponse = z.infer<typeof EvalCaseListResponse>;
+export const EvalDraftRunRequest = z
+  .object({
+    finding_id: z.string().uuid().optional(),
+    case_id: z.string().uuid().optional(),
+    input_diff: z.string(),
+    expectation: EvalExpectationInput,
+  })
+  .refine((v) => (v.finding_id ? 1 : 0) + (v.case_id ? 1 : 0) === 1, {
+    message: 'Provide exactly one of finding_id or case_id',
+    path: ['finding_id'],
+  });
+export type EvalDraftRunRequest = z.infer<typeof EvalDraftRunRequest>;
+export const EvalDraftRunFinding = z.object({
+  file: z.string(),
+  start_line: z.number().int(),
+  end_line: z.number().int(),
+  severity: z.string(),
+  category: z.string(),
+  title: z.string(),
+  matched: z.boolean(),
+});
+export type EvalDraftRunFinding = z.infer<typeof EvalDraftRunFinding>;
+export const EvalDraftRunResult = z.object({
+  expectation_type: EvalExpectationType,
+  status: z.enum(['passed', 'failed']),
+  matched: z.number().int(),
+  expected: z.number().int(),
+  findings: z.array(EvalDraftRunFinding),
+  pre_gate: z.number().int(),
+  post_gate: z.number().int(),
+  duration_ms: z.number().int(),
+  cost_usd: z.number().nullable(),
+});
+export type EvalDraftRunResult = z.infer<typeof EvalDraftRunResult>;
+export const EvalCaseCreateRequest = z.object({
+  finding_id: z.string().uuid(),
+  name: z.string(),
+  input_diff: z.string(),
+  expectation: EvalExpectationInput,
+  displayed_type: EvalExpectationType.optional(),
+});
+export type EvalCaseCreateRequest = z.infer<typeof EvalCaseCreateRequest>;
+export const EvalCaseUpdateRequest = z.object({
+  name: z.string(),
+  input_diff: z.string(),
+  expectation: EvalExpectationInput,
+});
+export type EvalCaseUpdateRequest = z.infer<typeof EvalCaseUpdateRequest>;
+export const EvalSetRunStatus = z.enum(['running', 'completed', 'failed']);
+export type EvalSetRunStatus = z.infer<typeof EvalSetRunStatus>;
+export const EvalSkillSnapshot = z.object({
+  id: z.string(),
+  name: z.string(),
+  version: z.number().int(),
+});
+export type EvalSkillSnapshot = z.infer<typeof EvalSkillSnapshot>;
+export const EvalRunCaseRef = z.object({ case_id: z.string(), updated_at: z.string() });
+export type EvalRunCaseRef = z.infer<typeof EvalRunCaseRef>;
+export const EvalSetRunCaseResult = z.object({
+  case_id: z.string(),
+  case_name: z.string(),
+  expectation_type: EvalExpectationType,
+  status: EvalCaseStatus,
+  matched: z.number().int(),
+  expected: z.number().int(),
+  surviving: z.number().int(),
+  pre_gate: z.number().int(),
+  post_gate: z.number().int(),
+  duration_ms: z.number().int().nullable(),
+  cost_usd: z.number().nullable(),
+  error: z.string().nullable(),
+});
+export type EvalSetRunCaseResult = z.infer<typeof EvalSetRunCaseResult>;
+const EvalMetric = z.number().min(0).max(1).nullable(); // not exported
+export const EvalSetRunSummary = z.object({
+  id: z.string(),
+  agent_id: z.string(),
+  agent_name: z.string(),
+  status: EvalSetRunStatus,
+  error: z.string().nullable(),
+  agent_version: z.number().int(),
+  version_label: z.string(),
+  provider: z.string(),
+  model: z.string(),
+  started_at: z.string(),
+  finished_at: z.string().nullable(),
+  cases_total: z.number().int(),
+  cases_done: z.number().int(),
+  cases_passed: z.number().int().nullable(),
+  cases_errored: z.number().int().nullable(),
+  recall: EvalMetric,
+  precision: EvalMetric,
+  citation_accuracy: EvalMetric,
+  duration_ms: z.number().int().nullable(),
+  cost_usd: z.number().nullable(),
+});
+export type EvalSetRunSummary = z.infer<typeof EvalSetRunSummary>;
+export const EvalSetRun = EvalSetRunSummary.extend({
+  strategy: z.string(),
+  system_prompt: z.string(),
+  skills: z.array(EvalSkillSnapshot),
+  cases: z.array(EvalRunCaseRef),
+  results: z.array(EvalSetRunCaseResult),
+});
+export type EvalSetRun = z.infer<typeof EvalSetRun>;
+export const EvalSetRunStarted = z.object({ run: EvalSetRunSummary, reused: z.boolean() });
+export type EvalSetRunStarted = z.infer<typeof EvalSetRunStarted>;
+export const EvalMetricDeltas = z.object({
+  recall: z.number().nullable(),
+  precision: z.number().nullable(),
+  citation_accuracy: z.number().nullable(),
+});
+export type EvalMetricDeltas = z.infer<typeof EvalMetricDeltas>;
+export const EvalAgentRef = z.object({
+  id: z.string(),
+  name: z.string(),
+  provider: z.string(),
+  model: z.string(),
+  version: z.number().int(),
+});
+export type EvalAgentRef = z.infer<typeof EvalAgentRef>;
+export const EvalAgentRunsResponse = z.object({
+  agent: EvalAgentRef,
+  cases_total: z.number().int(),
+  active_run: EvalSetRunSummary.nullable(),
+  latest_completed: EvalSetRunSummary.nullable(),
+  previous_completed: EvalSetRunSummary.nullable(),
+  delta: EvalMetricDeltas.nullable(),
+  runs: z.array(EvalSetRunSummary), // newest first, all statuses
+});
+export type EvalAgentRunsResponse = z.infer<typeof EvalAgentRunsResponse>;
+export const EvalRunCompare = z.object({
+  base: EvalSetRun,
+  head: EvalSetRun, // base = older, head = newer, whatever the request order
+  delta: EvalMetricDeltas.extend({ cost_usd: z.number().nullable() }),
+  prompt_changed: z.boolean(),
+  model_changed: z.boolean(),
+  skills_changed: z.boolean(),
+  cases_only_in_base: z.array(z.string()),
+  cases_only_in_head: z.array(z.string()),
+  cases_edited: z.array(z.string()),
+  comparable: z.boolean(),
+});
+export type EvalRunCompare = z.infer<typeof EvalRunCompare>;
+export const EvalAgentSummary = z.object({
+  agent: EvalAgentRef,
+  cases_total: z.number().int(),
+  latest_completed: EvalSetRunSummary.nullable(),
+});
+export type EvalAgentSummary = z.infer<typeof EvalAgentSummary>;
+export const EvalDashboardIndex = z.object({
+  agents: z.array(EvalAgentSummary),
+  recent_runs: z.array(EvalSetRunSummary),
+});
+export type EvalDashboardIndex = z.infer<typeof EvalDashboardIndex>;
