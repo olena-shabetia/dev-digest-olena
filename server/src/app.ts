@@ -20,7 +20,7 @@ import { modules } from './modules/index.js';
 import { ReviewService } from './modules/reviews/service.js';
 import { REAP_REASON_BOOT, REAP_REASON_SWEEP, STALE_RUN_MAX_AGE_MS } from './modules/reviews/constants.js';
 import { EvalRunService } from './modules/eval/run-service.js';
-import { EVAL_RUN_STALE_MAX_AGE_MS, EVAL_STALE_ERROR } from './modules/eval/constants.js';
+import { EVAL_CASE_TIMEOUT_MS, EVAL_RUN_STALE_SLACK_MS, EVAL_STALE_ERROR } from './modules/eval/constants.js';
 
 // Attach the DI container to every request/instance.
 declare module 'fastify' {
@@ -108,16 +108,26 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
   // want a live interval enqueuing DB jobs against them.
   if (config.nodeEnv !== 'test') {
     container.jobs.register('stale-run-sweep', async () => {
-      const reaped = await new ReviewService(container).reapStaleRuns({
-        olderThanMs: STALE_RUN_MAX_AGE_MS,
-        reason: REAP_REASON_SWEEP,
-      });
-      if (reaped > 0) app.log.info({ reaped }, 'reaped stale running agent_runs (scheduled sweep)');
-      const evalReaped = await new EvalRunService(container).reapStaleRuns({
-        olderThanMs: EVAL_RUN_STALE_MAX_AGE_MS,
-        error: EVAL_STALE_ERROR,
-      });
-      if (evalReaped > 0) app.log.info({ reaped: evalReaped }, 'reaped stale running eval_set_runs (scheduled sweep)');
+      // Isolated: one failing reap must not starve the other.
+      try {
+        const reaped = await new ReviewService(container).reapStaleRuns({
+          olderThanMs: STALE_RUN_MAX_AGE_MS,
+          reason: REAP_REASON_SWEEP,
+        });
+        if (reaped > 0) app.log.info({ reaped }, 'reaped stale running agent_runs (scheduled sweep)');
+      } catch (err) {
+        app.log.warn({ err: (err as Error).message }, 'stale agent_runs sweep failed');
+      }
+      try {
+        const evalReaped = await new EvalRunService(container).reapStaleRuns({
+          olderThanMs: EVAL_RUN_STALE_SLACK_MS,
+          perCaseMs: EVAL_CASE_TIMEOUT_MS,
+          error: EVAL_STALE_ERROR,
+        });
+        if (evalReaped > 0) app.log.info({ reaped: evalReaped }, 'reaped stale running eval_set_runs (scheduled sweep)');
+      } catch (err) {
+        app.log.warn({ err: (err as Error).message }, 'stale eval_set_runs sweep failed');
+      }
     });
     const workspace = await container.auth.currentWorkspace(undefined);
     const sweepTimer = setInterval(() => {

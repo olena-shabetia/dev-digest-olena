@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import { Button, Modal } from "@devdigest/ui";
 import type { EvalCaseDetail, EvalCaseDraftResponse } from "@devdigest/shared";
 import { useEvalCase, useEvalDraft } from "@/lib/hooks/eval";
+import { DialogKeys } from "./DialogKeys";
 import { CaseEditor, type EditorSource } from "./CaseEditor";
 import { errorMessage, refusalKey } from "./helpers";
 import { s } from "./styles";
@@ -68,6 +69,7 @@ export function EvalCaseModal({ target, onClose }: { target: ModalTarget; onClos
           </div>
         }
       >
+        <DialogKeys onClose={onClose} />
         <div role="alert" style={s.centered}>
           {key === "generic"
             ? t("refusal.generic", { message: errorMessage(query.error) })
@@ -106,6 +108,7 @@ export function EvalCaseModal({ target, onClose }: { target: ModalTarget; onClos
           </div>
         }
       >
+        <DialogKeys onClose={onClose} />
         <div role="status" style={s.centered}>
           {t("loading")}
         </div>

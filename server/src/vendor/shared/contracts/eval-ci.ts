@@ -289,7 +289,7 @@ export const EvalExpectationLocation = z.object({
 export type EvalExpectationLocation = z.infer<typeof EvalExpectationLocation>;
 /** Submitted location: deliberately loose (D-16); the service validates it. */
 export const EvalExpectationInput = z.object({
-  file: z.string(),
+  file: z.string().max(500),
   start_line: z.number(),
   end_line: z.number(),
 });
@@ -365,7 +365,7 @@ export const EvalDraftRunRequest = z
   .object({
     finding_id: z.string().uuid().optional(),
     case_id: z.string().uuid().optional(),
-    input_diff: z.string(),
+    input_diff: z.string().max(200_000),
     expectation: EvalExpectationInput,
   })
   .refine((v) => (v.finding_id ? 1 : 0) + (v.case_id ? 1 : 0) === 1, {
@@ -397,15 +397,15 @@ export const EvalDraftRunResult = z.object({
 export type EvalDraftRunResult = z.infer<typeof EvalDraftRunResult>;
 export const EvalCaseCreateRequest = z.object({
   finding_id: z.string().uuid(),
-  name: z.string(),
-  input_diff: z.string(),
+  name: z.string().max(300),
+  input_diff: z.string().max(200_000),
   expectation: EvalExpectationInput,
   displayed_type: EvalExpectationType.optional(),
 });
 export type EvalCaseCreateRequest = z.infer<typeof EvalCaseCreateRequest>;
 export const EvalCaseUpdateRequest = z.object({
-  name: z.string(),
-  input_diff: z.string(),
+  name: z.string().max(300),
+  input_diff: z.string().max(200_000),
   expectation: EvalExpectationInput,
 });
 export type EvalCaseUpdateRequest = z.infer<typeof EvalCaseUpdateRequest>;

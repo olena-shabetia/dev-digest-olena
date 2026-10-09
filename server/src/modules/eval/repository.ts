@@ -1,4 +1,4 @@
-import { and, count, desc, eq, lt } from 'drizzle-orm';
+import { and, count, desc, eq, sql } from 'drizzle-orm';
 import type { Db } from '../../db/client.js';
 import * as t from '../../db/schema.js';
 import { ValidationError } from '../../platform/errors.js';
@@ -231,7 +231,14 @@ export class EvalRepository {
     await this.db
       .update(t.evalSetRuns)
       .set({ results: v.results, casesDone: v.casesDone })
-      .where(and(eq(t.evalSetRuns.workspaceId, workspaceId), eq(t.evalSetRuns.id, runId)));
+      .where(
+        and(
+          eq(t.evalSetRuns.workspaceId, workspaceId),
+          eq(t.evalSetRuns.id, runId),
+          // A run the sweep already failed must not be revived by its detached executor.
+          eq(t.evalSetRuns.status, 'running'),
+        ),
+      );
   }
 
   async finishRun(
@@ -254,7 +261,13 @@ export class EvalRepository {
     await this.db
       .update(t.evalSetRuns)
       .set({ ...v, finishedAt: new Date() })
-      .where(and(eq(t.evalSetRuns.workspaceId, workspaceId), eq(t.evalSetRuns.id, runId)));
+      .where(
+        and(
+          eq(t.evalSetRuns.workspaceId, workspaceId),
+          eq(t.evalSetRuns.id, runId),
+          eq(t.evalSetRuns.status, 'running'),
+        ),
+      );
   }
 
   async getRun(workspaceId: string, id: string): Promise<StoredEvalSetRun | undefined> {
@@ -300,10 +313,14 @@ export class EvalRepository {
    * it runs once at boot, before listening, and assumes a single API instance
    * per DB (D-14) — same stance as ReviewService.reapStaleRuns.
    */
-  async reapRunningRuns(error: string, olderThanMs?: number): Promise<number> {
+  async reapRunningRuns(error: string, olderThanMs?: number, perCaseMs = 0): Promise<number> {
     const conditions = [eq(t.evalSetRuns.status, 'running')];
     if (olderThanMs !== undefined) {
-      conditions.push(lt(t.evalSetRuns.startedAt, new Date(Date.now() - olderThanMs)));
+      // A run may legitimately take cases_total x perCaseMs, so the cutoff
+      // grows with the run's size: olderThanMs + cases_total * perCaseMs.
+      conditions.push(
+        sql`${t.evalSetRuns.startedAt} < now() - (${olderThanMs}::double precision + ${t.evalSetRuns.casesTotal} * ${perCaseMs}::double precision) * interval '1 millisecond'`,
+      );
     }
     const rows = await this.db
       .update(t.evalSetRuns)

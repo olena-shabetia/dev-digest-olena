@@ -38,7 +38,7 @@ d('EvalRepository.reapRunningRuns', () => {
     await pg?.stop();
   });
 
-  async function insertRun(agentId: string, status: string, ageMs: number): Promise<string> {
+  async function insertRun(agentId: string, status: string, ageMs: number, casesTotal = 1): Promise<string> {
     const [row] = await pg.handle.db
       .insert(t.evalSetRuns)
       .values({
@@ -50,7 +50,7 @@ d('EvalRepository.reapRunningRuns', () => {
         model: 'test-model',
         strategy: 'single-pass',
         systemPrompt: 'p',
-        casesTotal: 1,
+        casesTotal,
         startedAt: new Date(Date.now() - ageMs),
       })
       .returning({ id: t.evalSetRuns.id });
@@ -89,5 +89,38 @@ d('EvalRepository.reapRunningRuns', () => {
       .from(t.evalSetRuns)
       .where(eq(t.evalSetRuns.status, 'running'));
     expect(rows).toHaveLength(0);
+  });
+
+  it('scales the cutoff with the run size (cases_total x perCaseMs)', async () => {
+    await repo.reapRunningRuns('cleanup'); // start from no running rows
+    // Both started 20 min ago; cutoff = 10 min slack + cases_total x 2 min.
+    const big = await insertRun(agentIds[3]!, 'running', 20 * MIN, 15); // cutoff 40 min -> spared
+    const small = await insertRun(agentIds[4]!, 'running', 20 * MIN, 1); // cutoff 12 min -> reaped
+
+    const reaped = await repo.reapRunningRuns('too slow', 10 * MIN, 2 * MIN);
+
+    expect(reaped).toBe(1);
+    expect((await read(big)).status).toBe('running');
+    expect((await read(small)).status).toBe('failed');
+  });
+
+  it('does not let a swept run be revived by its still-running executor', async () => {
+    const id = await insertRun(agentIds[0]!, 'failed', 5 * MIN);
+    await repo.finishRun(workspaceId, id, {
+      status: 'completed',
+      error: null,
+      results: [],
+      casesDone: 1,
+      casesPassed: 1,
+      casesErrored: 0,
+      recall: 1,
+      precision: 1,
+      citationAccuracy: 1,
+      durationMs: 1,
+      costUsd: 0,
+    });
+    await repo.recordProgress(workspaceId, id, { results: [], casesDone: 9 });
+    const row = await read(id);
+    expect(row.status).toBe('failed');
   });
 });

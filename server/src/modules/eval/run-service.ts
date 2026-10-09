@@ -312,7 +312,9 @@ export class EvalRunService {
    * running row is orphaned. The scheduled sweep passes `olderThanMs`, because
    * inside the live process a young running row is a healthy run.
    */
-  async reapStaleRuns(opts: { olderThanMs?: number; error?: string } = {}): Promise<number> {
-    return this.repo.reapRunningRuns(opts.error ?? EVAL_REAPED_ERROR, opts.olderThanMs);
+  async reapStaleRuns(
+    opts: { olderThanMs?: number; perCaseMs?: number; error?: string } = {},
+  ): Promise<number> {
+    return this.repo.reapRunningRuns(opts.error ?? EVAL_REAPED_ERROR, opts.olderThanMs, opts.perCaseMs);
   }
 }

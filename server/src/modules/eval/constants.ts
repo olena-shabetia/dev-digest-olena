@@ -7,8 +7,11 @@ export const EVAL_DRAFT_RUN_TIMEOUT_MS = 120_000;
  * longer waited on).
  */
 export const EVAL_CASE_TIMEOUT_MS = 120_000;
-/** The scheduled sweep fails a still-running set run only after this long. */
-export const EVAL_RUN_STALE_MAX_AGE_MS = 30 * 60 * 1000;
+/**
+ * The scheduled sweep fails a still-running set run only after this slack PLUS
+ * cases_total x EVAL_CASE_TIMEOUT_MS — the longest a run of that size can take.
+ */
+export const EVAL_RUN_STALE_SLACK_MS = 10 * 60 * 1000;
 export const EVAL_STALE_ERROR = 'Timed out: this eval run did not finish in time';
 export const EVAL_RATE_LIMIT = { max: 10, timeWindow: '1 minute' } as const;
 export const EVAL_RUN_HISTORY_LIMIT = 50;
