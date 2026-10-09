@@ -19,5 +19,8 @@ export async function getContext(
     container.auth.currentUser(req),
     container.auth.currentWorkspace(req),
   ]);
+  // Debug-level so it's cheap to leave on: helps trace which tenant a
+  // request resolved to without turning on a wider log level.
+  req.log.debug({ workspaceId: workspace.id, userId: user.id }, 'resolved request context');
   return { workspaceId: workspace.id, userId: user.id };
 }
