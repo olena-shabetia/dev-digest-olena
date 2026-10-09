@@ -1,0 +1,19 @@
+{
+  "caseCount": "{count, plural, one {# eval case} other {# eval cases}}",
+  "passing": "{passed} / {total} passing",
+  "viewDashboard": "View full dashboard →",
+  "loadErrorTitle": "Couldn’t load eval cases",
+  "metricsErrorTitle": "Couldn’t load eval metrics",
+  "metricsErrorBody": "The latest eval run for this agent could not be loaded.",
+  "loadErrorBody": "The eval cases for this agent could not be loaded.",
+  "resultMustFind": "expected {expected, plural, one {# finding} other {# findings}}, got {matched}",
+  "resultMustNotFlag": "must not flag · matched {matched}",
+  "casesList": "Eval cases",
+  "showError": "Show error",
+  "hideError": "Hide error",
+  "deleteTitle": "Delete eval case?",
+  "deleteBody": "“{name}” will be removed from this agent’s eval set. Past run results keep their stored outcome.",
+  "deleteConfirm": "Delete",
+  "editCase": "Edit {name}",
+  "deleteCase": "Delete {name}"
+}

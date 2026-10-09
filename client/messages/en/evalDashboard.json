@@ -1,0 +1,72 @@
+{
+  "index": {
+    "title": "Eval Dashboard",
+    "subtitle": "Regression harness across all reviewer agents · pick an agent to see its runs",
+    "agentsHeading": "Agents",
+    "recentHeading": "Recent eval runs · all agents",
+    "noRunsYet": "no runs yet",
+    "lastRun": "Last run {version} · {when} · {passed}/{total} pass",
+    "loadFailed": "Couldn’t load the eval dashboard",
+    "noAgents": "No agents yet.",
+    "runAll": "Run all agents",
+    "runAllStarted": "{count, plural, one {Started # eval run} other {Started # eval runs}}",
+    "runAllNothingNew": "Every agent with eval cases is already running",
+    "runAllNoCases": "No agent has eval cases yet",
+    "runAllFailed": "{count, plural, one {# run could not be started} other {# runs could not be started}}",
+    "metricShort": {
+      "recall": "Recall",
+      "precision": "Prec",
+      "citationAccuracy": "Cite"
+    },
+    "trendLabel": "Recall trend"
+  },
+  "agent": {
+    "back": "All agents",
+    "loadFailed": "Couldn’t load this agent’s eval runs",
+    "casesSummary": "{count, plural, one {# eval case} other {# eval cases}}",
+    "runsHeading": "Runs",
+    "selected": "{count} selected",
+    "compare": "Compare",
+    "noRuns": "No runs yet. Create an eval case and run it.",
+    "trend": {
+      "heading": "Metric trend",
+      "needTwoRuns": "Run the evals at least twice to see how the metrics move."
+    },
+    "banner": {
+      "dropped": "{items} dipped on {version} compared with the previous run.",
+      "improved": "Up: {items}.",
+      "itemDown": "{metric} −{points, plural, one {# pt} other {# pts}}",
+      "itemUp": "{metric} +{points, plural, one {# pt} other {# pts}}"
+    }
+  },
+  "table": {
+    "select": "Select run {version}",
+    "agent": "Agent",
+    "ranAt": "Ran at",
+    "version": "Version",
+    "recall": "Recall",
+    "precision": "Precision",
+    "citation": "Citation",
+    "pass": "Pass",
+    "cost": "Cost",
+    "running": "running",
+    "failed": "failed"
+  },
+  "compare": {
+    "title": "Compare runs · {base} → {head}",
+    "titlePending": "Compare runs",
+    "subtitle": "Older run vs newer run — metric differences and system prompt diff",
+    "loadFailed": "Couldn’t compare these runs",
+    "warning": "These runs are not directly comparable: {onlyBase} only in the older run, {onlyHead} only in the newer run, {edited} edited between them.",
+    "cost": "Cost",
+    "costDelta": "{direction, select, up {▲ +{amount}} down {▼ −{amount}} other {{amount}}}",
+    "promptHeading": "System prompt diff",
+    "promptUnchanged": "Prompt unchanged",
+    "modelChanged": "Model: {base} → {head}",
+    "modelSame": "Model unchanged",
+    "skillsChanged": "Skills: {base} → {head}",
+    "skillsSame": "Skills unchanged",
+    "noSkills": "none",
+    "close": "Close"
+  }
+}

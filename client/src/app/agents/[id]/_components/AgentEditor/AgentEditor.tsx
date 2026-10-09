@@ -10,6 +10,7 @@ import { ConfigTab } from "./_components/ConfigTab";
 import { SkillsTab } from "./_components/SkillsTab";
 import { StatsTab } from "./_components/StatsTab";
 import { ContextTab } from "./_components/ContextTab";
+import { EvalsTab } from "./_components/EvalsTab";
 import { TABS } from "./constants";
 import { s } from "./styles";
 
@@ -17,6 +18,7 @@ function renderTab(tab: string, agent: Agent) {
   if (tab === "skills") return <SkillsTab agent={agent} />;
   if (tab === "stats") return <StatsTab agent={agent} />;
   if (tab === "context") return <ContextTab agent={agent} />;
+  if (tab === "evals") return <EvalsTab agent={agent} />;
   return <ConfigTab agent={agent} />;
 }
 

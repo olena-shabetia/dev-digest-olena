@@ -48,6 +48,27 @@ export const s = {
     fontWeight: 600,
     color: "var(--text-muted)",
   } satisfies CSSProperties,
+  // A saved eval case exists for this finding — same weight as the decision tag.
+  evalCaseTag: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 4,
+    fontSize: 12,
+    fontWeight: 600,
+    color: "var(--accent-text)",
+  } satisfies CSSProperties,
+  // "Turn into eval case" once it can be pressed: the ghost style reads as
+  // disabled (grey on grey), so an enabled button gets the accent colour.
+  evalButtonReady: {
+    color: "var(--accent-text)",
+    borderColor: "var(--accent)",
+    background: "var(--accent-bg, transparent)",
+  } satisfies CSSProperties,
+  // A case already exists: the button now edits it instead of making a duplicate.
+  evalButtonExisting: {
+    color: "var(--ok)",
+    borderColor: "var(--ok)",
+  } satisfies CSSProperties,
   metaRow: {
     display: "flex",
     alignItems: "center",
@@ -82,6 +103,14 @@ export const s = {
     gap: 8,
     marginTop: 14,
     flexWrap: "wrap",
+  } satisfies CSSProperties,
+  srOnly: {
+    position: "absolute",
+    width: 1,
+    height: 1,
+    overflow: "hidden",
+    clip: "rect(0 0 0 0)",
+    whiteSpace: "nowrap",
   } satisfies CSSProperties,
   composer: {
     marginTop: 12,

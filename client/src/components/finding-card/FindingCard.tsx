@@ -21,6 +21,7 @@ import type { FindingRecord, FindingActionKind } from "@devdigest/shared";
 import { SEV_COLOR, SEV_COLOR_FALLBACK } from "./constants";
 import { lineLabel } from "./helpers";
 import { githubBlobUrl } from "@/lib/github-urls";
+import { useEvalCaseModal } from "@/components/eval-case-modal";
 import { s } from "./styles";
 
 export function FindingCard({
@@ -31,6 +32,7 @@ export function FindingCard({
   pending,
   repoFullName,
   headSha,
+  onCreateEvalCase,
 }: {
   f: FindingRecord;
   focused?: boolean;
@@ -39,6 +41,8 @@ export function FindingCard({
   pending?: boolean;
   repoFullName?: string | null;
   headSha?: string | null;
+  /** When provided, renders "Turn into eval case" (enabled only once decided). */
+  onCreateEvalCase?: () => void;
 }) {
   const t = useTranslations("prReview");
   const [expanded, setExpanded] = React.useState(defaultExpanded ?? false);
@@ -50,6 +54,11 @@ export function FindingCard({
   const accepted = !!f.accepted_at;
   const dismissed = !!f.dismissed_at;
   const muted = accepted || dismissed;
+  // Derived on every render from the persisted timestamps — never copied into state.
+  const decided = accepted || dismissed;
+  const evalHintId = `eval-hint-${f.id}`;
+  // Saved case made from this finding (PR page only) — null/undefined elsewhere.
+  const evalCase = useEvalCaseModal()?.caseForFinding(f.id);
 
   return (
     <div data-finding-id={f.id} style={s.card(!!focused, sevColor, muted)}>
@@ -63,6 +72,12 @@ export function FindingCard({
             <CategoryTag category={f.category as Category} />
             {accepted && <span style={s.acceptedTag}>{t("finding.accepted")}</span>}
             {dismissed && <span style={s.dismissedTag}>{t("finding.dismissed")}</span>}
+            {evalCase && onCreateEvalCase && (
+              <span style={s.evalCaseTag} title={t("finding.evalCaseExistsTitle", { name: evalCase.name })}>
+                <Icon.FlaskConical size={12} />
+                {t("finding.evalCaseExists")}
+              </span>
+            )}
           </div>
           <div style={s.metaRow}>
             <MonoLink href={fileHref}>
@@ -109,6 +124,33 @@ export function FindingCard({
             >
               {t("finding.dismiss")}
             </Button>
+            {onCreateEvalCase && (
+              <>
+                <Button
+                  kind={decided ? "secondary" : "ghost"}
+                  size="sm"
+                  icon={evalCase ? "Check" : "FlaskConical"}
+                  disabled={!decided || pending}
+                  style={decided ? (evalCase ? s.evalButtonExisting : s.evalButtonReady) : undefined}
+                  title={
+                    !decided
+                      ? t("finding.evalCaseNeedsDecision")
+                      : evalCase
+                        ? t("finding.evalCaseExistsTitle", { name: evalCase.name })
+                        : undefined
+                  }
+                  aria-describedby={decided ? undefined : evalHintId}
+                  onClick={() => onCreateEvalCase()}
+                >
+                  {evalCase ? t("finding.openEvalCase") : t("finding.turnIntoEvalCase")}
+                </Button>
+                {!decided && (
+                  <span id={evalHintId} style={s.srOnly}>
+                    {t("finding.evalCaseNeedsDecision")}
+                  </span>
+                )}
+              </>
+            )}
           </div>
         </div>
       )}

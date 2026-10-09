@@ -25,6 +25,8 @@ export interface DiffFindingsApi {
   headSha?: string | null;
   onAction?: (findingId: string, action: FindingActionKind, reply?: string) => void;
   pendingFindingId?: string | null;
+  /** Opens the eval-case modal for a decided finding; omitted → no button. */
+  onCreateEvalCase?: (findingId: string) => void;
 }
 
 /**

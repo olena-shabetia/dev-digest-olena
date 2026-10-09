@@ -56,12 +56,12 @@ describe("SkillEditor (smoke)", () => {
     expect(screen.getByText("Configuration")).toBeInTheDocument();
   });
 
-  it("renders all 6 tabs", () => {
+  it("renders all 5 tabs", () => {
     renderWithIntl(<SkillEditor skill={SKILL} />);
     expect(screen.getByText("Config")).toBeInTheDocument();
     expect(screen.getByText("Context")).toBeInTheDocument();
     expect(screen.getByText("Preview")).toBeInTheDocument();
-    expect(screen.getByText("Evals")).toBeInTheDocument();
+    expect(screen.queryByText("Evals")).not.toBeInTheDocument();
     expect(screen.getByText("Stats")).toBeInTheDocument();
     expect(screen.getByText("Versions")).toBeInTheDocument();
   });

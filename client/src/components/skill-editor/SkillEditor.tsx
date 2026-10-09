@@ -15,7 +15,6 @@ import type { Skill } from "@devdigest/shared";
 import { useUpdateSkill } from "@/lib/hooks/skills";
 import { ConfigTab } from "./_components/ConfigTab";
 import { PreviewTab } from "./_components/PreviewTab";
-import { EvalsTab } from "./_components/EvalsTab";
 import { StatsTab } from "./_components/StatsTab";
 import { VersionsTab } from "./_components/VersionsTab";
 import { ContextTab } from "./_components/ContextTab";
@@ -68,7 +67,6 @@ export function SkillEditor({ skill, openFullPageHref }: { skill: Skill; openFul
         {tab === "config" && <ConfigTab skill={skill} />}
         {tab === "context" && <ContextTab skill={skill} />}
         {tab === "preview" && <PreviewTab skill={skill} />}
-        {tab === "evals" && <EvalsTab />}
         {tab === "stats" && <StatsTab skill={skill} />}
         {tab === "versions" && <VersionsTab skill={skill} />}
       </div>

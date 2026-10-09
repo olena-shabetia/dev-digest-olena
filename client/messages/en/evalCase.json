@@ -1,0 +1,71 @@
+{
+  "loading": "Loading eval case…",
+  "refusal": {
+    "eval_finding_outdated": "This finding is outdated: its lines are no longer part of the pull request diff, so it cannot become an eval case.",
+    "eval_agent_missing": "The agent that produced this finding no longer exists, so there is no agent to evaluate.",
+    "eval_finding_undecided": "Accept or dismiss this finding first. An eval case needs a decision to know what to expect.",
+    "not_found": "This finding or eval case could not be found.",
+    "generic": "Could not open the eval case: {message}"
+  },
+  "alreadyInSet": "This finding is already in the eval set. You are editing the existing case.",
+  "prMeta": {
+    "number": "Pull request number",
+    "title": "Title",
+    "body": "Body",
+    "noBody": "No description"
+  },
+  "diffAria": "Diff text",
+  "expectedAria": "Expected output location, JSON",
+  "referenceAria": "Reference information, read-only",
+  "invalidReason": {
+    "notJson": "Not valid JSON",
+    "notObject": "Must be a single JSON object",
+    "missingKeys": "Needs the keys file, start_line and end_line",
+    "extraKeys": "Only file, start_line and end_line are allowed — remove any other keys",
+    "file": "file must be a non-empty string",
+    "lines": "start_line and end_line must be positive whole numbers",
+    "order": "start_line must not be after end_line",
+    "relocate": "Move the expectation onto a changed line of the diff"
+  },
+  "serverReason": {
+    "empty": "Must not be empty",
+    "unparseable": "The text is not a unified diff",
+    "no_hunk": "The diff has a file but no hunk",
+    "multiple_files": "The diff must touch exactly one file",
+    "file_empty": "file must not be empty",
+    "file_mismatch": "file must be the file the diff changes",
+    "line_not_positive_integer": "Lines must be positive whole numbers",
+    "start_after_end": "start_line must not be after end_line",
+    "outside_hunks": "The lines are outside the changed hunks of the diff"
+  },
+  "saveError": {
+    "eval_expectation_type_changed": "The decision on this finding changed while the modal was open, so the expectation type changed. Close and reopen to continue.",
+    "eval_case_exists": "This finding is already in the eval set.",
+    "generic": "Could not save: {message}"
+  },
+  "spendNote": "Calls the model and costs money",
+  "runFirst": "Run the case first",
+  "editedSinceRun": "edited since this run",
+  "result": {
+    "summary": "expected {expected, plural, one {# finding} other {# findings}}, got {matched}",
+    "mustNotFlag": "must not flag · matched {matched}",
+    "findingsHeading": "Surviving findings",
+    "noFindings": "No findings survived the gate",
+    "matched": "matched",
+    "notMatched": "not matched",
+    "runFailed": "The run did not complete: {message}",
+    "lines": "lines {start}–{end}"
+  },
+  "saveFailing": {
+    "title": "Save a failing case?",
+    "body": "The last run of this case failed. You can still save it as a known-failing case.",
+    "confirm": "Save anyway"
+  },
+  "discard": {
+    "title": "Discard changes?",
+    "body": "You have unsaved changes to this eval case. Closing now loses them.",
+    "confirm": "Discard",
+    "keep": "Keep editing"
+  },
+  "saved": "Saved eval case “{name}” ({type}) for {agent}"
+}

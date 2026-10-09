@@ -3,6 +3,7 @@
 import React from "react";
 import { useTranslations } from "next-intl";
 import { SectionLabel, Button, Icon } from "@devdigest/ui";
+import { useEvalCaseModal } from "@/components/eval-case-modal";
 import { DiffViewer, type DiffCommentApi, type DiffFindingsApi, type DiffTarget } from "@/components/diff-viewer";
 import { usePrComments, useCreatePrComment, useSmartDiff, usePrReviews, useFindingAction } from "@/lib/hooks/reviews";
 import { notify } from "@/lib/toast";
@@ -38,6 +39,7 @@ export function DiffTab({ prId, filesCount, files, canComment, repoFullName, hea
   const { data: smartDiff, isLoading: smartDiffLoading, isError: smartDiffErrored } = useSmartDiff(prId);
   const { data: reviews, isLoading: reviewsLoading } = usePrReviews(prId);
   const findingAction = useFindingAction();
+  const evalModal = useEvalCaseModal();
   const [smartOrder, setSmartOrder] = React.useState(true);
 
   const roleLabels: Record<SmartDiffRole, string> = React.useMemo(
@@ -108,6 +110,7 @@ export function DiffTab({ prId, filesCount, files, canComment, repoFullName, hea
     onAction: (findingId, action, reply) => {
       findingAction.mutate({ findingId, action, reply, prId: prId ?? undefined });
     },
+    onCreateEvalCase: evalModal?.openForFinding,
   };
 
   // Arrival target (from the PR Brief). Unknown files are ignored silently.

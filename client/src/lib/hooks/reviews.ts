@@ -6,6 +6,7 @@ import React from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, API_BASE } from "../api";
 import { notify } from "../toast";
+import { orderRunEvents } from "../run-events";
 import type {
   ActiveRun,
   BlastRadiusResponse,
@@ -295,5 +296,12 @@ export function useRunEvents(runIds: string[]) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key]);
 
-  return { events, running };
+  // Streams arrive in network order (each replays its buffer on connect, and the
+  // shared pre-work is fanned out to every run) — merge into one chronological log.
+  const ordered = React.useMemo(
+    () => orderRunEvents(events, key ? key.split(",") : []),
+    [events, key],
+  );
+
+  return { events: ordered, running };
 }
