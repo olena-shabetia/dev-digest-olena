@@ -109,6 +109,9 @@ export function CodeLine({
               repoFullName={findings.repoFullName}
               headSha={findings.headSha}
               onAction={(action, reply) => findings.onAction?.(f.id, action, reply)}
+              onCreateEvalCase={
+                findings.onCreateEvalCase ? () => findings.onCreateEvalCase!(f.id) : undefined
+              }
             />
           </div>
         ))}

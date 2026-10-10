@@ -93,9 +93,10 @@ export class ReviewService {
     this.container.runBus.complete(runId);
   }
 
-  /** Reap runs left 'running' by a previous (now-dead) process. Called on boot. */
-  async reapStaleRuns(): Promise<number> {
-    return this.repo.reapStaleRunningRuns();
+  /** Reap runs left 'running'. On boot, with no options, that is every running
+   *  row (the previous process is dead). The scheduled sweep passes an age. */
+  async reapStaleRuns(opts?: { olderThanMs?: number; reason?: string }): Promise<number> {
+    return this.repo.reapStaleRunningRuns(opts);
   }
 
   /**

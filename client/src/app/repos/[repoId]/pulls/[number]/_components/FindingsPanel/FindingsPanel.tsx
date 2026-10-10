@@ -8,6 +8,7 @@ import { Toggle, EmptyState, SeverityBadge, Icon } from "@devdigest/ui";
 import type { FindingRecord, Severity } from "@devdigest/shared";
 import { severityBuckets } from "@/lib/severity";
 import { FindingCard } from "@/components/finding-card";
+import { useEvalCaseModal } from "@/components/eval-case-modal";
 import { SeverityFilterBar } from "@/components/severity-filter-bar";
 import { useFindingAction } from "../../../../../../../lib/hooks/reviews";
 import { KEY_TO_ACTION } from "./constants";
@@ -33,6 +34,7 @@ export function FindingsPanel({
 }) {
   const t = useTranslations("prReview");
   const action = useFindingAction();
+  const evalModal = useEvalCaseModal();
   const [hideLow, setHideLow] = React.useState(false);
   const [severity, setSeverity] = React.useState<Severity | null>(null);
   const [focusIdx, setFocusIdx] = React.useState(0);
@@ -118,6 +120,7 @@ export function FindingsPanel({
               repoFullName={repoFullName}
               headSha={headSha}
               onAction={(act) => action.mutate({ findingId: f.id, action: act, prId })}
+              onCreateEvalCase={evalModal ? () => evalModal.openForFinding(f.id) : undefined}
             />
           ))
         )}

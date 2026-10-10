@@ -1,0 +1,12 @@
+{
+  "eval_id": 3,
+  "eval_name": "alerts-cross-module",
+  "configuration": "without_skill",
+  "summary": { "pass_rate": 1.0, "passed": 3, "failed": 0, "total": 3 },
+  "timing": { "total_tokens": 32919, "duration_ms": 66729, "total_duration_seconds": 66.7 },
+  "expectations": [
+    { "text": "flags-cross-module-import", "passed": true, "evidence": "Medium finding — 'AlertService cross-imports DEFAULT_BRANCH from sibling repos module; sibling modules must not import each other's internals'" },
+    { "text": "flags-service-bypasses-repo", "passed": true, "evidence": "High finding 2 — 'service.ts issues raw SELECT against this.container.db bypassing AlertChannelRepository'" },
+    { "text": "suggests-repo-delegation", "passed": true, "evidence": "'duplicate-check query belongs in a new findByWebhookUrl method on the repository'" }
+  ]
+}

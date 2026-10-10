@@ -5,7 +5,20 @@ import type { FindingRecord } from "@devdigest/shared";
 import messages from "../../../messages/en/prReview.json";
 import { FindingCard } from "./FindingCard";
 
-afterEach(cleanup);
+// The saved-case lookup comes from the page-level modal provider; stub it here.
+let existingCase: { id: string; name: string } | undefined;
+vi.mock("@/components/eval-case-modal", () => ({
+  useEvalCaseModal: () => ({
+    openForFinding: () => {},
+    openForCase: () => {},
+    caseForFinding: () => existingCase,
+  }),
+}));
+
+afterEach(() => {
+  cleanup();
+  existingCase = undefined;
+});
 
 const FINDING: FindingRecord = {
   id: "f1",
@@ -56,5 +69,42 @@ describe("FindingCard (smoke, both themes)", () => {
     expect(onAction).toHaveBeenCalledWith("accept");
     fireEvent.click(screen.getByText("Dismiss"));
     expect(onAction).toHaveBeenCalledWith("dismiss");
+  });
+
+  describe("Turn into eval case", () => {
+    const accepted = { ...FINDING, accepted_at: "2026-10-09T08:00:00Z" };
+
+    it("is disabled and explained while the finding is undecided", () => {
+      renderWithIntl(<FindingCard f={FINDING} defaultExpanded onCreateEvalCase={() => {}} />);
+      const btn = screen.getByRole("button", { name: /Turn into eval case/ });
+      expect(btn).toBeDisabled();
+      expect(btn).toHaveAttribute("title", "Accept or dismiss this finding first");
+    });
+
+    it("is enabled with an accent style once the finding is decided", () => {
+      const onCreate = vi.fn();
+      renderWithIntl(<FindingCard f={accepted} defaultExpanded onCreateEvalCase={onCreate} />);
+      const btn = screen.getByRole("button", { name: /Turn into eval case/ });
+      expect(btn).toBeEnabled();
+      expect(btn.style.color).toBe("var(--accent-text)");
+      fireEvent.click(btn);
+      expect(onCreate).toHaveBeenCalledTimes(1);
+    });
+
+    it("marks a finding that already has a case and offers to edit it instead", () => {
+      existingCase = { id: "c1", name: "Hardcoded Stripe secret key" };
+      const onCreate = vi.fn();
+      renderWithIntl(<FindingCard f={accepted} defaultExpanded onCreateEvalCase={onCreate} />);
+      expect(screen.getByText("Eval case created")).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: /Turn into eval case/ })).toBeNull();
+      fireEvent.click(screen.getByRole("button", { name: /Edit eval case/ }));
+      expect(onCreate).toHaveBeenCalledTimes(1);
+    });
+
+    it("shows no marker when the card has no eval entry point", () => {
+      existingCase = { id: "c1", name: "x" };
+      renderWithIntl(<FindingCard f={accepted} defaultExpanded />);
+      expect(screen.queryByText("Eval case created")).toBeNull();
+    });
   });
 });

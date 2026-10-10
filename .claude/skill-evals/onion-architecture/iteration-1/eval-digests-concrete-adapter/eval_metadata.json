@@ -1,0 +1,10 @@
+{
+  "eval_id": 2,
+  "eval_name": "digests-concrete-adapter",
+  "prompt": "Here's our new digests module — a service that calls OpenAI to summarise PRs and stores the results. Please review it for architectural correctness against our onion-architecture conventions before I open a PR.",
+  "assertions": [
+    { "name": "flags-concrete-adapter-import", "description": "Flags that service.ts imports the concrete OpenAICompletionClient by path rather than through a port" },
+    { "name": "flags-new-in-service", "description": "Flags that the service instantiates the adapter with `new` instead of using the container" },
+    { "name": "mentions-port-solution", "description": "Recommends declaring a port interface and wiring through the container" }
+  ]
+}

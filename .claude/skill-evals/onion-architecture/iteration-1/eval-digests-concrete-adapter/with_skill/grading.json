@@ -1,0 +1,25 @@
+{
+  "eval_id": 2,
+  "eval_name": "digests-concrete-adapter",
+  "configuration": "with_skill",
+  "expectations": [
+    {
+      "text": "flags-concrete-adapter-import: Flags that service.ts imports the concrete OpenAICompletionClient by path rather than through a port",
+      "passed": true,
+      "evidence": "V1 at service.ts:2 — 'Service imports a concrete adapter by path' with exact import path ../../adapters/openai/client.js cited"
+    },
+    {
+      "text": "flags-new-in-service: Flags that the service instantiates the adapter with `new` instead of using the container",
+      "passed": true,
+      "evidence": "V2 at service.ts:12 — 'Adapter is new-ed inside the service. The service constructs the adapter rather than receiving it from the container'"
+    },
+    {
+      "text": "mentions-port-solution: Recommends declaring a port interface and wiring through the container",
+      "passed": true,
+      "evidence": "V1 fix: 'Declare an LLMProvider port (one already exists at vendor/shared/adapters.ts:21-23) and resolve it through the container'; V4 provides complete Container getter skeleton"
+    }
+  ],
+  "pass_count": 3,
+  "total_count": 3,
+  "pass_rate": 1.0
+}

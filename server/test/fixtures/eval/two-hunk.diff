@@ -1,0 +1,16 @@
+diff --git a/src/eval-fixture.ts b/src/eval-fixture.ts
+index 1111111..2222222 100644
+--- a/src/eval-fixture.ts
++++ b/src/eval-fixture.ts
+@@ -3,4 +3,5 @@
+ const alpha = 1;
+ const beta = 2;
++const hunkOneAdded = 10;
+ const gamma = 3;
+ const delta = 4;
+@@ -40,4 +41,5 @@
+ const omega = 5;
+ const sigma = 6;
++const hunkTwoAdded = 20;
+ const tau = 7;
+ const upsilon = 8;

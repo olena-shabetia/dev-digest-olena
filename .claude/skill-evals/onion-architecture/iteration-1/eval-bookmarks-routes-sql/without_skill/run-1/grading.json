@@ -1,0 +1,13 @@
+{
+  "eval_id": 1,
+  "eval_name": "bookmarks-routes-sql",
+  "configuration": "without_skill",
+  "summary": { "pass_rate": 1.0, "passed": 4, "failed": 0, "total": 4 },
+  "timing": { "total_tokens": 32242, "duration_ms": 71963, "total_duration_seconds": 72.0 },
+  "expectations": [
+    { "text": "flags-sql-in-routes", "passed": true, "evidence": "CRITICAL findings at routes.ts:4 and routes.ts:15-18,29-33,38-41,50-53 — raw Drizzle queries in handlers" },
+    { "text": "identifies-missing-repository", "passed": true, "evidence": "CRITICAL fix: 'Introduce a repository.ts that owns all Drizzle queries'" },
+    { "text": "identifies-missing-service", "passed": true, "evidence": "HIGH finding 'Missing service layer' with standard routes/service/repository structure" },
+    { "text": "suggests-concrete-fix", "passed": true, "evidence": "Fix recommends creating BookmarksRepository class or module-level functions in repository.ts" }
+  ]
+}

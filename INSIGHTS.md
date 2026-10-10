@@ -19,7 +19,14 @@ _None yet._
 
 ## Codebase Patterns
 
-_None yet._
+### 2026-10-08 — no `verify:lNN` script exists in this repository; create it, don't look for it
+
+`grep -rn "verify:l" --include=package.json .` (outside `node_modules` and
+`server/clones`) returns nothing on any local branch. The convention a lesson
+checklist refers to (`pnpm verify:l06` and the like) lives only on the course's
+`upstream/full-functionality` branch, as a `server/package.json` script that
+runs a fixed list of vitest files. A lesson that requires `verify:lNN` green
+means adding that script in the same style.
 
 ## Tool & Library Notes
 

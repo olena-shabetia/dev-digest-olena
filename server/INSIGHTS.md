@@ -144,6 +144,35 @@ invisible to tooling.
 
 ## Codebase Patterns
 
+### 2026-10-09 — an eval `must_not_flag` case is matched by file + line overlap only, so it must sit on lines where the agent has nothing legitimate to say
+
+`matches()` (`server/src/modules/eval/scoring.ts:52`) compares file and overlapping
+line ranges — never the topic of the finding. A Performance Reviewer told to stay
+silent on a SQL-injection line still "violates" the case when it reports a legitimate
+N+1 whose range (12–26) happens to cover that line, and models often report wide
+ranges. Put trap lines outside the agent's own territory (a credentials leak for a
+performance agent), not on code where it has a real in-lane comment. Related: eval
+prompts carry only the frozen diff (no callers, no repo-intel), so a `must_find`
+that relied on that context in the live review (an interface rename) was found in
+about 10 % of eval runs — that is a bad case, not an agent to tune.
+
+### 2026-10-08 — an `eval_runs` row is ONE case execution, not a run over a set
+
+The ready-made `eval_runs` table carries a `case_id` FK
+(`server/src/db/schema/eval.ts:24`) and has no `workspace_id` and no agent
+snapshot (version, prompt, model, skills). Nothing groups a "run all", so a
+pass count like 17/20, run history, or a two-run comparison has no row to
+attach to. Any feature that needs a set-level run requires a new migration via
+`pnpm db:generate` — it cannot be built as code on top of the shipped schema.
+
+### 2026-10-08 — changing an agent's linked skills does not bump `agents.version`
+
+`AgentsService.setSkills` (`server/src/modules/agents/service.ts:156`) only
+rewrites the `agent_skills` links (`server/src/modules/agents/repository.ts:229`);
+it never touches the version. Two runs taken before and after a skill change
+therefore carry the same `vN` label — tell them apart by a snapshot of the
+skill list stored on the run, never by the version number.
+
 ### 2026-09-22 — a Service class constructed with `container: Container` tripping `no-circular` is expected, not a bug to route around
 
 **Symptom:** `platform/container.ts` gained an `intentService` getter
@@ -323,6 +352,19 @@ provider the target agent is actually set to.
 
 ## Tool & Library Notes
 
+### 2026-10-09 — `deepseek/deepseek-v4-flash` via OpenRouter sometimes never answers; bound every call that sits in a sequential loop
+
+Measured on the same eval inputs (4–5 runs each): the SSRF and webhook-signature
+cases hung past 150 s in 2–4 of 4 runs on deepseek-v4-flash regardless of prompt
+wording (also with no scope text at all), while `openai/gpt-4o-mini` (3–7 s) and
+`deepseek/deepseek-chat` (~22 s) finished 16 of 16. An unbounded call stalls
+everything behind it: the agents of one Run Review run one after another
+(`server/src/modules/reviews/run-executor.ts:154`), eval set runs go case by case,
+and a still-running set run blocks starting another (one-running-per-agent index).
+The bounds are `REVIEW_LLM_TIMEOUT_MS` (`server/src/modules/reviews/constants.ts:20`)
+and `EVAL_CASE_TIMEOUT_MS` (`server/src/modules/eval/constants.ts:9`); `withTimeout`
+stops waiting but does not cancel the request, so a timed-out call can still cost.
+
 ### 2026-09-21 — `fastify-type-provider-zod`'s response serializer runs `safeParse` BEFORE `JSON.stringify`, not after
 
 **Symptom:** attaching a `response:` schema to a route can (a) silently drop
@@ -421,6 +463,24 @@ import either, since their allowlists also target node_modules paths.
 `node_modules` must not appear in `exclude` — only in `doNotFollow`.
 
 ## Recurring Errors & Fixes
+
+### 2026-10-09 — the scheduled stale-run sweep failed every `running` agent_run, killing healthy slow runs
+
+**Symptom:** after "Run Review" with several agents only the first finished; the
+rest turned `failed` with no error text, no duration and no tokens, and the live
+log window vanished. The failures lined up with the `:x0:15` / `:x5:15` marks
+(`jobs` rows of kind `stale-run-sweep`).
+**Cause:** `reapStaleRunningRuns` (`server/src/modules/reviews/repository/run.repo.ts:156`)
+was `WHERE status = 'running'` with no age filter, and the 5-minute sweep
+(`server/src/app.ts:110`) calls it inside the LIVE process. The rows of all agents
+of one Run Review are created up front as `running` and the agents then execute
+sequentially, so a young `running` row is normal.
+**Fix:** `reapStaleRunningRuns(db, { olderThanMs, reason })`; the sweep passes
+`STALE_RUN_MAX_AGE_MS` (60 min), boot passes nothing (after a restart every
+`running` row is an orphan). Reaped rows now carry an `error`. Eval set runs got
+the same shape: their cutoff grows with `cases_total`.
+**Rule:** a periodic reaper inside a live process must filter by age; only the
+boot reap may fail every running row.
 
 ### 2026-09-21 — `drizzle-kit generate`'s interactive rename-vs-create prompt can't be answered by piping input into a non-tty stdin
 

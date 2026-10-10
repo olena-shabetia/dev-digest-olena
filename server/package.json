@@ -9,6 +9,7 @@
     "start": "node dist/server.js",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run",
+    "verify:l06": "vitest run test/eval-scoring.test.ts test/eval-diff-parse.test.ts test/eval-helpers.test.ts test/eval-executor.test.ts test/eval-contracts.test.ts test/eval.it.test.ts test/eval-reap.it.test.ts",
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",

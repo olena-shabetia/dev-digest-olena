@@ -1,0 +1,23 @@
+export const s = {
+  card: { background: "var(--bg-elevated)", border: "1px solid var(--border)", borderRadius: 10, padding: "14px 18px 10px" },
+  head: { display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap", marginBottom: 8 },
+  heading: { fontSize: 12, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-muted)" },
+  spacer: { flex: 1 },
+  legend: { display: "flex", gap: 16, flexWrap: "wrap", listStyle: "none", margin: 0, padding: 0 },
+  legendItem: { display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, color: "var(--text-secondary)" },
+  swatch: { width: 14, height: 3, borderRadius: 2, display: "inline-block" },
+  empty: { fontSize: 14, color: "var(--text-muted)", padding: "28px 0" },
+  tip: {
+    background: "var(--bg-surface)",
+    border: "1px solid var(--border-strong)",
+    borderRadius: 8,
+    padding: "8px 12px",
+    fontSize: 12.5,
+    boxShadow: "0 4px 14px rgba(0,0,0,.25)",
+  },
+  tipHead: { fontWeight: 600, color: "var(--text-primary)" },
+  tipWhen: { color: "var(--text-muted)", marginBottom: 6 },
+  tipRow: { display: "flex", alignItems: "center", gap: 8, color: "var(--text-secondary)" },
+  tipDot: { width: 8, height: 8, borderRadius: 99, display: "inline-block" },
+  tipVal: { marginLeft: "auto", paddingLeft: 14, fontWeight: 600, color: "var(--text-primary)" },
+} as const;

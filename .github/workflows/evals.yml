@@ -1,0 +1,575 @@
+# Evals for the Claude Code harness (evals/) — skills, subagents and workflow-level behavior.
+# See AGENTS.md "Evals — which change needs which check" for the routing table this implements.
+#
+# Jobs, in dependency order:
+#   quality            — pnpm eval:quality (static SKILL.md structure gate, no model). BLOCKING:
+#                         everything else needs: [detect, quality], so a structural problem in a
+#                         skill never reaches a model call.
+#   detect             — maps changed files onto eval targets via the already-shipped
+#                         evals/scripts/ci-detect.mjs (lesson template, bbcbced). Not hand-rolled:
+#                         it checks each name for an actual evals/<tier>/<name>/*.eval.ts (not just
+#                         a path guess) and reports misses on skipped_skills/skipped_agents instead
+#                         of silently doing nothing. We extended it twice (see ci-detect.mjs's own
+#                         header): run_workflow also catches a package-local AGENTS.md (CLAUDE.md
+#                         is a symlink to it), and recalibrate_skills/recalibrate_agents flag when
+#                         a *.cases.ts file or the grader (evals/src/scoring/**) changed — a
+#                         changed MEASUREMENT, not the thing being measured, which invalidates any
+#                         previously-captured baseline for that target.
+#   skill-evals        — matrix over changed skills with an evals/skills/<name> dir. Runs
+#                         `pnpm eval:benchmark` (candidate-vs-baseline lift, not a bare pass/fail
+#                         run) and publishes its report to the job summary. Direct OpenRouter call,
+#                         no proxy (content tier).
+#   agent-evals        — same for changed agents. Needs the bundled LiteLLM proxy (tool tier,
+#                         Claude Agent SDK) and server/+reviewer-core deps installed, because
+#                         architecture-reviewer's tool use runs `pnpm arch:report` for real against
+#                         this checkout and dependency-cruiser resolves both roots in one graph.
+#   workflow-evals     — triggered by any AGENTS.md change. Trace-asserted (dispatch / activation /
+#                         contrast), not benchmarked — README: "no artifact" baseline is meaningless
+#                         for this tier, which has its own control-vs-treatment design.
+#   recalibrate-skills/agents — when a *.cases.ts or the grader changed, re-run `eval:repeat` to
+#                         capture a fresh baseline measurement under this commit's label, published
+#                         to the summary. Doesn't diff against the OLD baseline (that number isn't
+#                         persisted anywhere CI can read it back from) — it's the "recapture" half
+#                         of AGENTS.md's rule, not an automated regression diff.
+#
+# A changed skill/agent with NO evals/<tier>/<name> is NOT a failure — ci-detect.mjs puts it on
+# skipped_skills/skipped_agents, printed to the job summary instead of running anything for it.
+#
+# Models: split by what each tier actually needs, not one model everywhere.
+#   - skill-evals / recalibrate-skills (content tier — skillTask, a direct OpenRouter call, no
+#     Agent SDK tool loop, no proxy): deepseek/deepseek-chat. No tool-dispatch reliability is at
+#     stake here, the tier is non-blocking, and DeepSeek is meaningfully cheaper — see the PR #11
+#     budget note below for why this was Gemini for one round and isn't anymore.
+#   - agent-evals / workflow-evals / recalibrate-agents (tool tier — Claude Agent SDK through the
+#     LiteLLM proxy): google/gemini-2.5-flash. README's own measurement found it the only model
+#     that reliably dispatches a subagent instead of doing the work inline; DeepSeek and gpt-4.1-mini
+#     both failed that specifically. This is the one place reliability is worth the extra cost.
+# Earlier in PR #11 we ran Gemini everywhere (after DeepSeek missed judge-threshold/grounding
+# checks on the content tier too — e.g. writing a valid but differently-shaped Mermaid block,
+# `graph TD` vs a case's required `flowchart`, since fixed in the case itself) and then burned
+# through the OpenRouter key's spend limit from heavy iterative CI testing. Since the content
+# tier's reliability gap was really about two specific case/grounding issues (now fixed) rather
+# than DeepSeek being fundamentally unable to do the task, and the tier is informative-only anyway,
+# DeepSeek is back for cost — re-promote to Gemini only if content-tier results start looking
+# unreliable again for reasons that aren't a case-authoring problem.
+#
+# Required vs informative: `quality` is the only required/blocking job. skill-evals, agent-evals,
+# workflow-evals and the recalibrate-* jobs are all `continue-on-error: true` — even on a capable
+# model, a specific verbatim rule-id or a strict judge threshold can still miss on a real case, and
+# workflow-evals' activation-kind cases are indicative-only on non-Anthropic models (README: a
+# capable model may act directly instead of invoking the Skill tool, which the assertion counts as
+# a miss even though the behavior is fine). Treat them as "read the job summary," not "red = can't
+# merge." continue-on-error reports the job's own conclusion as failure in the Checks list
+# regardless — that's a GitHub Actions UI fact, not a bug here — but it does not fail the overall
+# workflow run or block anything that only needs: this workflow, not this specific job.
+#
+# Budget: max-parallel: 1 on every model-calling matrix (serialize OpenRouter spend, same as
+# upstream's reference eval-skills.yml/eval-agents.yml), EVAL_BENCHMARK_RUNS at 1 (halved from an
+# earlier 2 after the same key-exhaustion incident), DeepSeek instead of Gemini wherever reliability
+# doesn't require it, and timeout-minutes on every job as a hard backstop.
+name: evals
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.claude/skills/**'
+      - '.claude/agents/**'
+      - '**/AGENTS.md'
+      - 'evals/**'
+  pull_request:
+    paths:
+      - '.claude/skills/**'
+      - '.claude/agents/**'
+      - '**/AGENTS.md'
+      - 'evals/**'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: evals-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # n=1 for candidate+baseline — still produces a report, just a weaker (indicative-only, same as
+  # the tier already is) signal per run, at half the OpenRouter spend of n=2. Bump back up only
+  # for a deliberate one-off investigation, not as the steady-state default.
+  EVAL_BENCHMARK_RUNS: 1
+  EVAL_REPEAT_RUNS: 5
+
+jobs:
+  quality:
+    name: eval quality (blocking)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: evals
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: evals/pnpm-lock.yaml
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm eval:quality
+
+  detect:
+    name: detect changed targets
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      skills: ${{ steps.detect.outputs.skills }}
+      agents: ${{ steps.detect.outputs.agents }}
+      workflow_changed: ${{ steps.detect.outputs.run_workflow }}
+      recalibrate_skills: ${{ steps.detect.outputs.recalibrate_skills }}
+      recalibrate_agents: ${{ steps.detect.outputs.recalibrate_agents }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: collect changed files
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            base="${{ github.event.pull_request.base.sha }}"
+          else
+            base="${{ github.event.before }}"
+          fi
+          # First push to a new branch / shallow history: fall back to the previous commit.
+          if ! git cat-file -e "${base}^{commit}" 2>/dev/null; then
+            base="$(git rev-parse HEAD~1 2>/dev/null || git rev-parse HEAD)"
+          fi
+          git diff --name-only "$base" "${{ github.sha }}" > /tmp/eval-changed.txt
+
+      - id: detect
+        name: map changes to evals
+        run: |
+          CHANGED_FILES="$(cat /tmp/eval-changed.txt)"
+          export CHANGED_FILES
+          node evals/scripts/ci-detect.mjs
+
+      - name: publish detection summary
+        env:
+          # These are derived from PR-controlled folder names (ci-detect.mjs regex-extracts them
+          # from the changed-files list) — go through env, not a direct ${{ }} splice into the
+          # script, which would let shell metacharacters in a crafted folder name execute as code.
+          SKILLS: ${{ steps.detect.outputs.skills }}
+          AGENTS: ${{ steps.detect.outputs.agents }}
+          RUN_WORKFLOW: ${{ steps.detect.outputs.run_workflow }}
+          SKIPPED_SKILLS: ${{ steps.detect.outputs.skipped_skills }}
+          SKIPPED_AGENTS: ${{ steps.detect.outputs.skipped_agents }}
+          RECAL_SKILLS: ${{ steps.detect.outputs.recalibrate_skills }}
+          RECAL_AGENTS: ${{ steps.detect.outputs.recalibrate_agents }}
+        run: |
+          {
+            echo "## Eval scope"
+            echo ""
+            echo "- skills to run: \`$SKILLS\`"
+            echo "- agents to run: \`$AGENTS\`"
+            echo "- workflow tier: \`$RUN_WORKFLOW\`"
+            if [ -n "$SKIPPED_SKILLS" ]; then
+              echo "- skipped skills (no evals written yet): \`$SKIPPED_SKILLS\`"
+            fi
+            if [ -n "$SKIPPED_AGENTS" ]; then
+              echo "- skipped agents (no evals written yet): \`$SKIPPED_AGENTS\`"
+            fi
+            if [ "$RECAL_SKILLS" != "[]" ]; then
+              echo "- recalibrating baseline (skills): \`$RECAL_SKILLS\`"
+            fi
+            if [ "$RECAL_AGENTS" != "[]" ]; then
+              echo "- recalibrating baseline (agents): \`$RECAL_AGENTS\`"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  skill-evals:
+    name: skill evals (${{ matrix.name }})
+    needs: [detect, quality]
+    if: needs.detect.outputs.skills != '[]'
+    continue-on-error: true   # informative, not blocking — see header comment
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      max-parallel: 1   # budget: serialize OpenRouter spend across matrix entries
+      matrix:
+        name: ${{ fromJSON(needs.detect.outputs.skills) }}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: evals
+    env:
+      OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+      EVAL_BACKEND: openrouter
+      # DeepSeek, not Gemini, for the content tier: no proxy/tool-dispatch reliability at stake
+      # here (skillTask is a direct call, no Agent SDK tool loop), the tier is non-blocking, and
+      # DeepSeek is the cheaper leg — see the budget note in the header comment.
+      EVAL_MODEL: deepseek/deepseek-chat
+      EVAL_JUDGE_MODEL: deepseek/deepseek-chat
+      # Pass the matrix value through env, never interpolate ${{ matrix.name }} directly into a
+      # run: script — it is a directory name taken from PR content (ci-detect.mjs regex-extracts
+      # it from the changed-files list), so an attacker-chosen folder name containing shell
+      # metacharacters would otherwise be spliced into the script as code before bash even runs,
+      # on a trigger that (for same-repo PRs) has OPENROUTER_API_KEY in scope.
+      SKILL_NAME: ${{ matrix.name }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: evals/pnpm-lock.yaml
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: guard missing secret
+        if: env.OPENROUTER_API_KEY == ''
+        run: |
+          echo "::warning::OPENROUTER_API_KEY is empty (likely a fork PR without secret access) — skipping skill-evals for $SKILL_NAME"
+          exit 0
+
+      # ci-detect.mjs already confirmed this skill has evals/<name>/*.eval.ts before putting it in
+      # the matrix. eval:benchmark (not a bare vitest run) publishes a candidate-vs-baseline report
+      # — "model runs first publish a report and a baseline comparison" (AGENTS.md).
+      - name: run benchmark (candidate vs baseline)
+        if: env.OPENROUTER_API_KEY != ''
+        run: pnpm eval:benchmark "skills/$SKILL_NAME" -n "$EVAL_BENCHMARK_RUNS"
+
+      - name: publish benchmark summary
+        if: always() && env.OPENROUTER_API_KEY != ''
+        run: |
+          latest="$(ls -td results/benchmarks/* 2>/dev/null | head -n1 || true)"
+          if [ -n "$latest" ] && [ -f "$latest/benchmark.md" ]; then
+            {
+              echo "## Skill benchmark: \`$SKILL_NAME\`"
+              echo ""
+              cat "$latest/benchmark.md"
+              echo ""
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "## Skill benchmark: \`$SKILL_NAME\` — no report generated" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+  agent-evals:
+    name: agent evals (${{ matrix.name }})
+    needs: [detect, quality]
+    if: needs.detect.outputs.agents != '[]'
+    continue-on-error: true   # informative, not blocking — see header comment
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      max-parallel: 1   # budget: serialize OpenRouter spend across matrix entries
+      matrix:
+        name: ${{ fromJSON(needs.detect.outputs.agents) }}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: evals
+    env:
+      OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+      OPENROUTER_BASE_URL: http://localhost:4000
+      EVAL_BACKEND: openrouter
+      EVAL_MODEL: google/gemini-2.5-flash
+      EVAL_JUDGE_MODEL: google/gemini-2.5-flash
+      # See the same env-not-interpolation note in skill-evals above.
+      AGENT_NAME: ${{ matrix.name }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: |
+            evals/pnpm-lock.yaml
+            server/pnpm-lock.yaml
+
+      - run: pnpm install --frozen-lockfile
+
+      # architecture-reviewer's own tool use runs `pnpm arch:report` for real against this
+      # checkout (tasks.ts hands it the tools it declares and runs it from REPO_ROOT, not
+      # content-only) — dependency-cruiser resolves BOTH server/src and ../reviewer-core/src in
+      # one graph (server/.dependency-cruiser.cjs), so without reviewer-core's deps installed it
+      # throws `no-unresolvable: ... → zod`, which the agent then has to work around and can
+      # misreport as a real finding. Same two installs repo-gates.yml's arch job always does.
+      - name: install server deps (architecture-reviewer runs real gate tools)
+        working-directory: server
+        run: pnpm install --frozen-lockfile
+      - name: install reviewer-core deps (dependency-cruiser resolves across both roots)
+        working-directory: reviewer-core
+        run: npm ci
+
+      - name: guard missing secret
+        if: env.OPENROUTER_API_KEY == ''
+        run: |
+          echo "::warning::OPENROUTER_API_KEY is empty (likely a fork PR without secret access) — skipping agent-evals for $AGENT_NAME"
+          exit 0
+
+      - name: start proxy
+        if: env.OPENROUTER_API_KEY != ''
+        run: docker compose -f proxy/docker-compose.yml up -d
+
+      - name: wait for proxy
+        if: env.OPENROUTER_API_KEY != ''
+        run: pnpm proxy:wait
+
+      - name: run benchmark (candidate vs baseline)
+        if: env.OPENROUTER_API_KEY != ''
+        run: pnpm eval:benchmark "agents/$AGENT_NAME" -n "$EVAL_BENCHMARK_RUNS"
+
+      - name: publish benchmark summary
+        if: always() && env.OPENROUTER_API_KEY != ''
+        run: |
+          latest="$(ls -td results/benchmarks/* 2>/dev/null | head -n1 || true)"
+          if [ -n "$latest" ] && [ -f "$latest/benchmark.md" ]; then
+            {
+              echo "## Agent benchmark: \`$AGENT_NAME\`"
+              echo ""
+              cat "$latest/benchmark.md"
+              echo ""
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "## Agent benchmark: \`$AGENT_NAME\` — no report generated" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: proxy logs on failure
+        if: failure() && env.OPENROUTER_API_KEY != ''
+        run: docker compose -f proxy/docker-compose.yml logs --tail 100
+
+      - name: stop proxy
+        if: always() && env.OPENROUTER_API_KEY != ''
+        run: docker compose -f proxy/docker-compose.yml down
+
+  workflow-evals:
+    name: workflow evals
+    needs: [detect, quality]
+    if: needs.detect.outputs.workflow_changed == 'true'
+    continue-on-error: true   # indicative-only on non-Anthropic models — see header comment
+    timeout-minutes: 15
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: evals
+    env:
+      OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+      OPENROUTER_BASE_URL: http://localhost:4000
+      EVAL_BACKEND: openrouter
+      EVAL_MODEL: google/gemini-2.5-flash
+      EVAL_JUDGE_MODEL: google/gemini-2.5-flash
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: |
+            evals/pnpm-lock.yaml
+            server/pnpm-lock.yaml
+
+      - run: pnpm install --frozen-lockfile
+
+      # Same reasoning as agent-evals: the workflow tier's dispatch case can launch
+      # architecture-reviewer for real, which runs `pnpm arch:report` against this checkout.
+      - name: install server deps (a dispatched architecture-reviewer runs real gate tools)
+        working-directory: server
+        run: pnpm install --frozen-lockfile
+      - name: install reviewer-core deps (dependency-cruiser resolves across both roots)
+        working-directory: reviewer-core
+        run: npm ci
+
+      - name: guard missing secret
+        if: env.OPENROUTER_API_KEY == ''
+        run: |
+          echo "::warning::OPENROUTER_API_KEY is empty (likely a fork PR without secret access) — skipping workflow-evals"
+          exit 0
+
+      - name: start proxy
+        if: env.OPENROUTER_API_KEY != ''
+        run: docker compose -f proxy/docker-compose.yml up -d
+
+      - name: wait for proxy
+        if: env.OPENROUTER_API_KEY != ''
+        run: pnpm proxy:wait
+
+      - name: run
+        if: env.OPENROUTER_API_KEY != ''
+        run: pnpm eval:workflow
+
+      - name: proxy logs on failure
+        if: failure() && env.OPENROUTER_API_KEY != ''
+        run: docker compose -f proxy/docker-compose.yml logs --tail 100
+
+      - name: stop proxy
+        if: always() && env.OPENROUTER_API_KEY != ''
+        run: docker compose -f proxy/docker-compose.yml down
+
+  recalibrate-skills:
+    name: recalibrate baseline (skill ${{ matrix.name }})
+    needs: [detect, quality]
+    if: needs.detect.outputs.recalibrate_skills != '[]'
+    continue-on-error: true
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      max-parallel: 1   # budget: serialize OpenRouter spend across matrix entries
+      matrix:
+        name: ${{ fromJSON(needs.detect.outputs.recalibrate_skills) }}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: evals
+    env:
+      OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+      EVAL_BACKEND: openrouter
+      # Same reasoning as skill-evals above: DeepSeek, no proxy needed, non-blocking tier.
+      EVAL_MODEL: deepseek/deepseek-chat
+      EVAL_JUDGE_MODEL: deepseek/deepseek-chat
+      SKILL_NAME: ${{ matrix.name }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: evals/pnpm-lock.yaml
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: guard missing secret
+        if: env.OPENROUTER_API_KEY == ''
+        run: |
+          echo "::warning::OPENROUTER_API_KEY is empty (likely a fork PR without secret access) — skipping recalibration for $SKILL_NAME"
+          exit 0
+
+      # AGENTS.md: "an eval case or the grader changed -> re-run eval:repeat to recapture a
+      # baseline — the old one is no longer comparable once the measurement itself changed."
+      # $GITHUB_SHA is a runtime-provided env var (the commit the workflow is running), not a
+      # template splice of PR content — safe to use directly in the label.
+      - name: recapture baseline (eval:repeat)
+        if: env.OPENROUTER_API_KEY != ''
+        run: |
+          short="${GITHUB_SHA:0:7}"
+          pnpm eval:repeat "skills/$SKILL_NAME" -n "$EVAL_REPEAT_RUNS" --label "ci-$short" 2>&1 | tee /tmp/recalibrate.txt
+
+      - name: publish recalibration summary
+        if: always() && env.OPENROUTER_API_KEY != ''
+        run: |
+          {
+            echo "## Baseline recalibration — skill \`$SKILL_NAME\`"
+            echo ""
+            echo '```'
+            cat /tmp/recalibrate.txt 2>/dev/null || echo "(no output captured)"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  recalibrate-agents:
+    name: recalibrate baseline (agent ${{ matrix.name }})
+    needs: [detect, quality]
+    if: needs.detect.outputs.recalibrate_agents != '[]'
+    continue-on-error: true
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      max-parallel: 1   # budget: serialize OpenRouter spend across matrix entries
+      matrix:
+        name: ${{ fromJSON(needs.detect.outputs.recalibrate_agents) }}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: evals
+    env:
+      OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+      OPENROUTER_BASE_URL: http://localhost:4000
+      EVAL_BACKEND: openrouter
+      EVAL_MODEL: google/gemini-2.5-flash
+      EVAL_JUDGE_MODEL: google/gemini-2.5-flash
+      AGENT_NAME: ${{ matrix.name }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: |
+            evals/pnpm-lock.yaml
+            server/pnpm-lock.yaml
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: install server deps (architecture-reviewer runs real gate tools)
+        working-directory: server
+        run: pnpm install --frozen-lockfile
+      - name: install reviewer-core deps (dependency-cruiser resolves across both roots)
+        working-directory: reviewer-core
+        run: npm ci
+
+      - name: guard missing secret
+        if: env.OPENROUTER_API_KEY == ''
+        run: |
+          echo "::warning::OPENROUTER_API_KEY is empty (likely a fork PR without secret access) — skipping recalibration for $AGENT_NAME"
+          exit 0
+
+      - name: start proxy
+        if: env.OPENROUTER_API_KEY != ''
+        run: docker compose -f proxy/docker-compose.yml up -d
+
+      - name: wait for proxy
+        if: env.OPENROUTER_API_KEY != ''
+        run: pnpm proxy:wait
+
+      - name: recapture baseline (eval:repeat)
+        if: env.OPENROUTER_API_KEY != ''
+        run: |
+          short="${GITHUB_SHA:0:7}"
+          pnpm eval:repeat "agents/$AGENT_NAME" -n "$EVAL_REPEAT_RUNS" --label "ci-$short" 2>&1 | tee /tmp/recalibrate.txt
+
+      - name: publish recalibration summary
+        if: always() && env.OPENROUTER_API_KEY != ''
+        run: |
+          {
+            echo "## Baseline recalibration — agent \`$AGENT_NAME\`"
+            echo ""
+            echo '```'
+            cat /tmp/recalibrate.txt 2>/dev/null || echo "(no output captured)"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: proxy logs on failure
+        if: failure() && env.OPENROUTER_API_KEY != ''
+        run: docker compose -f proxy/docker-compose.yml logs --tail 100
+
+      - name: stop proxy
+        if: always() && env.OPENROUTER_API_KEY != ''
+        run: docker compose -f proxy/docker-compose.yml down

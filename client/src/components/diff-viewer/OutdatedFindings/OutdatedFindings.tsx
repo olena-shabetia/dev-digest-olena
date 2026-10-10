@@ -28,6 +28,7 @@ export function OutdatedFindings({
           repoFullName={api.repoFullName}
           headSha={api.headSha}
           onAction={(action, reply) => api.onAction?.(f.id, action, reply)}
+          onCreateEvalCase={api.onCreateEvalCase ? () => api.onCreateEvalCase!(f.id) : undefined}
         />
       ))}
     </div>

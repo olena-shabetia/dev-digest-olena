@@ -1,0 +1,10 @@
+{
+  "eval_id": 3,
+  "eval_name": "alerts-cross-module",
+  "prompt": "We're building an alerts module for webhook notification channels. I've written the routes, service, and repository — can you do a quick architecture check and let me know if anything violates our onion-architecture rules?",
+  "assertions": [
+    { "name": "flags-cross-module-import", "description": "Flags that service.ts imports from ../repos/constants.ts (cross-module import)" },
+    { "name": "flags-service-bypasses-repo", "description": "Flags that service.ts queries container.db directly instead of using the repository" },
+    { "name": "suggests-repo-delegation", "description": "Recommends moving the duplicate-check query into the repository" }
+  ]
+}

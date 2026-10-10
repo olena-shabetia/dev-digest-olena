@@ -1,0 +1,18 @@
+export const s = {
+  body: { padding: "20px 24px", display: "flex", flexDirection: "column", gap: 16 },
+  warning: { padding: "10px 14px", borderRadius: 8, border: "1px solid var(--warn)", color: "var(--warn)", fontSize: 13 },
+  cards: { display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 },
+  card: { background: "var(--bg-surface)", border: "1px solid var(--border)", borderRadius: 9, padding: 14 },
+  label: { fontSize: 12, fontWeight: 600, letterSpacing: "0.05em", color: "var(--text-muted)", textTransform: "uppercase" },
+  values: { display: "flex", alignItems: "baseline", gap: 8, marginTop: 8, flexWrap: "wrap" },
+  base: { fontSize: 16, color: "var(--text-secondary)" },
+  head: { fontSize: 22, fontWeight: 700 },
+  delta: { fontSize: 13, fontWeight: 600 },
+  heading: { fontSize: 12, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-muted)" },
+  pre: { margin: 0, padding: 12, background: "var(--bg-surface)", border: "1px solid var(--border)", borderRadius: 8, fontFamily: "var(--font-mono, monospace)", fontSize: 13, whiteSpace: "pre-wrap", wordBreak: "break-word", maxHeight: 320, overflow: "auto" },
+  line: { display: "block" },
+  added: { background: "rgba(63,185,80,0.15)" },
+  removed: { background: "rgba(248,81,73,0.15)" },
+  list: { margin: 0, paddingLeft: 18, fontSize: 14, color: "var(--text-secondary)" },
+  muted: { color: "var(--text-muted)", fontSize: 14 },
+} as const;

@@ -1,0 +1,273 @@
+{
+  "metadata": {
+    "skill_name": "onion-architecture",
+    "skill_path": "<path/to/skill>",
+    "executor_model": "<model-name>",
+    "analyzer_model": "<model-name>",
+    "timestamp": "2026-10-06T12:41:20Z",
+    "evals_run": [
+      1,
+      2,
+      3
+    ],
+    "runs_per_configuration": 3
+  },
+  "runs": [
+    {
+      "eval_id": 3,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 3,
+        "failed": 0,
+        "total": 3,
+        "time_seconds": 100.4,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "flags-cross-module-import",
+          "passed": true,
+          "evidence": "Violation 2 at service.ts:4 \u2014 'import { DEFAULT_BRANCH } from ../repos/constants.js; feature modules are siblings'"
+        },
+        {
+          "text": "flags-service-bypasses-repo",
+          "passed": true,
+          "evidence": "Violation 1 at service.ts:1,3,23-29 \u2014 raw Drizzle query inside createChannel bypasses AlertChannelRepository"
+        },
+        {
+          "text": "suggests-repo-delegation",
+          "passed": true,
+          "evidence": "Fix provides complete findByWebhookUrl skeleton for AlertChannelRepository"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 4,
+        "failed": 0,
+        "total": 4,
+        "time_seconds": 70.2,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "flags-sql-in-routes",
+          "passed": true,
+          "evidence": "Violation 1 at routes.ts:1,4,15-18,29-33,38-41,50-53 \u2014 Drizzle operators imported and four inline queries"
+        },
+        {
+          "text": "identifies-missing-repository",
+          "passed": true,
+          "evidence": "'repository ring is missing entirely'; recommended shape lists repository.ts"
+        },
+        {
+          "text": "identifies-missing-service",
+          "passed": true,
+          "evidence": "Violation 2 states 'service ring is missing entirely'"
+        },
+        {
+          "text": "suggests-concrete-fix",
+          "passed": true,
+          "evidence": "Fix for Violation 1 provides full skeleton code for repository.ts"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 3,
+        "failed": 0,
+        "total": 3,
+        "time_seconds": 94.5,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "flags-concrete-adapter-import",
+          "passed": true,
+          "evidence": "V1 at service.ts:2 \u2014 'Service imports concrete adapter by path ../../adapters/openai/client.js'"
+        },
+        {
+          "text": "flags-new-in-service",
+          "passed": true,
+          "evidence": "V2 at service.ts:12 \u2014 'Adapter is new-ed inside the service rather than received from the container'"
+        },
+        {
+          "text": "mentions-port-solution",
+          "passed": true,
+          "evidence": "V1 fix: 'LLMProvider port exists at vendor/shared/adapters.ts:21-23; resolve through container'; V4 provides container getter skeleton"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 3,
+        "failed": 0,
+        "total": 3,
+        "time_seconds": 66.7,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "flags-cross-module-import",
+          "passed": true,
+          "evidence": "Medium finding \u2014 'AlertService cross-imports DEFAULT_BRANCH from sibling repos module; sibling modules must not import each other's internals'"
+        },
+        {
+          "text": "flags-service-bypasses-repo",
+          "passed": true,
+          "evidence": "High finding 2 \u2014 'service.ts issues raw SELECT against this.container.db bypassing AlertChannelRepository'"
+        },
+        {
+          "text": "suggests-repo-delegation",
+          "passed": true,
+          "evidence": "'duplicate-check query belongs in a new findByWebhookUrl method on the repository'"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 4,
+        "failed": 0,
+        "total": 4,
+        "time_seconds": 72.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "flags-sql-in-routes",
+          "passed": true,
+          "evidence": "CRITICAL findings at routes.ts:4 and routes.ts:15-18,29-33,38-41,50-53 \u2014 raw Drizzle queries in handlers"
+        },
+        {
+          "text": "identifies-missing-repository",
+          "passed": true,
+          "evidence": "CRITICAL fix: 'Introduce a repository.ts that owns all Drizzle queries'"
+        },
+        {
+          "text": "identifies-missing-service",
+          "passed": true,
+          "evidence": "HIGH finding 'Missing service layer' with standard routes/service/repository structure"
+        },
+        {
+          "text": "suggests-concrete-fix",
+          "passed": true,
+          "evidence": "Fix recommends creating BookmarksRepository class or module-level functions in repository.ts"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 3,
+        "failed": 0,
+        "total": 3,
+        "time_seconds": 73.6,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "flags-concrete-adapter-import",
+          "passed": true,
+          "evidence": "CRITICAL 1 \u2014 'imports and directly instantiates OpenAICompletionClient, bypassing LLMProvider port'"
+        },
+        {
+          "text": "flags-new-in-service",
+          "passed": true,
+          "evidence": "MEDIUM 5 \u2014 'Service constructs its own collaborators in the constructor instead of receiving them via injection'"
+        },
+        {
+          "text": "mentions-port-solution",
+          "passed": true,
+          "evidence": "CRITICAL 2 \u2014 'does not implement LLMProvider'; HIGH 4 \u2014 'No llm() accessor on Container'"
+        }
+      ],
+      "notes": []
+    }
+  ],
+  "run_summary": {
+    "with_skill": {
+      "pass_rate": {
+        "mean": 1.0,
+        "stddev": 0.0,
+        "min": 1.0,
+        "max": 1.0
+      },
+      "time_seconds": {
+        "mean": 88.3667,
+        "stddev": 16.007,
+        "min": 70.2,
+        "max": 100.4
+      },
+      "tokens": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "without_skill": {
+      "pass_rate": {
+        "mean": 1.0,
+        "stddev": 0.0,
+        "min": 1.0,
+        "max": 1.0
+      },
+      "time_seconds": {
+        "mean": 70.7667,
+        "stddev": 3.6116,
+        "min": 66.7,
+        "max": 73.6
+      },
+      "tokens": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "delta": {
+      "pass_rate": "+0.00",
+      "time_seconds": "+17.6",
+      "tokens": "+0"
+    }
+  },
+  "notes": []
+}

@@ -35,6 +35,8 @@ export const NAV: NavGroup[] = [
       { key: "skills", label: "Skills", icon: "Sparkles", href: "/skills", gKey: "s" },
       { key: "agents", label: "Agents", icon: "Cpu", href: "/agents", gKey: "a" },
       { key: "conventions", label: "Conventions", icon: "ListChecks", href: "/repos/:repoId/conventions", gKey: "c" },
+      // L06 — deliberate scoped vendor exception (SPEC-11 criterion 71 / Q4; precedent: L05 entry above)
+      { key: "eval", label: "Eval Dashboard", icon: "Gauge", href: "/eval" },
     ],
   },
 ];

@@ -80,5 +80,34 @@
     "crumbEvals": "Evals",
     "crumbNewCase": "New case",
     "crumbEvalCase": "Eval case"
+  },
+  "shared": {
+    "notApplicable": "n/a",
+    "costUnknown": "—",
+    "expectation": {
+      "must_find": "must find",
+      "must_not_flag": "must not flag"
+    },
+    "status": {
+      "passed": "passed",
+      "failed": "failed",
+      "errored": "errored",
+      "neverRun": "never run"
+    },
+    "metrics": {
+      "recall": "Recall",
+      "precision": "Precision",
+      "citationAccuracy": "Citation accuracy",
+      "passCount": "Cases passing",
+      "deltaLabel": "{direction, select, up {▲ +{points} pts} down {▼ −{points} pts} other {{points} pts}}"
+    },
+    "run": {
+      "start": "Run evals",
+      "spendHint": "Spends LLM budget: runs {count, plural, one {# case} other {# cases}}",
+      "progress": "Running {done}/{total}",
+      "failed": "Last run failed: {reason}",
+      "erroredCount": "{count, plural, one {# case errored} other {# cases errored}}",
+      "emptySet": "Add an eval case to run evals"
+    }
   }
 }

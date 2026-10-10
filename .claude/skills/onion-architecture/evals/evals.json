@@ -1,0 +1,142 @@
+{
+  "skill_name": "onion-architecture",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I'm adding a bookmarks feature to our Fastify API. I've already put some code together — can you review the module and tell me if it's placed correctly across the layers, and what (if anything) needs to change before I ship it?",
+      "expected_output": "Identifies that routes.ts does SQL directly with no service.ts or repository.ts in the module. Flags at least: (1) the three inline Drizzle queries in the route handler, (2) the missing service and repository tiers, and recommends extracting them per the onion-architecture placement table.",
+      "files": [
+        "evals/files/_base/server/src/vendor/shared/adapters.ts",
+        "evals/files/_base/server/src/db/schema.ts",
+        "evals/files/_base/server/src/platform/container.ts",
+        "evals/files/_base/server/src/platform/errors.ts",
+        "evals/files/tc1/server/src/modules/bookmarks/routes.ts"
+      ],
+      "assertions": [
+        {
+          "name": "flags-sql-in-routes",
+          "description": "Identifies that SQL/Drizzle queries appear directly in routes.ts",
+          "check": "response mentions inline queries or SQL in the route handler"
+        },
+        {
+          "name": "identifies-missing-repository",
+          "description": "Notes that no repository.ts exists for the bookmarks module",
+          "check": "response explicitly mentions missing repository.ts or repository tier"
+        },
+        {
+          "name": "identifies-missing-service",
+          "description": "Notes that no service.ts exists for the bookmarks module",
+          "check": "response explicitly mentions missing service.ts or service tier"
+        },
+        {
+          "name": "suggests-concrete-fix",
+          "description": "Recommends extracting a repository.ts (and optionally a service.ts)",
+          "check": "response recommends extracting or creating repository.ts"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Here's our new digests module — a service that calls OpenAI to summarise PRs and stores the results. Please review it for architectural correctness against our onion-architecture conventions before I open a PR.",
+      "expected_output": "Identifies: (1) DigestService imports the concrete OpenAICompletionClient directly by path instead of going through a port + container; (2) the adapter is instantiated with `new` inside the service instead of injected via container; (3) DigestRow ($inferSelect) is exported from repository.ts and returned from service/routes, leaking the DB row type as the domain model. At minimum flags violation 1 and 2.",
+      "files": [
+        "evals/files/_base/server/src/vendor/shared/adapters.ts",
+        "evals/files/_base/server/src/db/schema.ts",
+        "evals/files/_base/server/src/platform/container.ts",
+        "evals/files/tc2/server/src/adapters/openai/client.ts",
+        "evals/files/tc2/server/src/modules/digests/repository.ts",
+        "evals/files/tc2/server/src/modules/digests/service.ts",
+        "evals/files/tc2/server/src/modules/digests/routes.ts"
+      ],
+      "assertions": [
+        {
+          "name": "flags-concrete-adapter-import",
+          "description": "Flags that service.ts imports the concrete OpenAICompletionClient by path rather than through a port",
+          "check": "response mentions importing concrete adapter / direct import of adapters/ path / missing port interface"
+        },
+        {
+          "name": "flags-new-in-service",
+          "description": "Flags that the service instantiates the adapter with `new` instead of using the container",
+          "check": "response mentions `new` inside service or recommends container injection"
+        },
+        {
+          "name": "mentions-port-solution",
+          "description": "Recommends declaring a port interface and wiring through the container",
+          "check": "response mentions port interface or container.<x> for the LLM adapter"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "We're building an alerts module for webhook notification channels. I've written the routes, service, and repository — can you do a quick architecture check and let me know if anything violates our onion-architecture rules?",
+      "expected_output": "Identifies: (1) AlertService imports `DEFAULT_BRANCH` from ../repos/constants.ts — a cross-module import that bypasses the composition root; (2) AlertService queries t.alertChannels directly via container.db instead of delegating to AlertChannelRepository — service reaches past its repository; (3) optionally: db/schema imported in service.ts. At minimum flags violations 1 and 2.",
+      "files": [
+        "evals/files/_base/server/src/vendor/shared/adapters.ts",
+        "evals/files/_base/server/src/db/schema.ts",
+        "evals/files/_base/server/src/platform/container.ts",
+        "evals/files/tc3/server/src/modules/repos/constants.ts",
+        "evals/files/tc3/server/src/modules/alerts/repository.ts",
+        "evals/files/tc3/server/src/modules/alerts/service.ts",
+        "evals/files/tc3/server/src/modules/alerts/routes.ts"
+      ],
+      "assertions": [
+        {
+          "name": "flags-cross-module-import",
+          "description": "Flags that service.ts imports from ../repos/constants.ts (cross-module import)",
+          "check": "response mentions cross-module import or importing from another module's folder"
+        },
+        {
+          "name": "flags-service-bypasses-repo",
+          "description": "Flags that service.ts queries container.db directly instead of using the repository",
+          "check": "response mentions that service queries db directly or bypasses repository"
+        },
+        {
+          "name": "suggests-repo-delegation",
+          "description": "Recommends moving the duplicate-check query into the repository",
+          "check": "response recommends moving SQL to repository.ts or using the repository method"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "Before I open the PR, audit the layer tiers of every module under server/src/modules/. For each module, tell me which ones break the onion-architecture rules, with file:line for every finding.",
+      "expected_output": "Whole-tree audit. Ground truth from the real tree: routes.ts imports Drizzle/db schema in polling, pulls, settings and workspace. Those four have no service.ts while their routes do DB work. polling, settings and workspace also have no repository tier. blast, pr-history, project-context and smart-diff have no repository.ts and run no queries, so they are NOT violations. reviews has a repository/ folder, which counts as the repository tier, so it is NOT a violation.",
+      "files": [
+        "server/src/modules/**",
+        "server/src/db/schema.ts"
+      ],
+      "assertions": [
+        {
+          "name": "finds-db-in-routes",
+          "description": "Names polling, pulls, settings and workspace as routes.ts importing Drizzle or db/schema",
+          "check": "response lists all four modules' routes.ts as importing DB code"
+        },
+        {
+          "name": "finds-missing-service",
+          "description": "Flags missing service.ts for polling, pulls, settings and workspace",
+          "check": "response flags the missing service tier for those modules, not just the SQL"
+        },
+        {
+          "name": "finds-missing-repository",
+          "description": "Flags missing repository tier for polling, settings and workspace, which run queries",
+          "check": "response flags a missing repository tier for polling, settings and workspace"
+        },
+        {
+          "name": "no-false-positive-no-query-modules",
+          "description": "Does NOT flag blast, pr-history, project-context or smart-diff as missing a repository",
+          "check": "response does not claim those modules are violations for lacking repository.ts"
+        },
+        {
+          "name": "no-false-positive-repository-folder",
+          "description": "Does NOT flag reviews as missing a repository, since it has repository/",
+          "check": "response does not flag reviews for a missing repository tier"
+        },
+        {
+          "name": "cites-file-line",
+          "description": "Each finding is pinned to a file:line it actually opened",
+          "check": "findings include concrete file:line references"
+        }
+      ]
+    }
+  ]
+}
