@@ -35664,7 +35664,7 @@ function buildResultArtifact(input) {
 
 
 /** Single-pass prompt cap, measured on the diff after ignoring generated files. */
-const DEFAULT_MAX_DIFF_BYTES = 200_000;
+const DEFAULT_MAX_DIFF_BYTES = 100_000;
 /** Overall deadline for the model call. The GitHub job itself has its own cap. */
 const DEFAULT_TIMEOUT_MS = 300_000;
 /** Reject if `work` has not settled within `ms`. Does NOT cancel the request —

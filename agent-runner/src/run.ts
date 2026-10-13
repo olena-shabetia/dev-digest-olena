@@ -35,7 +35,7 @@ import { DiffTooLargeError, ReviewTimeoutError, RunnerError } from './errors.js'
 export type PostAs = 'github_review' | 'pr_comment' | 'none';
 
 /** Single-pass prompt cap, measured on the diff after ignoring generated files. */
-export const DEFAULT_MAX_DIFF_BYTES = 200_000;
+export const DEFAULT_MAX_DIFF_BYTES = 100_000;
 /** Overall deadline for the model call. The GitHub job itself has its own cap. */
 export const DEFAULT_TIMEOUT_MS = 300_000;
 
@@ -68,7 +68,7 @@ export interface RunCiDeps {
   readDir?: typeof readdirSync;
   writeFile?: typeof writeFileSync;
   now?: () => number;
-  /** Max diff size (bytes) after ignoring generated files. Default 200 KB. */
+  /** Max diff size (bytes) after ignoring generated files. Default 100 KB. */
   maxDiffBytes?: number;
   /** Deadline (ms) for the whole model call. Default 5 minutes. */
   timeoutMs?: number;
