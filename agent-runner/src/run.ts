@@ -145,6 +145,12 @@ export async function runCi(deps: RunCiDeps): Promise<RunCiResult> {
       durationMs,
       agent: manifest.name,
       prNumber: ctx.prNumber,
+      verdict: payload.event,
+      headSha: ctx.headSha,
+      model: manifest.model,
+      schemaVersion: manifest.schema_version,
+      agentVersion: manifest.agent_version,
+      blockers,
     });
     writeFile(deps.resultPath, `${JSON.stringify(artifact, null, 2)}\n`);
 

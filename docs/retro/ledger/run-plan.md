@@ -4,6 +4,31 @@ Dated entries from `workflow-retro`. Append-only — see root AGENTS.md-style
 rule: correct a wrong entry with a new dated entry that supersedes it, never
 edit or delete an old one. Manual runs only; nothing here was auto-generated.
 
+### 2026-10-13 — L07 Export to CI: spec → plan → 6-unit, 3-wave run, zero fix rounds, one rework of the spec
+
+**Agents:** 11 invocations (10 distinct, spec-creator resumed once), order: spec-creator → spec-creator (resume) → implementation-planner → WU-1/WU-2 → WU-3/4/5 → WU-6 → architecture-reviewer → plan-verifier; per-agent models not visible in-context
+**Cost:** 0 of 2 fix rounds used; session-wide $18.73 as printed by the host `/cost` (Opus $11.44 · Sonnet $7.24 · Haiku $0.05), session-wide cache-read 36.0m — not attributable per agent; usage limit hit once mid-run (after wave 2); spec phase = 25% of agent-notice tokens, the second spec pass ≈ 13% of the total
+**Metrics:** tokens 1,658,788 (agent notices; resume figure may be cumulative) · cache-read 36.0m (session-wide, per-agent n/a) · tool calls 229 · agent-time 2,277 s · parallelism max 3 concurrent, 3 waves
+
+**Friction:**
+- `eslint --format=unix` (in the plan's verification commands, already documented in root INSIGHTS 2026-09-30) was rediscovered by WU-1, WU-3 and WU-5; pnpm 12 auto-install on `pnpm exec`/`pnpm <script>` was hit by WU-2, WU-4 and WU-5 — wave-1 units repeated what wave 0 had already reported, because run-plan adds "Known tool quirks" only from wave 2.
+- spec-creator produced a maximal 49-criteria spec first; "keep it minimal" arrived only after, costing a second pass (~215k tokens).
+- spec-creator took the lesson number L06 from README's lesson table; the user's real number was L07 (same README-trust failure as 2026-09-30).
+- Plan's Preconditions listed an invented Windows path for the design images and handed agent-executable steps (installs, copy) to the human.
+
+**Worked well:**
+- File-lease waves: 6 units, zero blocked, zero foreign failures, vendor-sync barrier clean.
+- Planner's up-front `rg` for replaced contract symbols in `server/test/**` avoided the 2026-09-30 failure mode.
+- architecture-reviewer + plan-verifier (12% of agent-notice tokens) gave file:line verdicts; engineering-insights actually ran this time.
+
+**Duplicated:** the eslint/pnpm quirks rediscovered by 3 agents each; INSIGHTS/AGENTS re-read by spec-creator, planner and every implementer.
+
+**Gaps:**
+- Plan's WU-7 (QA) has no counterpart in run-plan; the orchestrator ran the gates itself because plan-verifier is read-only (#37 CANNOT VERIFY).
+- Post-verifier edits (comment in ci/repository.ts, 3 INSIGHTS entries) got no scoped pass; live GitHub flow, tests and /pr-self-review not done.
+
+**Recommendations:** run-plan: add "Known tool quirks" from wave 1; add a QA/gates step. planner: validate verification commands against root INSIGHTS, use `node_modules/.bin/<tool>`, copy external paths verbatim. spec-creator: confirm lesson number with the user. Caller: state "minimal v1" in the first spec brief. Promotion: `--format=unix` is now in 2 consecutive entries — one more makes it a planner skill defect.
+
 ### 2026-09-30 — L05b Onboarding Tour: full SDD pipeline (spec → plan → 7-unit, 3-wave run), one fix round, two post-hoc rework passes
 
 **Agents:** 12 launched + 2 SendMessage resumes (spec-creator, implementation-planner), order: spec-creator → implementation-planner → WU-1/WU-2 → WU-3/4/5 → WU-6/7 → architecture-reviewer → plan-verifier → fix implementer → scoped plan-verifier → out-of-plan implementer (First tasks)

@@ -90,6 +90,16 @@ keep working locally.
 `ERR_PNPM_IGNORED_BUILDS`, every `pnpm install --frozen-lockfile` step in CI
 will start failing — verify this specifically before bumping that pin.
 
+### 2026-10-12 — under pnpm 12, `pnpm exec <bin>` and `pnpm <script>` can trigger an install on their own
+
+**Symptom:** running `pnpm typecheck`, `pnpm exec eslint` or `pnpm db:generate` in a package whose `node_modules` was missing or stale made pnpm start an implicit install that ended with `ERR_PNPM_IGNORED_BUILDS` and left an untracked `pnpm-workspace.yaml`. Three separate work units hit it in one run (`agent-runner/`, `client/`, `server/`).
+
+**Cause:** pnpm 12 runs a dependency-verification step before executing scripts; it is the same unapproved-builds failure as the `pnpm install` entry above, just reached through a script call. Lockfiles and `package.json` were not modified.
+
+**Fix:** call the binaries directly — `node_modules/.bin/tsc`, `eslint`, `vitest`, `drizzle-kit generate`, `tsx` — and delete any `pnpm-workspace.yaml` stub afterwards.
+
+**Rule:** in verification commands for agents, prefer `node_modules/.bin/<tool>` over `pnpm exec`/`pnpm <script>` unless the install is intended. ref: client/package.json:9
+
 ## Recurring Errors & Fixes
 
 ### 2026-09-22 — a `git diff` cannot tell you which of two interleaved, uncommitted features a shared file's edit belongs to; isolate with `git stash -u` on your own paths, not eyeballing the diff
