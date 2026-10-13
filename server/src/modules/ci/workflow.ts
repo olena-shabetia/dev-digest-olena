@@ -10,6 +10,9 @@ import type { CiPostAs, CiTrigger } from '@devdigest/shared';
 import {
   CHECKOUT_SHA,
   CI_JOB_TIMEOUT_MINUTES,
+  CI_MAX_PR_ADDITIONS,
+  CI_MAX_PR_DELETIONS,
+  CI_MAX_PR_FILES,
   CI_RUNNER_PATH,
   FORBIDDEN_TRIGGERS,
   UPLOAD_ARTIFACT_SHA,
@@ -33,7 +36,12 @@ permissions:
   pull-requests: write
 jobs:
   review:
-    if: github.event.pull_request.head.repo.full_name == github.repository
+    # Skipped (never started) for fork PRs and for PRs too large to review in one pass.
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.additions <= ${CI_MAX_PR_ADDITIONS} &&
+      github.event.pull_request.deletions <= ${CI_MAX_PR_DELETIONS} &&
+      github.event.pull_request.changed_files <= ${CI_MAX_PR_FILES}
     runs-on: ubuntu-latest
     timeout-minutes: ${CI_JOB_TIMEOUT_MINUTES}
     steps:

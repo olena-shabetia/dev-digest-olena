@@ -9,7 +9,12 @@ permissions:
   pull-requests: write
 jobs:
   review:
-    if: github.event.pull_request.head.repo.full_name == github.repository
+    # Skipped (never started) for fork PRs and for PRs too large to review in one pass.
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.additions <= 5000 &&
+      github.event.pull_request.deletions <= 5000 &&
+      github.event.pull_request.changed_files <= 100
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
