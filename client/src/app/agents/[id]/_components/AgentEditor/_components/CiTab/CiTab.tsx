@@ -11,7 +11,8 @@ import { CiRunsTable } from "@/components/ci-runs-table";
 import { useCiAgentOverview } from "@/lib/hooks/ci";
 import { useUpdateAgent } from "@/lib/hooks/agents";
 import { useActiveRepo } from "@/lib/repo-context";
-import { ExportWizard, safeHttpUrl } from "./_components/ExportWizard";
+import { safeHttpUrl } from "@/lib/github-urls";
+import { ExportWizard } from "./_components/ExportWizard";
 import { CI_FAIL_ON_OPTIONS } from "./constants";
 import { s } from "./styles";
 

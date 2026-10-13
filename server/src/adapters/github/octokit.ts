@@ -17,6 +17,8 @@ import type {
 import { withRetry, withTimeout } from '../../platform/resilience.js';
 
 const TIMEOUT = 30_000;
+/** Upper bound for a downloaded workflow-run artifact zip (the CI result JSON is tiny). */
+const MAX_ARTIFACT_ZIP_BYTES = 1024 * 1024;
 
 function mapStatus(state: string, merged: boolean | undefined): PrStatus {
   if (merged) return 'merged';
@@ -431,6 +433,8 @@ export class OctokitGitHubClient implements GitHubClient {
           });
           const artifact = list.data.artifacts[0];
           if (!artifact || artifact.expired) return null;
+          // The result JSON is tiny; refuse oversized zips before buffering them.
+          if (artifact.size_in_bytes > MAX_ARTIFACT_ZIP_BYTES) return null;
           const dl = await this.octokit.rest.actions.downloadArtifact({
             owner: repo.owner,
             repo: repo.name,

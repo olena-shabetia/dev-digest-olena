@@ -2,7 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import type { CiExport } from "@devdigest/shared";
-import { safeHttpUrl } from "../../helpers";
+import { safeHttpUrl } from "@/lib/github-urls";
 import type { InstallAction } from "../../constants";
 import { s } from "../../styles";
 

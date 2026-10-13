@@ -15,17 +15,6 @@ export function formatBytes(n: number): string {
   return `${(n / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-/** Only http(s) URLs may become an href — blocks `javascript:` from server data. */
-export function safeHttpUrl(url: string | null | undefined): string | undefined {
-  if (!url) return undefined;
-  try {
-    const u = new URL(url);
-    return u.protocol === "https:" || u.protocol === "http:" ? u.toString() : undefined;
-  } catch {
-    return undefined;
-  }
-}
-
 /** Strip anything but a plain file name before it reaches `a.download`. */
 export function safeDownloadName(name: string): string {
   const cleaned = name.replace(/[^A-Za-z0-9._-]/g, "-");

@@ -7,7 +7,7 @@ import { useTranslations } from "next-intl";
 import type { CiIngestError, CiRun } from "@devdigest/shared";
 import { EmptyState } from "@devdigest/ui";
 import { formatCost, formatSeconds } from "@/lib/format";
-import { githubPrUrl } from "@/lib/github-urls";
+import { githubPrUrl, safeHttpUrl } from "@/lib/github-urls";
 
 const s = {
   wrap: { display: "flex", flexDirection: "column", gap: 12 },
@@ -84,8 +84,8 @@ export function CiRunsTable({ runs, ingestErrors, emptyTitle, emptyBody }: CiRun
                 <td className="tnum" style={s.td}>{formatCost(run.cost_usd)}</td>
                 <td className="tnum" style={s.td}>{run.duration_ms != null ? formatSeconds(run.duration_ms) : dash}</td>
                 <td style={s.td}>
-                  {run.job_url ? (
-                    <a href={run.job_url} target="_blank" rel="noreferrer" style={s.link}>
+                  {safeHttpUrl(run.job_url) ? (
+                    <a href={safeHttpUrl(run.job_url)} target="_blank" rel="noreferrer" style={s.link}>
                       {t("jobLink")}
                     </a>
                   ) : (
