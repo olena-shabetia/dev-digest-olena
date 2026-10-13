@@ -3,7 +3,10 @@ import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import {
   ActiveRun,
+  AgentRunEstimate,
   FindingRecord,
+  MultiAgentRunDetail,
+  MultiAgentRunListItem,
   ReviewRecord,
   ReviewRunResponse,
   RunRequest,
@@ -15,22 +18,29 @@ import { getContext } from '../_shared/context.js';
 import { IdParams } from '../_shared/schemas.js';
 import { NotFoundError } from '../../platform/errors.js';
 import { ReviewService } from './service.js';
+import { MultiRunService } from './multi-run.service.js';
 
 const Ok = z.object({ ok: z.boolean() });
 
 /**
  * reviews module.
- *   POST   /pulls/:id/review  {agentId} | {all:true}  → run review(s); returns runs
- *   GET    /runs/:id/events                            → SSE stream of RunEvent (replay-first)
- *   GET    /runs/:id/trace                             → the single-document RunTrace
- *   GET    /pulls/:id/reviews                          → persisted reviews + findings for a PR
- *   POST   /findings/:id/(accept|dismiss)              → finding actions
+ *   POST   /pulls/:id/review        {agentId} | {all:true} | {agentIds:[…]}  → run review(s); returns runs (L07: agentIds → multi_agent_run_id)
+ *   GET    /runs/:id/events                                                   → SSE stream of RunEvent (replay-first)
+ *   GET    /runs/:id/trace                                                    → the single-document RunTrace
+ *   GET    /pulls/:id/reviews                                                 → persisted reviews + findings for a PR
+ *   POST   /findings/:id/(accept|dismiss)                                     → finding actions
+ *   GET    /multi-agent-runs/:id                                              → L07 batch detail (read model; MultiRunService)
+ *   GET    /repos/:id/multi-agent-runs                                        → L07 batch list for a repo
+ *   GET    /agent-run-estimates                                               → L07 per-agent duration/cost estimates
  */
 const FINDING_ACTIONS = ['accept', 'dismiss'] as const;
 export default async function reviewsRoutes(appBase: FastifyInstance) {
   const app = appBase.withTypeProvider<ZodTypeProvider>();
   const { container } = app;
   const service = new ReviewService(container);
+  // L07 — no container getter (server/INSIGHTS.md 2026-09-22, `no-circular`):
+  // constructed inline, same as `service` above.
+  const multiRun = new MultiRunService(container);
 
   // ---- Run a review (manual trigger) -------------------------------
   // Tight per-route limit: each call can fan out to expensive LLM runs.
@@ -55,18 +65,13 @@ export default async function reviewsRoutes(appBase: FastifyInstance) {
     },
     async (req) => {
       const { workspaceId } = await getContext(container, req);
-      const body = req.body;
-      const targets = await service.resolveTargets(workspaceId, {
-        ...(body.agentId !== undefined ? { agentId: body.agentId } : {}),
-        ...(body.all !== undefined ? { all: body.all } : {}),
-      });
-      const { runs, reviews } = await service.runReview(
+      const { runs, reviews, multi_agent_run_id } = await service.startReview(
         workspaceId,
         req.params.id,
-        targets,
+        req.body,
         req.log,
       );
-      return { pr_id: req.params.id, runs, reviews };
+      return { pr_id: req.params.id, runs, reviews, multi_agent_run_id };
     },
   );
 
@@ -188,6 +193,34 @@ export default async function reviewsRoutes(appBase: FastifyInstance) {
       const ok = await service.deleteReview(workspaceId, req.params.id);
       if (!ok) throw new NotFoundError('Review not found');
       return { ok: true };
+    },
+  );
+
+  // ---- L07: multi-agent batch reads (MultiRunService) ----------------------
+  app.get(
+    '/multi-agent-runs/:id',
+    { schema: { params: IdParams, response: { 200: MultiAgentRunDetail } } },
+    async (req) => {
+      const { workspaceId } = await getContext(container, req);
+      return multiRun.getDetail(workspaceId, req.params.id);
+    },
+  );
+
+  app.get(
+    '/repos/:id/multi-agent-runs',
+    { schema: { params: IdParams, response: { 200: z.array(MultiAgentRunListItem) } } },
+    async (req) => {
+      const { workspaceId } = await getContext(container, req);
+      return multiRun.listForRepo(workspaceId, req.params.id);
+    },
+  );
+
+  app.get(
+    '/agent-run-estimates',
+    { schema: { response: { 200: z.array(AgentRunEstimate) } } },
+    async (req) => {
+      const { workspaceId } = await getContext(container, req);
+      return multiRun.estimates(workspaceId);
     },
   );
 

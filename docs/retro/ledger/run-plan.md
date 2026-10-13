@@ -28,6 +28,30 @@ edit or delete an old one. Manual runs only; nothing here was auto-generated.
 - Post-verifier edits (comment in ci/repository.ts, 3 INSIGHTS entries) got no scoped pass; live GitHub flow, tests and /pr-self-review not done.
 
 **Recommendations:** run-plan: add "Known tool quirks" from wave 1; add a QA/gates step. planner: validate verification commands against root INSIGHTS, use `node_modules/.bin/<tool>`, copy external paths verbatim. spec-creator: confirm lesson number with the user. Caller: state "minimal v1" in the first spec brief. Promotion: `--format=unix` is now in 2 consecutive entries — one more makes it a planner skill defect.
+### 2026-10-13 — L07 Multi-Agent Review: full SDD pipeline (spec → plan → 6-unit, 3-wave run), one fix round, one stray agent relaunch caught and stood down, one mid-run session rate limit
+
+**Agents:** 12 launched (spec-creator, implementation-planner, implementer×8 incl. 1 stray duplicate + 1 fix round, architecture-reviewer, plan-verifier), order: spec-creator → implementation-planner → WU-1/WU-2 → WU-3/WU-4 (interrupted by a session rate limit, 1 stray duplicate relaunch stood down, both resumed via SendMessage to their original agent ids) → WU-5/WU-6 → architecture-reviewer → plan-verifier → fix implementer
+**Cost:** 1 of 2 fix rounds used. Deep-measured from subagent transcripts (`cache_read_input_tokens` etc. summed per agent): total 338,881 fresh tokens (input+output), 134,128,872 cache-read, 5,208,008 cache-creation, 570 tool calls, 4,677s summed agent-time. WU-4 (client entry points: AgentPickerPopover + ConfigureRun + RunList + nav wiring) was the single most expensive unit at 55,855 tokens / 106 tool calls / 30.5M cache-read — more than double every other implementer, including WU-6 which built a comparably-sized UI tree for 42,423 tokens / 91 tool calls.
+**Metrics:** tokens 338,881 · cache-read 134,128,872 · tool calls 570 · agent-time 4,677s · parallelism max 2 concurrent, 3 waves (confirmed by transcript timestamps overlapping within each wave)
+
+**Friction:**
+- Mid wave 2, a session-wide rate limit cut off WU-3 and WU-4 simultaneously (21,606s and 21,619s gaps respectively, visible in their transcripts). The first recovery attempt called `Agent` fresh instead of `SendMessage` to the original agent ids, spawning a context-less duplicate (agent-a68ccaaab1de80a65, "Resume WU-3") that burned 1,726 tokens / 3 tool calls / 30s before being told to stand down — it touched no files. The two real agents were then correctly resumed via `SendMessage` and finished cleanly.
+- One file outside every wave-2/3 unit's lease (`client/src/lib/hooks/reviews.ts:249`) had a stale comment referencing a component WU-4 deleted (`RunReviewDropdown`) — no unit's "Done when" gate (scoped lint/typecheck) covered it since it was a comment, not code. The orchestrator fixed it directly as a one-line out-of-plan change.
+- A sibling git worktree (different feature, same `0018` migration base) independently generated its own `0019` migration between planning time (when the plan's own §9 flagged this as a *risk*) and apply time (when it had become a *concrete* file). Required an unplanned diff-and-renumber step (confirmed schema-disjoint first) rather than being caught by any unit gate.
+- WU-4 cost roughly 2-3x every sibling implementer by every metric (tokens, tool calls, cache-read) for a unit of comparable UI scope to WU-6 — not investigated live, flagged here for pattern-watching.
+
+**Worked well:**
+- The plan's "contract freeze" (exact Zod shapes + HTTP surface table written into the plan text itself) produced zero contract deviations across all 6 units and zero architecture-reviewer findings on the full diff.
+- plan-verifier's one PARTIAL finding (null-cost should render "unknown" text, not `formatCost`'s `"—"`) cited the exact file:line and the existing pattern to copy (`ResultsHeader.tsx:26-29`'s `header.costUnknown` key) — the fix round implementer needed zero rediscovery, confirmed by its clean manifest.
+- Resuming the two genuinely rate-limit-interrupted agents via `SendMessage` to their original agent ids (once the orchestrator corrected its first mistaken approach) picked up exactly where each left off, redid nothing already done.
+
+**Duplicated:** none among the 6 real work units (disjoint file leases, frozen contracts). One wasted agent invocation from the stray-duplicate relaunch mistake above (zero file changes, but a real token/tool-call cost).
+
+**Gaps:**
+- engineering-insights WAS run this time (3 entries appended) — breaks the two-in-a-row skip pattern flagged in the 2026-09-29 and 2026-09-30 entries below; no longer an open defect.
+- Real run metrics were not visible in-context during the run itself (no `<usage>` block surfaced in any agent's text manifest) — only recoverable after the fact via a `--deep` pass over the subagent transcripts. The default in-context retro pass is structurally blind to cost for this kind of session.
+
+**Recommendations:** run-plan: add an explicit line to step 2 — resume a rate-limit-interrupted agent via `SendMessage` to its original agent id, never a fresh `Agent` call; this session self-corrected only after actually spawning a duplicate. implementation-planner: grep for unowned cross-references (e.g. a comment naming a component a unit is about to delete) before finalizing file leases, so a plan doesn't leave a known stale-reference gap for the main thread to patch after the fact. run-plan step 2b: re-check for new sibling-worktree migrations immediately before applying, not just at planning time — the collision here only became concrete between planning and apply. workflow-retro: note in reference/data-sources.md that the in-context pass will be all-`n/a` on cost for sessions where agents return prose manifests with no visible `<usage>` block — `--deep` is not optional polish for these, it's the only way to get a non-empty cost table.
 
 ### 2026-09-30 — L05b Onboarding Tour: full SDD pipeline (spec → plan → 7-unit, 3-wave run), one fix round, two post-hoc rework passes
 

@@ -1,0 +1,16 @@
+{
+  "panel": {
+    "label": "Pick agents to run"
+  },
+  "clear": "Clear",
+  "run": "Run multi-agent review ({count})",
+  "configureAgents": "Configure agents…",
+  "estimate": {
+    "none": "no estimate"
+  },
+  "empty": {
+    "title": "No agents yet",
+    "body": "Create an agent before running a multi-agent review.",
+    "cta": "Go to Agents"
+  }
+}

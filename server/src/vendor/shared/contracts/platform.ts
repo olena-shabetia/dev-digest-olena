@@ -369,9 +369,13 @@ export const RepoIndexState = z.object({
 export type RepoIndexState = z.infer<typeof RepoIndexState>;
 
 // ---- Run request (review trigger; owned by A2, contract lives here) ----
+// Exactly ONE selector must be supplied — enforced in ReviewService.resolveTargets
+// (400 invalid_run_request), not here, because `{}` must still reach the service.
 export const RunRequest = z.object({
   agentId: z.string().optional(),
   all: z.boolean().optional(),
+  /** L07 — explicit agent set → one multi_agent_runs parent. Additive. */
+  agentIds: z.array(z.string().uuid()).min(1).optional(),
 });
 export type RunRequest = z.infer<typeof RunRequest>;
 

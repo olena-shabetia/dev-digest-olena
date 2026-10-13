@@ -1,0 +1,97 @@
+import type { CSSProperties } from "react";
+
+export const s = {
+  root: {
+    display: "flex",
+    flexDirection: "column",
+    flex: "1 1 260px",
+    minWidth: 260,
+    maxWidth: 360,
+    border: "1px solid var(--border)",
+    borderRadius: 10,
+    background: "var(--bg-surface)",
+    overflow: "hidden",
+  } satisfies CSSProperties,
+  header: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 10,
+    padding: "12px 14px",
+    borderBottom: "1px solid var(--border)",
+  } satisfies CSSProperties,
+  headerMain: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 2,
+    minWidth: 0,
+  } satisfies CSSProperties,
+  agentName: {
+    fontSize: 14,
+    fontWeight: 700,
+    color: "var(--text-primary)",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+  } satisfies CSSProperties,
+  meta: {
+    fontSize: 12,
+    color: "var(--text-muted)",
+  } satisfies CSSProperties,
+  body: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 8,
+    padding: 12,
+    flex: 1,
+    minHeight: 120,
+  } satisfies CSSProperties,
+  statusRow: {
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+    fontSize: 13,
+    color: "var(--text-secondary)",
+  } satisfies CSSProperties,
+  errorText: {
+    fontSize: 12.5,
+    color: "var(--crit)",
+    lineHeight: 1.5,
+  } satisfies CSSProperties,
+  findingRow: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 4,
+    padding: "8px 10px",
+    borderRadius: 8,
+    border: "1px solid var(--border)",
+  } satisfies CSSProperties,
+  findingTitle: {
+    fontSize: 13,
+    fontWeight: 600,
+    color: "var(--text-primary)",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+  } satisfies CSSProperties,
+  findingLoc: {
+    fontSize: 11.5,
+    color: "var(--text-muted)",
+  } satisfies CSSProperties,
+  footer: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 10,
+    padding: "10px 14px",
+    borderTop: "1px solid var(--border)",
+  } satisfies CSSProperties,
+  footerCount: {
+    fontSize: 12,
+    color: "var(--text-muted)",
+  } satisfies CSSProperties,
+  spin: {
+    animation: "ddspin 1s linear infinite",
+    color: "var(--text-muted)",
+  } satisfies CSSProperties,
+};
