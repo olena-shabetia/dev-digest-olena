@@ -23,6 +23,7 @@ export type ReviewRow = typeof t.reviews.$inferSelect;
 import * as reviewRepo from './repository/review.repo.js';
 import * as runRepo from './repository/run.repo.js';
 import * as pullRepo from './repository/pull.repo.js';
+import * as multiRunRepo from './repository/multi-run.repo.js';
 
 export class ReviewRepository {
   constructor(private db: Db) {}
@@ -185,5 +186,22 @@ export class ReviewRepository {
 
   getRunTrace(runId: string): Promise<RunTrace | undefined> {
     return runRepo.getRunTrace(this.db, runId);
+  }
+
+  // ---- L07: multi-agent batch (write path) --------------------------------
+
+  /** Create one `multi_agent_runs` parent + its `agent_runs` children in ONE
+   *  transaction. `runIds[i]` corresponds to `values.children[i]`. */
+  createMultiAgentRun(values: {
+    workspaceId: string;
+    prId: string;
+    children: { agentId: string; provider: string | null; model: string | null }[];
+  }): Promise<{ multiAgentRunId: string; runIds: string[] }> {
+    return multiRunRepo.createMultiAgentRun(this.db, values);
+  }
+
+  /** Stamp `completed_at = now()` once, after settle-all. No-op if already set. */
+  markMultiAgentRunCompleted(workspaceId: string, multiAgentRunId: string): Promise<void> {
+    return multiRunRepo.markMultiAgentRunCompleted(this.db, workspaceId, multiAgentRunId);
   }
 }

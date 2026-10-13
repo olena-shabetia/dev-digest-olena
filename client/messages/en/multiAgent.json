@@ -1,0 +1,41 @@
+{
+  "crumb": "Multi-Agent Review",
+  "prItem": "#{number} · {title}",
+  "estimate": {
+    "none": "no estimate"
+  },
+  "noAgents": {
+    "title": "Enable agents to run reviews",
+    "body": "Multi-agent review runs the PR through every enabled agent in parallel. You have no agents enabled yet.",
+    "cta": "Go to Agents"
+  },
+  "configure": {
+    "crumb": "Configure run",
+    "step1": "1. Pick a pull request",
+    "step2": "2. Pick agents",
+    "selectPr": "Select PR",
+    "noPrs": {
+      "title": "No pull requests yet",
+      "body": "This repo has no pull requests to review."
+    },
+    "pickPrFirst": "Pick a pull request first",
+    "selectAll": "Select all",
+    "footerPrefix": "≈",
+    "inParallel": "in parallel",
+    "run": "Run multi-agent review"
+  },
+  "list": {
+    "heading": "Recent multi-agent runs",
+    "empty": {
+      "title": "No multi-agent runs yet",
+      "body": "Run all enabled agents on a PR to see N columns + conflicts."
+    },
+    "agentCount": "{count, plural, one {# agent} other {# agents}}",
+    "status": {
+      "running": "running",
+      "done": "done",
+      "failed": "failed",
+      "partial": "partial"
+    }
+  }
+}

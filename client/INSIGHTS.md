@@ -11,6 +11,35 @@ _None yet._
 
 ## What Doesn't Work
 
+### 2026-10-13 — `formatCost(null)` silently renders `"—"`, not the word "unknown" a spec may require
+
+**Symptom:** building Multi-Agent Review (L07), two sibling components
+(`AgentColumn.tsx`, `AgentSummaryCard.tsx`) each did
+`formatCost(run.cost_usd)` directly for a per-agent cost display. Both
+type-checked and passed their own tests clean. A `plan-verifier` pass later
+caught that the spec's "a null cost shall render as 'unknown', never as `$0`"
+criterion was only half-satisfied: never `$0`, yes, but also never literally
+"unknown" — just `formatCost`'s own default of `"—"`.
+
+**Cause:** `formatCost` (`client/src/lib/format.ts`) has its own silent
+null-handling (`"—"`) that satisfies "don't show $0" by accident but doesn't
+match a spec's specific wording. A third component in the same feature,
+`ResultsHeader.tsx`, got it right by explicitly checking `== null` and using
+the `t("...costUnknown")` i18n key before ever calling `formatCost`. Nothing
+enforces that every consumer follows that override — it's a per-call-site
+convention, not a type-level guarantee.
+
+**Fix:** both components now do
+`run.cost_usd == null ? t("header.costUnknown") : formatCost(run.cost_usd)`,
+reusing the exact key `ResultsHeader.tsx` already used in the same feature,
+not a new one.
+
+**Rule:** when a new component displays a persisted nullable cost (or any
+field with its own `formatX(null)` default), grep sibling components in the
+same feature for how they already override the null case before assuming the
+formatter's own default is good enough — `formatCost`'s `"—"` avoids `$0` but
+is not the word "unknown", and typecheck/lint won't catch the gap.
+
 ### 2026-09-22 — a shared component's "never a literal, always pre-translated" contract is a docstring, not a check — nothing stops a literal from being written anyway
 
 **Symptom:** `DiffFindingsApi` and `DiffGroupView` (`client/src/components/diff-viewer/{findings,groups}.ts`) each carry an explicit field-level comment — "Pre-translated ... (never a literal in diff-viewer)" — yet the first implementation of `GroupSection.tsx` and `FileCard.tsx` (Smart Diff, L03) wrote real hardcoded `aria-label`/`title` template-literal strings (`` `${count} files with findings` ``, `` `${count} findings` ``) directly in the shared `diff-viewer` layer. `pnpm typecheck` and `eslint` both passed clean — neither catches a string literal in JSX. Only a manual review pass (two independent reviewers, run in parallel) caught it.
