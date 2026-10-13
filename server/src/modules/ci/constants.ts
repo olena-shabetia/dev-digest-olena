@@ -22,6 +22,15 @@ export const ARTIFACT_MAX_BYTES = 256 * 1024;
 /** Hard cap for the generated review job (GitHub's default is 360 minutes). The
  *  runner has its own, shorter model deadline; this is the backstop. */
 export const CI_JOB_TIMEOUT_MINUTES = 10;
+
+/** PRs above these GitHub-reported sizes never start the review job (it is
+ *  skipped, so no runner minutes and no model call). Read from the
+ *  `pull_request` event payload, so the check is free and happens before the
+ *  runner exists. The runner still enforces its own byte cap on the real diff
+ *  after ignoring generated files. */
+export const CI_MAX_PR_ADDITIONS = 5000;
+export const CI_MAX_PR_DELETIONS = 5000;
+export const CI_MAX_PR_FILES = 100;
 export const SECRET_MIN_LENGTH = 8;
 export const SECRET_KEYS = ['OPENROUTER_API_KEY', 'GITHUB_TOKEN'] as const;
 
