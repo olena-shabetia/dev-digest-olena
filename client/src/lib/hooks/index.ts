@@ -10,3 +10,4 @@ export * from "./project-context";
 export * from "./onboarding";
 export * from "./eval";
 export * from "./useDialogKeys";
+export * from "./multi-agent";

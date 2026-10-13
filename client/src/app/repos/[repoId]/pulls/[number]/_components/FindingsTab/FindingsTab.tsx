@@ -1,8 +1,12 @@
 "use client";
 
 import React, { useCallback } from "react";
+import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { Icon, Badge, Button, SectionLabel, EmptyState } from "@devdigest/ui";
 import { severityBuckets, type SeverityBucket } from "@/lib/severity";
+import { useMultiAgentRuns } from "@/lib/hooks/multi-agent";
+import { multiAgentRunHref } from "@/lib/multi-agent";
 import { RunStatus } from "../RunStatus";
 import { RunHistory } from "../RunHistory/RunHistory";
 import { ReviewRunAccordion } from "../ReviewRunAccordion";
@@ -12,6 +16,7 @@ import type { UseMutationResult } from "@tanstack/react-query";
 
 interface FindingsTabProps {
   prId: string | null;
+  repoId: string | null;
   liveRunIds: string[];
   reviewRunning: boolean;
   lethalTrifecta: FindingRecord[];
@@ -29,6 +34,7 @@ interface FindingsTabProps {
 
 export function FindingsTab({
   prId,
+  repoId,
   liveRunIds,
   reviewRunning,
   lethalTrifecta,
@@ -42,6 +48,20 @@ export function FindingsTab({
   onDelete,
   onRunDone,
 }: FindingsTabProps) {
+  const router = useRouter();
+  const t = useTranslations("prReview");
+
+  // Multi-agent review link: shown only when a multi-agent run already exists
+  // for this PR (no new fetch beyond the repo's run list the Configure/List
+  // screens already use — filtered client-side by pr_id).
+  const { data: multiAgentRuns } = useMultiAgentRuns(repoId);
+  const multiAgentRun = prId
+    ? multiAgentRuns?.find((run) => run.pr_id === prId)
+    : undefined;
+  const handleOpenMultiAgentRun = useCallback(() => {
+    if (multiAgentRun) router.push(multiAgentRunHref(multiAgentRun.id));
+  }, [multiAgentRun, router]);
+
   const handleCancelAll = useCallback(() => {
     liveRunIds.forEach((id) => cancelMutation.mutate(id));
   }, [liveRunIds, cancelMutation]);
@@ -146,7 +166,16 @@ export function FindingsTab({
         <div style={s.timelineSection}>
           <SectionLabel
             icon="Activity"
-            right={<span style={{ fontSize: 12, color: "var(--text-muted)" }}>runs &amp; commits · newest first</span>}
+            right={
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <span style={{ fontSize: 12, color: "var(--text-muted)" }}>runs &amp; commits · newest first</span>
+                {multiAgentRun && (
+                  <Button kind="ghost" size="sm" icon="Users" onClick={handleOpenMultiAgentRun}>
+                    {t("timeline.multiAgentReview")}
+                  </Button>
+                )}
+              </div>
+            }
           >
             Timeline
           </SectionLabel>
