@@ -18,6 +18,10 @@ export const FORBIDDEN_TRIGGERS = ['pull_request_target', 'workflow_run'] as con
 export const INGEST_MAX_RUNS_PER_REPO = 50;
 export const CI_RUNS_LIST_LIMIT = 200;
 export const ARTIFACT_MAX_BYTES = 256 * 1024;
+
+/** Hard cap for the generated review job (GitHub's default is 360 minutes). The
+ *  runner has its own, shorter model deadline; this is the backstop. */
+export const CI_JOB_TIMEOUT_MINUTES = 10;
 export const SECRET_MIN_LENGTH = 8;
 export const SECRET_KEYS = ['OPENROUTER_API_KEY', 'GITHUB_TOKEN'] as const;
 

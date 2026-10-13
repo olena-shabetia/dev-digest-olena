@@ -197,6 +197,63 @@ describe('runCi (T8 agent-runner orchestrator)', () => {
     };
   }
 
+  it('skips the review (exit 2, no model call, no post) when the diff exceeds the size cap', async () => {
+    const stub = makeStubLlm(GROUNDED_PLUS_HALLUCINATED_REVIEW);
+    const rec = makeFetchRecorder();
+    const result = await runCi(
+      baseDeps({
+        llm: stub.llm,
+        fetchImpl: rec.fetchImpl,
+        fetchDiff: async () => FIXTURE_DIFF_RAW,
+        maxDiffBytes: 50,
+      }),
+    );
+
+    expect(result.exitCode).toBe(2);
+    expect(result.artifact).toBeNull();
+    expect(result.error).toMatch(/single-pass limit/i);
+    expect(stub.capturedMessages).toHaveLength(0);
+    expect(rec.calls).toHaveLength(0);
+    expect(existsSync(resultPath)).toBe(false);
+  });
+
+  it('counts the size AFTER ignoring generated files', async () => {
+    const snapshot =
+      'diff --git a/db/migrations/meta/0001_snapshot.json b/db/migrations/meta/0001_snapshot.json\n' +
+      '--- a/db/migrations/meta/0001_snapshot.json\n+++ b/db/migrations/meta/0001_snapshot.json\n' +
+      '@@ -1,1 +1,2 @@\n x\n' + '+{"k":"vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv"}\n'.repeat(500);
+    const stub = makeStubLlm(GROUNDED_PLUS_HALLUCINATED_REVIEW);
+    const result = await runCi(
+      baseDeps({
+        llm: stub.llm,
+        fetchDiff: async () => FIXTURE_DIFF_RAW + snapshot,
+        maxDiffBytes: 2_000,
+      }),
+    );
+
+    expect(result.exitCode).not.toBe(2);
+    expect(stub.capturedMessages).toHaveLength(1);
+    expect(stub.capturedMessages[0]!.map((m) => m.content).join('')).not.toContain('vvvvvvvv');
+  });
+
+  it('aborts with a clear error (exit 1, nothing posted) when the model call outlives the deadline', async () => {
+    const hung: LLMProvider = {
+      ...makeStubLlm('throw').llm,
+      async completeStructured<T>(): Promise<StructuredResult<T>> {
+        return new Promise<StructuredResult<T>>(() => {});
+      },
+    };
+    const rec = makeFetchRecorder();
+    const result = await runCi(
+      baseDeps({ llm: hung, fetchImpl: rec.fetchImpl, fetchDiff: async () => FIXTURE_DIFF_RAW, timeoutMs: 30 }),
+    );
+
+    expect(result.exitCode).toBe(1);
+    expect(result.artifact).toBeNull();
+    expect(result.error).toMatch(/did not finish within/i);
+    expect(rec.calls).toHaveLength(0);
+  });
+
   it('AC-20: fails clearly (non-zero exit, no artifact) when the manifest is invalid, before any LLM call is made', async () => {
     writeFileSync(
       path.join(dir, 'agents', 'security-reviewer.yaml'),

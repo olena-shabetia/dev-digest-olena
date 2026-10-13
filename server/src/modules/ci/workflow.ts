@@ -7,7 +7,13 @@
  */
 import { parse, parseDocument } from 'yaml';
 import type { CiPostAs, CiTrigger } from '@devdigest/shared';
-import { CHECKOUT_SHA, CI_RUNNER_PATH, FORBIDDEN_TRIGGERS, UPLOAD_ARTIFACT_SHA } from './constants.js';
+import {
+  CHECKOUT_SHA,
+  CI_JOB_TIMEOUT_MINUTES,
+  CI_RUNNER_PATH,
+  FORBIDDEN_TRIGGERS,
+  UPLOAD_ARTIFACT_SHA,
+} from './constants.js';
 
 const TRIGGER_ORDER: readonly CiTrigger[] = ['opened', 'synchronize', 'reopened'];
 
@@ -29,6 +35,7 @@ jobs:
   review:
     if: github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
+    timeout-minutes: ${CI_JOB_TIMEOUT_MINUTES}
     steps:
       - uses: actions/checkout@${CHECKOUT_SHA} # v4.2.2
         with:

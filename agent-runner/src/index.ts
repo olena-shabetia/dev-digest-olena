@@ -27,6 +27,11 @@ function resolvePostAs(value: string | undefined): PostAs {
   return 'github_review';
 }
 
+function positiveInt(value: string | undefined): number | undefined {
+  const n = Number(value);
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : undefined;
+}
+
 export async function main(env: NodeJS.ProcessEnv = process.env): Promise<number> {
   const devdigestDir = env.DEVDIGEST_DIR ?? path.join(process.cwd(), '.devdigest');
   const resultPath = env.DEVDIGEST_RESULT_PATH ?? path.join(process.cwd(), 'devdigest-result.json');
@@ -39,6 +44,8 @@ export async function main(env: NodeJS.ProcessEnv = process.env): Promise<number
   const llm = new OpenRouterProvider(env.OPENROUTER_API_KEY ?? '');
 
   const result = await runCi({
+    maxDiffBytes: positiveInt(env.DEVDIGEST_MAX_DIFF_BYTES),
+    timeoutMs: positiveInt(env.DEVDIGEST_TIMEOUT_MS),
     devdigestDir,
     env,
     llm,
@@ -68,13 +75,13 @@ const isDirectRun =
   import.meta.url === `file://${process.argv[1]}`;
 
 if (isDirectRun) {
+  // Exit explicitly: after a model-call deadline the abandoned HTTP request
+  // would otherwise keep the event loop (and the CI job) alive.
   main().then(
-    (code) => {
-      process.exitCode = code;
-    },
+    (code) => process.exit(code),
     (err) => {
       console.error('[agent-runner] fatal error:', err);
-      process.exitCode = 1;
+      process.exit(1);
     },
   );
 }

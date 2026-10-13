@@ -13,6 +13,12 @@ import type { UnifiedDiff, DiffHunk } from '@devdigest/shared';
  *  - `.github/workflows/` — the generated GHA workflow; reviewing our own
  *    generated CI YAML is pure noise.
  *
+ *
+ * Generated or machine-written files are dropped too (`IGNORED_DIFF_PATTERNS`):
+ * drizzle migration snapshots, lockfiles, minified bundles, source maps and
+ * images. They are thousands of lines of no review value and are what turns a
+ * normal feature PR into a 100k-token single-pass prompt.
+ *
  * Stripping them from the RAW diff (not just the parsed file list) matters:
  * single-pass review feeds `diff.raw` straight to the model
  * (`reviewer-core/review/run.ts`), so filtering only `files` would still spend
@@ -20,8 +26,18 @@ import type { UnifiedDiff, DiffHunk } from '@devdigest/shared';
  */
 export const IGNORED_DIFF_PREFIXES = ['.devdigest/', '.github/workflows/'] as const;
 
+export const IGNORED_DIFF_PATTERNS: readonly RegExp[] = [
+  /(^|\/)migrations\/meta\/[^/]+_snapshot\.json$/, // drizzle-kit snapshots
+  /(^|\/)(pnpm-lock\.yaml|package-lock\.json|yarn\.lock|bun\.lockb?|Cargo\.lock|poetry\.lock|Gemfile\.lock|composer\.lock|go\.sum)$/,
+  /\.min\.(js|css)$/,
+  /\.(map|png|jpe?g|gif|webp|ico|svg|woff2?|ttf|eot|pdf)$/i,
+];
+
 function isIgnoredDiffPath(path: string): boolean {
-  return IGNORED_DIFF_PREFIXES.some((prefix) => path.startsWith(prefix));
+  return (
+    IGNORED_DIFF_PREFIXES.some((prefix) => path.startsWith(prefix)) ||
+    IGNORED_DIFF_PATTERNS.some((re) => re.test(path))
+  );
 }
 
 /**

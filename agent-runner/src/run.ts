@@ -7,7 +7,7 @@ import { resolvePrContext, type CiEnv } from './context.js';
 import { parseUnifiedDiff, stripIgnoredFiles } from './diff.js';
 import { fetchPrDiff, postGithubReview, postPrComment, type FetchLike } from './github.js';
 import { buildResultArtifact } from './artifact.js';
-import { RunnerError } from './errors.js';
+import { DiffTooLargeError, ReviewTimeoutError, RunnerError } from './errors.js';
 
 /**
  * `runCi` — the runner's single orchestration entry point (T8). Mirrors the
@@ -34,6 +34,25 @@ import { RunnerError } from './errors.js';
 
 export type PostAs = 'github_review' | 'pr_comment' | 'none';
 
+/** Single-pass prompt cap, measured on the diff after ignoring generated files. */
+export const DEFAULT_MAX_DIFF_BYTES = 200_000;
+/** Overall deadline for the model call. The GitHub job itself has its own cap. */
+export const DEFAULT_TIMEOUT_MS = 300_000;
+
+/** Reject if `work` has not settled within `ms`. Does NOT cancel the request —
+ *  the caller must exit the process so a hung socket cannot keep it alive. */
+async function withDeadline<T>(work: Promise<T>, ms: number): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const deadline = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new ReviewTimeoutError(ms)), ms);
+  });
+  try {
+    return await Promise.race([work, deadline]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
 export interface RunCiDeps {
   /** Directory containing `agents/` and `skills/` (checked-in `.devdigest/`). */
   devdigestDir: string;
@@ -49,6 +68,10 @@ export interface RunCiDeps {
   readDir?: typeof readdirSync;
   writeFile?: typeof writeFileSync;
   now?: () => number;
+  /** Max diff size (bytes) after ignoring generated files. Default 200 KB. */
+  maxDiffBytes?: number;
+  /** Deadline (ms) for the whole model call. Default 5 minutes. */
+  timeoutMs?: number;
   /**
    * Override diff retrieval (tests supply a fixture diff directly instead of
    * hitting the GitHub API). Defaults to `fetchPrDiff` via the GitHub REST API.
@@ -106,7 +129,11 @@ export async function runCi(deps: RunCiDeps): Promise<RunCiResult> {
     //    minified runner bundle would otherwise fail the whole review with a
     //    GitHub 422 "diff too large", and reviewing our own config is noise.
     const rawDiff = await fetchDiffImpl(ctx, githubToken ?? '', fetchImpl);
-    const diff = parseUnifiedDiff(stripIgnoredFiles(rawDiff));
+    const strippedDiff = stripIgnoredFiles(rawDiff);
+    const maxDiffBytes = deps.maxDiffBytes ?? DEFAULT_MAX_DIFF_BYTES;
+    const diffBytes = Buffer.byteLength(strippedDiff, 'utf8');
+    if (diffBytes > maxDiffBytes) throw new DiffTooLargeError(diffBytes, maxDiffBytes);
+    const diff = parseUnifiedDiff(strippedDiff);
 
     // 4. Run the SAME engine the studio uses. `reviewPullRequest` internally
     //    calls `assemblePrompt`/`wrapUntrusted` (diff → `<untrusted
@@ -115,16 +142,19 @@ export async function runCi(deps: RunCiDeps): Promise<RunCiResult> {
     //    result is a valid zero-finding review, not an error — it flows through
     //    normally below).
     const start = now();
-    const outcome = await reviewPullRequest({
-      systemPrompt: manifest.system_prompt,
-      model: manifest.model,
-      diff,
-      llm: deps.llm,
-      strategy: manifest.strategy,
-      skills,
-      prDescription: ctx.body,
-      task: `Review PR #${ctx.prNumber}: ${ctx.title}`,
-    });
+    const outcome = await withDeadline(
+      reviewPullRequest({
+        systemPrompt: manifest.system_prompt,
+        model: manifest.model,
+        diff,
+        llm: deps.llm,
+        strategy: manifest.strategy,
+        skills,
+        prDescription: ctx.body,
+        task: `Review PR #${ctx.prNumber}: ${ctx.title}`,
+      }),
+      deps.timeoutMs ?? DEFAULT_TIMEOUT_MS,
+    );
     const durationMs = now() - start;
 
     // 5. Deterministic verdict/gate from GROUNDED findings + `ci_fail_on`
@@ -174,6 +204,8 @@ export async function runCi(deps: RunCiDeps): Promise<RunCiResult> {
     // Hard-fail (Q5): non-zero exit, nothing posted, no artifact, no synthetic
     // review skeleton — regardless of which stage above threw.
     const message = err instanceof Error ? err.message : String(err);
-    return { exitCode: 1, artifact: null, posted: null, error: message };
+    // 2 = review skipped because the diff is too large; 1 = every other failure.
+    const exitCode = err instanceof DiffTooLargeError ? 2 : 1;
+    return { exitCode, artifact: null, posted: null, error: message };
   }
 }
