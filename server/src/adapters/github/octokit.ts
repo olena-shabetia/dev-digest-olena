@@ -11,10 +11,14 @@ import type {
   OpenPrPayload,
   CommitFilesPayload,
   IssueMeta,
+  WorkflowRunInfo,
+  WorkflowJobInfo,
 } from '@devdigest/shared';
 import { withRetry, withTimeout } from '../../platform/resilience.js';
 
 const TIMEOUT = 30_000;
+/** Upper bound for a downloaded workflow-run artifact zip (the CI result JSON is tiny). */
+const MAX_ARTIFACT_ZIP_BYTES = 1024 * 1024;
 
 function mapStatus(state: string, merged: boolean | undefined): PrStatus {
   if (merged) return 'merged';
@@ -344,6 +348,100 @@ export class OctokitGitHubClient implements GitHubClient {
           });
           const pr = res.data[0];
           return pr ? { url: pr.html_url } : null;
+        })(),
+        TIMEOUT,
+      ),
+    );
+  }
+
+  async getRepoId(repo: RepoRef): Promise<number> {
+    const res = await withRetry(() =>
+      withTimeout(this.octokit.rest.repos.get({ owner: repo.owner, repo: repo.name }), TIMEOUT),
+    );
+    return res.data.id;
+  }
+
+  async listWorkflowRuns(
+    repo: RepoRef,
+    workflowFile: string,
+    perPage: number,
+  ): Promise<WorkflowRunInfo[]> {
+    const res = await withRetry(() =>
+      withTimeout(
+        this.octokit.rest.actions.listWorkflowRuns({
+          owner: repo.owner,
+          repo: repo.name,
+          workflow_id: workflowFile,
+          status: 'completed',
+          per_page: perPage,
+        }),
+        TIMEOUT,
+      ),
+    );
+    return res.data.workflow_runs.map((r) => ({
+      id: r.id,
+      run_attempt: r.run_attempt ?? 1,
+      repository_id: r.repository.id,
+      head_sha: r.head_sha,
+      pr_number: r.pull_requests?.[0]?.number ?? null,
+      status: r.status ?? null,
+      conclusion: r.conclusion ?? null,
+      html_url: r.html_url,
+      run_started_at: r.run_started_at ?? null,
+      created_at: r.created_at,
+    }));
+  }
+
+  async listWorkflowRunJobs(
+    repo: RepoRef,
+    runId: number,
+    attempt: number,
+  ): Promise<WorkflowJobInfo[]> {
+    const res = await withRetry(() =>
+      withTimeout(
+        this.octokit.rest.actions.listJobsForWorkflowRunAttempt({
+          owner: repo.owner,
+          repo: repo.name,
+          run_id: runId,
+          attempt_number: attempt,
+        }),
+        TIMEOUT,
+      ),
+    );
+    return res.data.jobs.map((j) => ({
+      id: j.id,
+      html_url: j.html_url ?? null,
+      started_at: j.started_at ?? null,
+      completed_at: j.completed_at ?? null,
+      conclusion: j.conclusion ?? null,
+    }));
+  }
+
+  async downloadRunArtifact(
+    repo: RepoRef,
+    runId: number,
+    artifactName: string,
+  ): Promise<Uint8Array | null> {
+    return withRetry(() =>
+      withTimeout(
+        (async () => {
+          const list = await this.octokit.rest.actions.listWorkflowRunArtifacts({
+            owner: repo.owner,
+            repo: repo.name,
+            run_id: runId,
+            name: artifactName,
+          });
+          const artifact = list.data.artifacts[0];
+          if (!artifact || artifact.expired) return null;
+          // The result JSON is tiny; refuse oversized zips before buffering them.
+          if (artifact.size_in_bytes > MAX_ARTIFACT_ZIP_BYTES) return null;
+          const dl = await this.octokit.rest.actions.downloadArtifact({
+            owner: repo.owner,
+            repo: repo.name,
+            artifact_id: artifact.id,
+            archive_format: 'zip',
+          });
+          return new Uint8Array(dl.data as ArrayBuffer);
         })(),
         TIMEOUT,
       ),

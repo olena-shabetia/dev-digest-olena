@@ -27,7 +27,25 @@
       "noFindings": "No findings",
       "failed": "Failed",
       "running": "Running"
-    }
+    },
+    "columns": {
+      "repository": "Repository",
+      "pr": "PR",
+      "agent": "Agent",
+      "verdict": "Verdict",
+      "findings": "Findings",
+      "cost": "Cost",
+      "duration": "Duration",
+      "job": "Job"
+    },
+    "jobLink": "View job",
+    "verdict": {
+      "APPROVE": "Approve",
+      "REQUEST_CHANGES": "Request changes",
+      "COMMENT": "Comment"
+    },
+    "failedReason": "Failed · {reason}",
+    "ingestError": "Couldn’t refresh {repo}: {message}"
   },
   "exportWizard": {
     "title": "Export to CI",
@@ -72,7 +90,29 @@
     "installCardTitle": "Open a PR with these files",
     "installCardBody": "DevDigest opens a PR in {repo} titled “Add DevDigest CI review” with the {count} generated files.",
     "ownerRepo": "owner/repo",
-    "secretNote": "Add {key} to the repo's Actions secrets before the workflow runs."
+    "secretNote": "Add {key} to the repo's Actions secrets before the workflow runs.",
+    "noActiveRepo": "Select a repository in the sidebar first.",
+    "runnerBundleMeta": "{size} · sha256 {sha}",
+    "previewErrorsTitle": "Fix these before continuing",
+    "fileError": "{path}: {message}",
+    "triggerChip": {
+      "opened": "pull_request:opened",
+      "synchronize": "pull_request:synchronize",
+      "reopened": "pull_request:reopened"
+    },
+    "triggerRequired": "Pick at least one trigger.",
+    "secretsLabel": "Secrets expected",
+    "secretOpenRouterDesc": "Add it to the repo’s Actions secrets",
+    "secretGithubDesc": "Provided automatically by Actions",
+    "blockMergeInfo": "A red DevDigest check blocks merging only when it is a required status check in the repo’s branch protection. Fail CI on (CI tab) decides when the run fails.",
+    "zipCardTitle": "Copy files as a zip",
+    "zipCardHint": "add them manually",
+    "conflict": "{repo} already runs {agent} in CI — one agent per repository in this version.",
+    "installFailed": "GitHub rejected the export: {message}",
+    "prReady": "Pull request ready",
+    "viewPr": "View pull request",
+    "zipDone": "Zip downloaded",
+    "close": "Close"
   },
   "ciTab": {
     "heading": "Continuous Integration",
@@ -82,7 +122,20 @@
     "update": "Update CI",
     "noRepo": "Connect a repository first",
     "empty": "Not deployed to CI yet. Use “Publish to CI” to open a PR that adds the workflow + agent config.",
-    "installed": "installed {date}"
+    "installed": "installed {date}",
+    "title": "CI deployment",
+    "activeIn": "Active in {count, plural, one {# repo} other {# repos}}",
+    "addToCi": "Add to CI",
+    "updateConfig": "Update CI config",
+    "addRepository": "Add repository",
+    "githubActions": "GitHub Actions",
+    "deployedVersion": "v{version}",
+    "exportPr": "Export PR",
+    "noRunYet": "No runs yet",
+    "historyTitle": "CI run history",
+    "noRunsYet": "No CI runs for this agent yet",
+    "failOnLabel": "Fail CI on",
+    "failOnHelp": "Changes reach CI repos only after you click “Update CI config”."
   },
   "publishDialog": {
     "title": "Publish to CI",

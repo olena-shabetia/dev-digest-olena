@@ -623,6 +623,16 @@ applied explicitly.
 **Rule:** this is the first thing to check on any "works locally, broken on a
 fresh clone/DB" report — before suspecting the code.
 
+### 2026-10-12 — `tsx src/db/migrate.ts` fails with "DATABASE_URL is required" even though the API has a default
+
+**Symptom:** `pnpm db:migrate` / `tsx src/db/migrate.ts` exits with `DATABASE_URL is required` on a machine where the API boots fine against the local Docker Postgres.
+
+**Cause:** the API reads config through `platform/config.ts`, which defaults `DATABASE_URL` to the local `devdigest` URL, but the migrate script reads `process.env.DATABASE_URL` directly and has no default.
+
+**Fix:** pass it explicitly: `DATABASE_URL=postgres://devdigest:devdigest@localhost:5432/devdigest node_modules/.bin/tsx src/db/migrate.ts` (value from `.env.example:2`). Verified afterwards with `select max(id) from drizzle.__drizzle_migrations` and the new columns in `information_schema`.
+
+**Rule:** when applying a migration locally, set `DATABASE_URL` yourself; check `ci_*`-style NOT NULL-without-default columns against row counts first. ref: server/src/db/migrate.ts:38
+
 ## Session Notes
 
 _None yet._

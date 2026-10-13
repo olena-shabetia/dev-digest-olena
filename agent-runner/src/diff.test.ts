@@ -111,3 +111,27 @@ diff --git a/.github/workflows/devdigest-review.yml b/.github/workflows/devdiges
     expect(stripIgnoredFiles(FIXTURE_DIFF_RAW)).toBe(FIXTURE_DIFF_RAW);
   });
 });
+
+describe('stripIgnoredFiles — generated and machine-written files', () => {
+  const section = (p: string) =>
+    `diff --git a/${p} b/${p}\n--- a/${p}\n+++ b/${p}\n@@ -1,1 +1,2 @@\n x\n+y\n`;
+  const real = section('src/app.ts');
+
+  it.each([
+    'server/src/db/migrations/meta/0019_snapshot.json',
+    'pnpm-lock.yaml',
+    'client/package-lock.json',
+    'dist/app.min.js',
+    'assets/logo.png',
+    'bundle.js.map',
+  ])('drops %s', (p) => {
+    const files = parseUnifiedDiff(stripIgnoredFiles(real + section(p))).files.map((f) => f.path);
+    expect(files).toEqual(['src/app.ts']);
+  });
+
+  it('keeps ordinary JSON and lookalike names', () => {
+    const raw = real + section('config/settings.json') + section('src/migrations/index.ts');
+    const files = parseUnifiedDiff(stripIgnoredFiles(raw)).files.map((f) => f.path);
+    expect(files).toEqual(['src/app.ts', 'config/settings.json', 'src/migrations/index.ts']);
+  });
+});

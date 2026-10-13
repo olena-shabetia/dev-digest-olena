@@ -1,6 +1,6 @@
 {
   "id": "a9cd3db4-1b8d-4a93-b2d9-e86c655b4d99",
-  "prevId": "25b2a39e-9d43-4a64-b2e5-6b3ba8f1e5e8",
+  "prevId": "a5de7f95-fe9c-43ae-a005-c87cd4728392",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -3478,9 +3478,21 @@
           "notNull": true,
           "default": "gen_random_uuid()"
         },
+        "workspace_id": {
+          "name": "workspace_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
         "agent_id": {
           "name": "agent_id",
           "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "agent_slug": {
+          "name": "agent_slug",
+          "type": "text",
           "primaryKey": false,
           "notNull": true
         },
@@ -3490,9 +3502,27 @@
           "primaryKey": false,
           "notNull": true
         },
+        "github_repo_id": {
+          "name": "github_repo_id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
         "target_type": {
           "name": "target_type",
           "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "pr_url": {
+          "name": "pr_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "agent_version": {
+          "name": "agent_version",
+          "type": "integer",
           "primaryKey": false,
           "notNull": true
         },
@@ -3502,10 +3532,73 @@
           "primaryKey": false,
           "notNull": true,
           "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
         }
       },
-      "indexes": {},
+      "indexes": {
+        "ci_installations_ws_repo_uq": {
+          "name": "ci_installations_ws_repo_uq",
+          "columns": [
+            {
+              "expression": "workspace_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "repo",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "ci_installations_ws_agent_idx": {
+          "name": "ci_installations_ws_agent_idx",
+          "columns": [
+            {
+              "expression": "workspace_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "agent_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {
+        "ci_installations_workspace_id_workspaces_id_fk": {
+          "name": "ci_installations_workspace_id_workspaces_id_fk",
+          "tableFrom": "ci_installations",
+          "tableTo": "workspaces",
+          "columnsFrom": [
+            "workspace_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
         "ci_installations_agent_id_agents_id_fk": {
           "name": "ci_installations_agent_id_agents_id_fk",
           "tableFrom": "ci_installations",
@@ -3537,9 +3630,81 @@
           "notNull": true,
           "default": "gen_random_uuid()"
         },
+        "workspace_id": {
+          "name": "workspace_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
         "ci_installation_id": {
           "name": "ci_installation_id",
           "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "agent_run_id": {
+          "name": "agent_run_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "repo": {
+          "name": "repo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "workflow_run_id": {
+          "name": "workflow_run_id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "run_attempt": {
+          "name": "run_attempt",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "head_sha": {
+          "name": "head_sha",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "conclusion": {
+          "name": "conclusion",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "verdict": {
+          "name": "verdict",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "error": {
+          "name": "error",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "schema_version": {
+          "name": "schema_version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "agent_version": {
+          "name": "agent_version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "runner_version": {
+          "name": "runner_version",
+          "type": "text",
           "primaryKey": false,
           "notNull": false
         },
@@ -3586,14 +3751,89 @@
           "notNull": false
         }
       },
-      "indexes": {},
+      "indexes": {
+        "ci_runs_ws_run_attempt_uq": {
+          "name": "ci_runs_ws_run_attempt_uq",
+          "columns": [
+            {
+              "expression": "workspace_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "workflow_run_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "run_attempt",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "ci_runs_ws_ran_at_idx": {
+          "name": "ci_runs_ws_ran_at_idx",
+          "columns": [
+            {
+              "expression": "workspace_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "ran_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {
+        "ci_runs_workspace_id_workspaces_id_fk": {
+          "name": "ci_runs_workspace_id_workspaces_id_fk",
+          "tableFrom": "ci_runs",
+          "tableTo": "workspaces",
+          "columnsFrom": [
+            "workspace_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
         "ci_runs_ci_installation_id_ci_installations_id_fk": {
           "name": "ci_runs_ci_installation_id_ci_installations_id_fk",
           "tableFrom": "ci_runs",
           "tableTo": "ci_installations",
           "columnsFrom": [
             "ci_installation_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "ci_runs_agent_run_id_agent_runs_id_fk": {
+          "name": "ci_runs_agent_run_id_agent_runs_id_fk",
+          "tableFrom": "ci_runs",
+          "tableTo": "agent_runs",
+          "columnsFrom": [
+            "agent_run_id"
           ],
           "columnsTo": [
             "id"

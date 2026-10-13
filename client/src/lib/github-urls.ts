@@ -35,3 +35,14 @@ export function githubBlobUrl(
   }
   return url;
 }
+
+/** Only http(s) URLs may become an href — blocks `javascript:` from server data. */
+export function safeHttpUrl(url: string | null | undefined): string | undefined {
+  if (!url) return undefined;
+  try {
+    const u = new URL(url);
+    return u.protocol === "https:" || u.protocol === "http:" ? u.toString() : undefined;
+  } catch {
+    return undefined;
+  }
+}

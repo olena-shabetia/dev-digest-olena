@@ -20001,9 +20001,13 @@ const RepoIndexState = objectType({
     degradedReason: RepoIndexDegradedReason.optional(),
 });
 // ---- Run request (review trigger; owned by A2, contract lives here) ----
+// Exactly ONE selector must be supplied — enforced in ReviewService.resolveTargets
+// (400 invalid_run_request), not here, because `{}` must still reach the service.
 const RunRequest = objectType({
     agentId: stringType().optional(),
     all: booleanType().optional(),
+    /** L07 — explicit agent set → one multi_agent_runs parent. Additive. */
+    agentIds: arrayType(stringType().uuid()).min(1).optional(),
 });
 // ---- Structured API error envelope (returned by the API; UX taxonomy is FE) ----
 const ApiErrorBody = objectType({
@@ -20063,6 +20067,8 @@ const ReviewRunResponse = objectType({
     pr_id: stringType(),
     runs: arrayType(ReviewRunTarget),
     reviews: arrayType(ReviewRecord),
+    /** L07 — set for `agentIds` requests; null for `agentId` / `all`. Additive. */
+    multi_agent_run_id: stringType().nullish(),
 });
 /** Intent persisted for a PR (the Intent plus the pr_id it scopes, and the
  *  derivation provenance the card and cost badge read). */
@@ -20234,6 +20240,95 @@ const ActiveRun = objectType({
     agent_id: stringType().nullable(),
     agent_name: stringType().nullable(),
     ran_at: stringType().nullable(),
+});
+
+;// CONCATENATED MODULE: ../server/src/vendor/shared/contracts/multi-agent.ts
+
+
+
+
+/** Derived, never stored (criterion 69). */
+const MultiAgentRunStatus = enumType(['running', 'done', 'failed', 'partial']);
+/** One child's stance on one finding group (criteria 35-37). */
+const VerdictState = enumType(['flagged', 'did_not_flag', 'running', 'failed', 'cancelled']);
+const GroupVerdict = objectType({
+    run_id: stringType(),
+    agent_id: stringType().nullable(),
+    agent_name: stringType().nullable(),
+    state: VerdictState,
+    /** Highest severity among this agent's findings in the group; null unless flagged. */
+    severity: Severity.nullable(),
+    /** Title of this agent's top finding in the group; null unless flagged. */
+    title: stringType().nullable(),
+    /** This agent's member finding ids (headline order); [] unless flagged. */
+    finding_ids: arrayType(stringType()),
+});
+const FindingGroup = objectType({
+    /** Stable across refetches of the same data: `grp_` + the smallest member finding id. */
+    id: stringType(),
+    file: stringType(),
+    /** Union range: min / max over members after per-finding min/max normalisation. */
+    start_line: numberType().int(),
+    end_line: numberType().int(),
+    /** Title of finding_ids[0]. */
+    headline: stringType(),
+    /** Highest member severity. */
+    severity: Severity,
+    /** All members, sorted by the headline comparator (see WU-3). */
+    finding_ids: arrayType(stringType()),
+    conflict: booleanType(),
+    /** One per child run, in batch order — every child, never only flaggers. */
+    verdicts: arrayType(GroupVerdict),
+});
+const MultiAgentRunTotals = objectType({
+    /** Sum of children's non-null cost_usd; null when no child has a known cost. */
+    cost_usd: numberType().nullable(),
+    /** True when any FINISHED child (done/failed/cancelled) has a null cost. */
+    cost_partial: booleanType(),
+    /** Wall-clock ms; null while in progress or when unknown. */
+    duration_ms: numberType().int().nullable(),
+    in_progress: booleanType(),
+});
+const MultiAgentChild = objectType({
+    run: RunSummary,
+    /** The child's review (with findings); null when none was persisted. */
+    review: ReviewRecord.nullable(),
+});
+/** GET /multi-agent-runs/:id */
+const MultiAgentRunDetail = objectType({
+    id: stringType(),
+    pr_id: stringType(),
+    repo_id: stringType(),
+    pr_number: numberType().int(),
+    pr_title: stringType(),
+    ran_at: stringType(), // ISO
+    status: MultiAgentRunStatus,
+    agent_count: numberType().int(),
+    totals: MultiAgentRunTotals,
+    /** Batch order = submission order (multi_agent_position asc). */
+    children: arrayType(MultiAgentChild),
+    groups: arrayType(FindingGroup),
+});
+/** GET /repos/:id/multi-agent-runs — one row of the run list. */
+const MultiAgentRunListItem = objectType({
+    id: stringType(),
+    pr_id: stringType(),
+    pr_number: numberType().int(),
+    pr_title: stringType(),
+    ran_at: stringType(), // ISO
+    status: MultiAgentRunStatus,
+    agent_count: numberType().int(),
+    totals: MultiAgentRunTotals,
+});
+/** GET /agent-run-estimates — one per workspace agent (criteria 61-62). */
+const AgentRunEstimate = objectType({
+    agent_id: stringType(),
+    /** Count of this agent's status='done' runs in the workspace, all-time. */
+    sample_size: numberType().int(),
+    /** Mean duration_ms over done runs with non-null duration; null when none. */
+    avg_duration_ms: numberType().nullable(),
+    /** Mean cost_usd over done runs with non-null cost; null when none. */
+    avg_cost_usd: numberType().nullable(),
 });
 
 ;// CONCATENATED MODULE: ../server/src/vendor/shared/contracts/why.ts
@@ -21071,11 +21166,13 @@ const ModelInfo = objectType({
  *                         Skill/CommunitySkill, ConventionCandidate, Agent
  *  - contracts/trace      RunTrace, RunEvent, RunLogLine (single-document trace)
  *  - contracts/platform   Settings, ConnTestResult, Repo, PrMeta/PrDetail, SpecFile, …
+ *  - contracts/multi-agent  MultiAgentRunDetail/ListItem, FindingGroup, GroupVerdict, AgentRunEstimate
  *  - adapters             adapter interfaces + ModelInfo
  *
  * Feature agents (A1–A6) and F2 import everything from here. The barrel is
  * stable — feature agents EXTEND with new files, they do not edit existing ones.
  */
+
 
 
 
@@ -35121,6 +35218,33 @@ class RunnerError extends Error {
         this.name = 'RunnerError';
     }
 }
+/**
+ * The PR diff, AFTER ignoring generated files, exceeds the single-pass size cap.
+ * Handled like any hard-fail (no review posted, no artifact) but exits with
+ * code 2 instead of 1, so a log reader can tell "skipped: too big" apart from
+ * "reviewed and the gate triggered".
+ */
+class DiffTooLargeError extends RunnerError {
+    bytes;
+    limit;
+    constructor(bytes, limit) {
+        super(`PR diff is ${Math.ceil(bytes / 1024)} KB after ignoring generated files; ` +
+            `the single-pass limit is ${Math.floor(limit / 1024)} KB. Review skipped — ` +
+            `split the PR or raise DEVDIGEST_MAX_DIFF_BYTES.`);
+        this.bytes = bytes;
+        this.limit = limit;
+        this.name = 'DiffTooLargeError';
+    }
+}
+/** The model call did not finish within the runner's overall deadline. */
+class ReviewTimeoutError extends RunnerError {
+    ms;
+    constructor(ms) {
+        super(`Model review did not finish within ${Math.round(ms / 1000)}s — aborted.`);
+        this.ms = ms;
+        this.name = 'ReviewTimeoutError';
+    }
+}
 
 ;// CONCATENATED MODULE: ./src/manifest.ts
 
@@ -35266,14 +35390,27 @@ function resolvePrContext(env, readFile = external_node_fs_namespaceObject.readF
  *  - `.github/workflows/` — the generated GHA workflow; reviewing our own
  *    generated CI YAML is pure noise.
  *
+ *
+ * Generated or machine-written files are dropped too (`IGNORED_DIFF_PATTERNS`):
+ * drizzle migration snapshots, lockfiles, minified bundles, source maps and
+ * images. They are thousands of lines of no review value and are what turns a
+ * normal feature PR into a 100k-token single-pass prompt.
+ *
  * Stripping them from the RAW diff (not just the parsed file list) matters:
  * single-pass review feeds `diff.raw` straight to the model
  * (`reviewer-core/review/run.ts`), so filtering only `files` would still spend
  * tokens on — and let the model cite — the ignored paths.
  */
 const IGNORED_DIFF_PREFIXES = ['.devdigest/', '.github/workflows/'];
+const IGNORED_DIFF_PATTERNS = [
+    /(^|\/)migrations\/meta\/[^/]+_snapshot\.json$/, // drizzle-kit snapshots
+    /(^|\/)(pnpm-lock\.yaml|package-lock\.json|yarn\.lock|bun\.lockb?|Cargo\.lock|poetry\.lock|Gemfile\.lock|composer\.lock|go\.sum)$/,
+    /\.min\.(js|css)$/,
+    /\.(map|png|jpe?g|gif|webp|ico|svg|woff2?|ttf|eot|pdf)$/i,
+];
 function isIgnoredDiffPath(path) {
-    return IGNORED_DIFF_PREFIXES.some((prefix) => path.startsWith(prefix));
+    return (IGNORED_DIFF_PREFIXES.some((prefix) => path.startsWith(prefix)) ||
+        IGNORED_DIFF_PATTERNS.some((re) => re.test(path)));
 }
 /**
  * Remove whole `diff --git` sections for ignored paths from a raw unified diff,
@@ -35526,6 +35663,25 @@ function buildResultArtifact(input) {
 
 
 
+/** Single-pass prompt cap, measured on the diff after ignoring generated files. */
+const DEFAULT_MAX_DIFF_BYTES = 100_000;
+/** Overall deadline for the model call. The GitHub job itself has its own cap. */
+const DEFAULT_TIMEOUT_MS = 300_000;
+/** Reject if `work` has not settled within `ms`. Does NOT cancel the request —
+ *  the caller must exit the process so a hung socket cannot keep it alive. */
+async function withDeadline(work, ms) {
+    let timer;
+    const deadline = new Promise((_, reject) => {
+        timer = setTimeout(() => reject(new ReviewTimeoutError(ms)), ms);
+    });
+    try {
+        return await Promise.race([work, deadline]);
+    }
+    finally {
+        if (timer)
+            clearTimeout(timer);
+    }
+}
 async function runCi(deps) {
     const readFile = deps.readFile ?? external_node_fs_namespaceObject.readFileSync;
     const readDir = deps.readDir ?? external_node_fs_namespaceObject.readdirSync;
@@ -35548,7 +35704,12 @@ async function runCi(deps) {
         //    minified runner bundle would otherwise fail the whole review with a
         //    GitHub 422 "diff too large", and reviewing our own config is noise.
         const rawDiff = await fetchDiffImpl(ctx, githubToken ?? '', fetchImpl);
-        const diff = parseUnifiedDiff(stripIgnoredFiles(rawDiff));
+        const strippedDiff = stripIgnoredFiles(rawDiff);
+        const maxDiffBytes = deps.maxDiffBytes ?? DEFAULT_MAX_DIFF_BYTES;
+        const diffBytes = Buffer.byteLength(strippedDiff, 'utf8');
+        if (diffBytes > maxDiffBytes)
+            throw new DiffTooLargeError(diffBytes, maxDiffBytes);
+        const diff = parseUnifiedDiff(strippedDiff);
         // 4. Run the SAME engine the studio uses. `reviewPullRequest` internally
         //    calls `assemblePrompt`/`wrapUntrusted` (diff → `<untrusted
         //    source="diff">`, prDescription → `<untrusted source="pr-description">`,
@@ -35556,7 +35717,7 @@ async function runCi(deps) {
         //    result is a valid zero-finding review, not an error — it flows through
         //    normally below).
         const start = now();
-        const outcome = await reviewPullRequest({
+        const outcome = await withDeadline(reviewPullRequest({
             systemPrompt: manifest.system_prompt,
             model: manifest.model,
             diff,
@@ -35565,7 +35726,7 @@ async function runCi(deps) {
             skills,
             prDescription: ctx.body,
             task: `Review PR #${ctx.prNumber}: ${ctx.title}`,
-        });
+        }), deps.timeoutMs ?? DEFAULT_TIMEOUT_MS);
         const durationMs = now() - start;
         // 5. Deterministic verdict/gate from GROUNDED findings + `ci_fail_on`
         //    (AC-23) — never `outcome.review.verdict`.
@@ -35613,7 +35774,9 @@ async function runCi(deps) {
         // Hard-fail (Q5): non-zero exit, nothing posted, no artifact, no synthetic
         // review skeleton — regardless of which stage above threw.
         const message = err instanceof Error ? err.message : String(err);
-        return { exitCode: 1, artifact: null, posted: null, error: message };
+        // 2 = review skipped because the diff is too large; 1 = every other failure.
+        const exitCode = err instanceof DiffTooLargeError ? 2 : 1;
+        return { exitCode, artifact: null, posted: null, error: message };
     }
 }
 
@@ -35646,6 +35809,10 @@ function resolvePostAs(value) {
         return value;
     return 'github_review';
 }
+function positiveInt(value) {
+    const n = Number(value);
+    return Number.isFinite(n) && n > 0 ? Math.floor(n) : undefined;
+}
 async function main(env = process.env) {
     const devdigestDir = env.DEVDIGEST_DIR ?? external_node_path_default().join(process.cwd(), '.devdigest');
     const resultPath = env.DEVDIGEST_RESULT_PATH ?? external_node_path_default().join(process.cwd(), 'devdigest-result.json');
@@ -35656,6 +35823,8 @@ async function main(env = process.env) {
     // runner crashing before it can report a clear error.
     const llm = new OpenRouterProvider(env.OPENROUTER_API_KEY ?? '');
     const result = await runCi({
+        maxDiffBytes: positiveInt(env.DEVDIGEST_MAX_DIFF_BYTES),
+        timeoutMs: positiveInt(env.DEVDIGEST_TIMEOUT_MS),
         devdigestDir,
         env,
         llm,
@@ -35680,11 +35849,11 @@ const isDirectRun = typeof process !== 'undefined' &&
     process.argv[1] != null &&
     import.meta.url === `file://${process.argv[1]}`;
 if (isDirectRun) {
-    main().then((code) => {
-        process.exitCode = code;
-    }, (err) => {
+    // Exit explicitly: after a model-call deadline the abandoned HTTP request
+    // would otherwise keep the event loop (and the CI job) alive.
+    main().then((code) => process.exit(code), (err) => {
         console.error('[agent-runner] fatal error:', err);
-        process.exitCode = 1;
+        process.exit(1);
     });
 }
 
