@@ -14,16 +14,16 @@ import type { PrStatus, PrFindingsRollup } from '@devdigest/shared';
 export const STALE_DAYS = 7;
 
 export interface SeverityCounts {
-  critical: number;
+  blocker: number;
   warning: number;
   suggestion: number;
 }
 
 /** Tally finding severities (CRITICAL / WARNING / SUGGESTION) for one review. */
 export function rollupSeverities(rows: { severity: string }[]): SeverityCounts {
-  const c: SeverityCounts = { critical: 0, warning: 0, suggestion: 0 };
+  const c: SeverityCounts = { blocker: 0, warning: 0, suggestion: 0 };
   for (const r of rows) {
-    if (r.severity === 'CRITICAL') c.critical += 1;
+    if (r.severity === 'CRITICAL') c.blocker += 1;
     else if (r.severity === 'WARNING') c.warning += 1;
     else if (r.severity === 'SUGGESTION') c.suggestion += 1;
   }
@@ -50,7 +50,7 @@ export interface FindingRollupRow {
 /** Collapse markdown-ish rationale into a single-line, truncated plain-text
  *  preview: strips code fences/backticks, collapses whitespace, and appends
  *  "…" only when actually truncated. */
-export function plainTextPreview(text: string, max = PREVIEW_DESCRIPTION_MAX): string {
+export function plainTextPreview(max: number, text: string): string {
   const flat = text
     .replace(/```[\s\S]*?```/g, ' ')
     .replace(/`/g, '')
