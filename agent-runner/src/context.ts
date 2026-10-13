@@ -30,6 +30,8 @@ export interface PrContext {
   /** True when the PR head is a fork — informational only; the workflow
    *  itself is responsible for never scheduling this job for fork PRs. */
   isFork: boolean;
+  /** PR head commit SHA from the event payload — pinned into the result artifact. */
+  headSha: string;
 }
 
 interface PullRequestEventPayload {
@@ -37,7 +39,7 @@ interface PullRequestEventPayload {
     number?: number;
     title?: string;
     body?: string | null;
-    head?: { repo?: { fork?: boolean } | null };
+    head?: { sha?: string; repo?: { fork?: boolean } | null };
   };
 }
 
@@ -83,6 +85,11 @@ export function resolvePrContext(
     );
   }
 
+  const headSha = pr?.head?.sha;
+  if (!headSha) {
+    throw new RunnerError('The pull_request event payload has no head.sha (GITHUB_EVENT_PATH missing or malformed)');
+  }
+
   return {
     owner,
     repo,
@@ -90,5 +97,6 @@ export function resolvePrContext(
     title: pr?.title ?? '',
     body: pr?.body ?? '',
     isFork: pr?.head?.repo?.fork ?? false,
+    headSha,
   };
 }

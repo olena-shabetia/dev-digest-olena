@@ -7,6 +7,7 @@ import {
   timestamp,
   doublePrecision,
   index,
+  type AnyPgColumn,
 } from 'drizzle-orm/pg-core';
 import { workspaces } from './core';
 import { agents } from './agents';
@@ -43,6 +44,13 @@ export const agentRuns = pgTable(
     score: integer('score'),
     /** Findings that tripped the agent's gate (severity ≥ ciFailOn). */
     blockers: integer('blockers'),
+    /** L07 — set when this run is a child of a multi_agent_runs batch; null outside one. */
+    multiAgentRunId: uuid('multi_agent_run_id').references(
+      (): AnyPgColumn => multiAgentRuns.id,
+      { onDelete: 'set null' },
+    ),
+    /** L07 — 0-based submission index within the batch; null outside a batch. */
+    multiAgentPosition: integer('multi_agent_position'),
   },
   (t) => ({
     // Covers both reviews/repository/run.repo.ts queries: activeRunsForPull
@@ -55,6 +63,9 @@ export const agentRuns = pgTable(
     // Agent Stats tab (L02, GET /agents/:id/stats and /agents/:id/runs) queries
     // workspace_id + agent_id, ordered by ran_at — agent_id had no index either.
     wsAgentIdx: index('agent_runs_ws_agent_idx').on(t.workspaceId, t.agentId, t.ranAt),
+    // L07 — MultiRunReadRepository.listChildren(ws, parentIds) looks up all
+    // children of one or more multi_agent_runs batches, scoped by workspace_id.
+    wsMultiRunIdx: index('agent_runs_ws_multi_run_idx').on(t.workspaceId, t.multiAgentRunId),
   }),
 );
 
@@ -66,13 +77,23 @@ export const runTraces = pgTable('run_traces', {
   trace: jsonb('trace').notNull(),
 });
 
-export const multiAgentRuns = pgTable('multi_agent_runs', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  workspaceId: uuid('workspace_id')
-    .notNull()
-    .references(() => workspaces.id, { onDelete: 'cascade' }),
-  prId: uuid('pr_id')
-    .notNull()
-    .references(() => pullRequests.id, { onDelete: 'cascade' }),
-  ranAt: timestamp('ran_at', { withTimezone: true }).defaultNow().notNull(),
-});
+export const multiAgentRuns = pgTable(
+  'multi_agent_runs',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    workspaceId: uuid('workspace_id')
+      .notNull()
+      .references(() => workspaces.id, { onDelete: 'cascade' }),
+    prId: uuid('pr_id')
+      .notNull()
+      .references(() => pullRequests.id, { onDelete: 'cascade' }),
+    ranAt: timestamp('ran_at', { withTimezone: true }).defaultNow().notNull(),
+    /** L07 — stamped once by the executor after settle-all; null while running. */
+    completedAt: timestamp('completed_at', { withTimezone: true }),
+  },
+  (t) => ({
+    // L07 — MultiRunReadRepository.listParentsForRepo(ws, repoId, limit) lists
+    // the newest batches for a repo, scoped by workspace_id.
+    wsPrRanIdx: index('multi_agent_runs_ws_pr_ran_idx').on(t.workspaceId, t.prId, t.ranAt),
+  }),
+);

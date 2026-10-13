@@ -6,6 +6,8 @@ import { loadManifest, findManifestPath, loadAgentManifest } from './manifest.js
 import { RunnerError } from './errors.js';
 
 const VALID_MANIFEST_YAML = `
+schema_version: 1
+agent_version: 3
 name: "Security Reviewer"
 provider: "openrouter"
 model: "deepseek/deepseek-v4-flash"
@@ -42,6 +44,8 @@ describe('manifest loading + validation (AC-20)', () => {
     writeFileSync(
       path.join(dir, 'agents', 'bad.yaml'),
       `
+schema_version: 1
+agent_version: 3
 name: "Bad Agent"
 model: "gpt-4.1"
 system_prompt: "review"

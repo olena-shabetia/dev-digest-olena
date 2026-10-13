@@ -140,6 +140,30 @@ export interface CommitFilesPayload {
   files: CommitFile[];
 }
 
+/** One GitHub Actions workflow run — only the fields ingest needs (run data is
+ *  the trusted source for repo id, head SHA, PR number, conclusion; crit. 21). */
+export interface WorkflowRunInfo {
+  id: number;
+  run_attempt: number;
+  repository_id: number;
+  head_sha: string;
+  /** `pull_requests[0]?.number ?? null` */
+  pr_number: number | null;
+  status: string | null;
+  conclusion: string | null;
+  html_url: string;
+  run_started_at: string | null;
+  created_at: string;
+}
+
+export interface WorkflowJobInfo {
+  id: number;
+  html_url: string | null;
+  started_at: string | null;
+  completed_at: string | null;
+  conclusion: string | null;
+}
+
 export interface GitHubClient {
   listPullRequests(repo: RepoRef): Promise<PrMeta[]>;
   getPullRequest(repo: RepoRef, n: number): Promise<PrDetail>;
@@ -161,6 +185,14 @@ export interface GitHubClient {
   commitFiles(repo: RepoRef, payload: CommitFilesPayload): Promise<{ branch: string }>;
   /** The open PR whose head is `branch`, if any (so re-publish reuses it). */
   findOpenPr(repo: RepoRef, branch: string): Promise<{ url: string } | null>;
+  /** GET /repos/{owner}/{repo} → numeric repository id. */
+  getRepoId(repo: RepoRef): Promise<number>;
+  /** COMPLETED runs of one workflow file (e.g. "devdigest-review.yml"), newest first. */
+  listWorkflowRuns(repo: RepoRef, workflowFile: string, perPage: number): Promise<WorkflowRunInfo[]>;
+  /** Jobs of one run attempt. */
+  listWorkflowRunJobs(repo: RepoRef, runId: number, attempt: number): Promise<WorkflowJobInfo[]>;
+  /** Raw zip bytes of the run's artifact named `artifactName`; null if absent or expired. */
+  downloadRunArtifact(repo: RepoRef, runId: number, artifactName: string): Promise<Uint8Array | null>;
   getIssue(repo: RepoRef, n: number): Promise<IssueMeta>;
   /** GET /user — for "posting as @user". */
   currentLogin(): Promise<string>;

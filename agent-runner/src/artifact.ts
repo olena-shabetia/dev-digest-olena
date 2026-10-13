@@ -1,5 +1,6 @@
 import type { Finding } from '@devdigest/shared';
 import { CiResultArtifact } from '@devdigest/shared';
+import type { CiVerdict } from '@devdigest/shared';
 import { RunnerError } from './errors.js';
 
 /** Runner version string embedded in every artifact (informational only). */
@@ -11,6 +12,13 @@ export interface BuildResultArtifactInput {
   durationMs: number;
   agent: string;
   prNumber: number;
+  /** Deterministic GitHub review event the runner computed. */
+  verdict: CiVerdict;
+  headSha: string;
+  model: string;
+  schemaVersion: 1;
+  agentVersion: number;
+  blockers: number;
 }
 
 function severityCounts(findings: Finding[]): { critical: number; warning: number; suggestion: number } {
@@ -32,6 +40,12 @@ function severityCounts(findings: Finding[]): { critical: number; warning: numbe
 export function buildResultArtifact(input: BuildResultArtifactInput): CiResultArtifact {
   const counts = severityCounts(input.findings);
   const candidate = {
+    schema_version: input.schemaVersion,
+    agent_version: input.agentVersion,
+    model: input.model,
+    head_sha: input.headSha,
+    verdict: input.verdict,
+    blockers: input.blockers,
     findings_count: input.findings.length,
     critical: counts.critical,
     warning: counts.warning,
