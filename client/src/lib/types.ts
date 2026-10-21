@@ -53,6 +53,17 @@ export type {
 
 export type { Review, Finding, Severity, Verdict } from "@devdigest/shared";
 export type {
+  MultiAgentRunStatus,
+  VerdictState,
+  GroupVerdict,
+  FindingGroup,
+  MultiAgentRunTotals,
+  MultiAgentChild,
+  MultiAgentRunDetail,
+  MultiAgentRunListItem,
+  AgentRunEstimate,
+} from "@devdigest/shared";
+export type {
   PrBrief,
   PrBriefRecord,
   PrBriefResponse,

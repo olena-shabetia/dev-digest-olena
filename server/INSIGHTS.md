@@ -144,6 +144,36 @@ invisible to tooling.
 
 ## Codebase Patterns
 
+### 2026-10-13 — a Drizzle migration numbered the same as a sibling git worktree's can be renumbered by hand, but only after confirming zero table/column overlap
+
+**Symptom:** building Multi-Agent Review (L07) in one worktree generated
+`0019_chunky_living_tribunal.sql`; the sibling worktree
+`emdash-export-to-ci-g1jwc`, built in parallel, had already generated its own
+unrelated `0019_rapid_wendell_rand.sql` from the same `0018` base.
+
+**Cause:** two git worktrees sharing one repo history can independently run
+`pnpm db:generate` from the same prior migration, each producing a file
+numbered one past their own local state, with no way for either to know about
+the other's.
+
+**Fix:** diffed both `.sql` files — this worktree's only touched
+`agent_runs`/`multi_agent_runs` columns, the sibling's only touched
+`ci_installations`/`ci_runs` columns, no table or column overlap. Confirmed
+the Drizzle snapshot (`meta/NNNN_snapshot.json`) references prior snapshots by
+internal `id`/`prevId` UUIDs, never by filename, so renaming is self-contained.
+Renamed the `.sql` file, its `meta/NNNN_snapshot.json`, and bumped the
+matching `meta/_journal.json` entry's `idx`/`tag` from 19 to 20 — a pure
+filename/metadata edit, no content regenerated.
+
+**Rule:** a numbering collision between two worktrees' independently-generated
+migrations can be resolved by hand-renumbering (file + snapshot + journal
+entry, never the SQL content) ONLY after diffing both migrations' SQL to
+confirm they touch disjoint tables/columns. If they overlap at all, don't
+hand-renumber — delete and regenerate on top of the other's migration instead
+(root `AGENTS.md`'s "never hand-edit a migration" still governs the SQL
+content itself; this is about the numbering metadata only, which Drizzle
+itself stores independently of content).
+
 ### 2026-10-09 — an eval `must_not_flag` case is matched by file + line overlap only, so it must sit on lines where the agent has nothing legitimate to say
 
 `matches()` (`server/src/modules/eval/scoring.ts:52`) compares file and overlapping
@@ -592,6 +622,16 @@ applied explicitly.
 
 **Rule:** this is the first thing to check on any "works locally, broken on a
 fresh clone/DB" report — before suspecting the code.
+
+### 2026-10-12 — `tsx src/db/migrate.ts` fails with "DATABASE_URL is required" even though the API has a default
+
+**Symptom:** `pnpm db:migrate` / `tsx src/db/migrate.ts` exits with `DATABASE_URL is required` on a machine where the API boots fine against the local Docker Postgres.
+
+**Cause:** the API reads config through `platform/config.ts`, which defaults `DATABASE_URL` to the local `devdigest` URL, but the migrate script reads `process.env.DATABASE_URL` directly and has no default.
+
+**Fix:** pass it explicitly: `DATABASE_URL=postgres://devdigest:devdigest@localhost:5432/devdigest node_modules/.bin/tsx src/db/migrate.ts` (value from `.env.example:2`). Verified afterwards with `select max(id) from drizzle.__drizzle_migrations` and the new columns in `information_schema`.
+
+**Rule:** when applying a migration locally, set `DATABASE_URL` yourself; check `ci_*`-style NOT NULL-without-default columns against row counts first. ref: server/src/db/migrate.ts:38
 
 ## Session Notes
 

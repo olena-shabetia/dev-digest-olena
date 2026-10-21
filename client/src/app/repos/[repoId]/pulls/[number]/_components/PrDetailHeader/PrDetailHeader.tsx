@@ -2,7 +2,7 @@
 
 import React, { useCallback } from "react";
 import { Icon, Avatar, Badge, Button, Tabs } from "@devdigest/ui";
-import { RunReviewDropdown } from "../RunReviewDropdown";
+import { AgentPickerPopover } from "../AgentPickerPopover";
 import { s } from "./styles";
 import type { PrDetail } from "@/lib/types";
 
@@ -14,7 +14,6 @@ interface PrDetailHeaderProps {
   /** github.com PR URL; null when the repo's full_name isn't known yet. */
   githubUrl?: string | null;
   onSetTab: (tab: string) => void;
-  onRunStart: () => void;
   onRunsStarted: () => void;
 }
 
@@ -25,13 +24,8 @@ export function PrDetailHeader({
   findingsCount,
   githubUrl,
   onSetTab,
-  onRunStart,
   onRunsStarted,
 }: PrDetailHeaderProps) {
-  const handleRunStart = useCallback(() => {
-    onRunStart();
-  }, [onRunStart]);
-
   const handleRunsStarted = useCallback(() => {
     onRunsStarted();
   }, [onRunsStarted]);
@@ -90,10 +84,9 @@ export function PrDetailHeader({
             View on GitHub
           </Button>
           {prId && (
-            <RunReviewDropdown
+            <AgentPickerPopover
               prId={prId}
               warnMerged={pr.status === "merged" || pr.status === "closed"}
-              onRunStart={handleRunStart}
               onRunsStarted={handleRunsStarted}
             />
           )}

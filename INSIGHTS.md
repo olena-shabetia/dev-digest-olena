@@ -11,7 +11,25 @@ Scope: things that cross package boundaries. Package-local entries belong in
 
 ## What Works
 
-_None yet._
+### 2026-10-13 — a plan's "contract freeze" (verbatim Zod shapes + exclusive file leases + wave barriers) scaled cleanly to a 6-unit, 2-package, 3-wave feature with zero cross-unit integration bugs
+
+Building Multi-Agent Review (L07) — a feature spanning new DB columns, 3 new
+shared Zod contracts, 4 new HTTP routes, a pure grouping helper, and 2 new
+client route trees — `implementation-planner` froze every cross-unit interface
+(exact Zod shapes, server-internal function signatures, the HTTP surface
+table) in the plan itself before any `implementer` started. Across 6 work
+units run in 3 waves (2 per wave, server+client), every unit reported zero
+contract deviations, and a full `architecture-reviewer` pass afterward found
+zero findings. The only real gap `plan-verifier` caught (a missing null-cost
+override in 2 sibling components) was a spec-wording detail, not a cross-unit
+integration failure.
+
+**Takeaway:** for a feature that splits cleanly along a server/client or
+read/write seam, writing the frozen contract shapes into the plan's own text
+(not just describing them in prose) lets independent implementer agents build
+against each other's output without any of them seeing the others' code —
+worth reusing as the default shape for any plan spanning more than 2-3 files
+across packages.
 
 ## What Doesn't Work
 
@@ -89,6 +107,16 @@ keep working locally.
 `.github/workflows/*.yml`) is ever bumped past whatever version introduced
 `ERR_PNPM_IGNORED_BUILDS`, every `pnpm install --frozen-lockfile` step in CI
 will start failing — verify this specifically before bumping that pin.
+
+### 2026-10-12 — under pnpm 12, `pnpm exec <bin>` and `pnpm <script>` can trigger an install on their own
+
+**Symptom:** running `pnpm typecheck`, `pnpm exec eslint` or `pnpm db:generate` in a package whose `node_modules` was missing or stale made pnpm start an implicit install that ended with `ERR_PNPM_IGNORED_BUILDS` and left an untracked `pnpm-workspace.yaml`. Three separate work units hit it in one run (`agent-runner/`, `client/`, `server/`).
+
+**Cause:** pnpm 12 runs a dependency-verification step before executing scripts; it is the same unapproved-builds failure as the `pnpm install` entry above, just reached through a script call. Lockfiles and `package.json` were not modified.
+
+**Fix:** call the binaries directly — `node_modules/.bin/tsc`, `eslint`, `vitest`, `drizzle-kit generate`, `tsx` — and delete any `pnpm-workspace.yaml` stub afterwards.
+
+**Rule:** in verification commands for agents, prefer `node_modules/.bin/<tool>` over `pnpm exec`/`pnpm <script>` unless the install is intended. ref: client/package.json:9
 
 ## Recurring Errors & Fixes
 

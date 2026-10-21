@@ -40,8 +40,10 @@ export type RunOutcome = {
 /**
  * Owns the background execution of queued agent runs (extracted from
  * ReviewService; behaviour unchanged). Loads the diff + intent once, then
- * map-reduces each agent, streaming events over the runBus and persisting each
- * review. Per-agent failures are isolated.
+ * runs every agent IN PARALLEL (L07 — `Promise.allSettled`, replacing the
+ * former sequential loop), streaming events over the runBus and persisting
+ * each review. Per-agent failures are isolated; `REVIEW_LLM_TIMEOUT_MS` still
+ * bounds each individual agent call.
  */
 export class ReviewRunExecutor {
   constructor(
@@ -52,8 +54,10 @@ export class ReviewRunExecutor {
 
   /**
    * Background execution of the queued agent runs (NOT awaited by the route).
-   * Loads the diff + intent once, then map-reduces each agent, streaming events
-   * over the runBus and persisting each review. Per-agent failures are isolated.
+   * Loads the diff + intent once, then runs every agent in parallel, streaming
+   * events over the runBus and persisting each review. Per-agent failures are
+   * isolated. When `opts.multiAgentRunId` is set (L07), the parent's
+   * `completed_at` is stamped once settle-all (or `failAll`) finishes.
    */
   async executeRuns(
     workspaceId: string,
@@ -61,6 +65,7 @@ export class ReviewRunExecutor {
     repo: typeof schema.repos.$inferSelect,
     jobs: { agent: AgentRow; runId: string }[],
     logger?: Logger,
+    opts?: { multiAgentRunId?: string },
   ): Promise<void> {
     // ONE logger fanned out over every queued run: shared pre-work (diff +
     // intent) is streamed into each target agent's Live Log and persisted into
@@ -93,6 +98,9 @@ export class ReviewRunExecutor {
           .saveRunTrace(runId, this.traceFromBuffer(runId, pull, agent, '0/0 passed'))
           .catch(() => undefined);
         this.container.runBus.complete(runId);
+      }
+      if (opts?.multiAgentRunId) {
+        await this.repo.markMultiAgentRunCompleted(workspaceId, opts.multiAgentRunId).catch(() => undefined);
       }
     };
 
@@ -151,43 +159,53 @@ export class ReviewRunExecutor {
           }
         : undefined;
 
-    for (const [index, { agent, runId }] of jobs.entries()) {
-      const agentStart = Date.now();
-      logger?.info(
-        { runId, agent: agent.name, provider: agent.provider, model: agent.model, prId: pull.id },
-        `review: agent "${agent.name}" started (${agent.provider}/${agent.model})`,
-      );
-      try {
-        const outcome = await this.runOneAgent(
-          workspaceId,
-          pull,
-          repo,
-          diff,
-          agent,
-          runId,
-          runLog,
-          renderedIntent,
-          index === 0 ? freshIntentCost : undefined,
-        );
+    // L07 — every agent runs IN PARALLEL (was a sequential `for…of`). Same
+    // per-job body, same per-agent failure isolation (`allSettled`, not
+    // `all`), and the shared intent derivation's cost still attributes to
+    // exactly index 0 — only the awaiting changed.
+    await Promise.allSettled(
+      jobs.map(async ({ agent, runId }, index) => {
+        const agentStart = Date.now();
         logger?.info(
-          {
+          { runId, agent: agent.name, provider: agent.provider, model: agent.model, prId: pull.id },
+          `review: agent "${agent.name}" started (${agent.provider}/${agent.model})`,
+        );
+        try {
+          const outcome = await this.runOneAgent(
+            workspaceId,
+            pull,
+            repo,
+            diff,
+            agent,
             runId,
-            agent: agent.name,
-            findings: outcome.findings.length,
-            grounding: outcome.grounding,
-            durationMs: Date.now() - agentStart,
-          },
-          `review: agent "${agent.name}" done — ${outcome.findings.length} finding(s)`,
-        );
-      } catch (err) {
-        // runOneAgent already persisted the failure/cancel (status + error +
-        // trace) and completed the bus; here we only log at the run level.
-        const cancelled = err instanceof RunCancelledError;
-        logger?.[cancelled ? 'info' : 'error'](
-          { runId, agent: agent.name, err: (err as Error).message, durationMs: Date.now() - agentStart },
-          `review: agent "${agent.name}" ${cancelled ? 'cancelled' : 'failed'}`,
-        );
-      }
+            runLog,
+            renderedIntent,
+            index === 0 ? freshIntentCost : undefined,
+          );
+          logger?.info(
+            {
+              runId,
+              agent: agent.name,
+              findings: outcome.findings.length,
+              grounding: outcome.grounding,
+              durationMs: Date.now() - agentStart,
+            },
+            `review: agent "${agent.name}" done — ${outcome.findings.length} finding(s)`,
+          );
+        } catch (err) {
+          // runOneAgent already persisted the failure/cancel (status + error +
+          // trace) and completed the bus; here we only log at the run level.
+          const cancelled = err instanceof RunCancelledError;
+          logger?.[cancelled ? 'info' : 'error'](
+            { runId, agent: agent.name, err: (err as Error).message, durationMs: Date.now() - agentStart },
+            `review: agent "${agent.name}" ${cancelled ? 'cancelled' : 'failed'}`,
+          );
+        }
+      }),
+    );
+
+    if (opts?.multiAgentRunId) {
+      await this.repo.markMultiAgentRunCompleted(workspaceId, opts.multiAgentRunId).catch(() => undefined);
     }
   }
 
@@ -275,10 +293,11 @@ export class ReviewRunExecutor {
       // The pure review pipeline lives in @devdigest/reviewer-core (shared with
       // the CI runner). The service owns only I/O: repo-intel context resolution
       // above, and persistence + observability below.
-      // Bounded: agents run one after another, so a hung provider call here would
-      // otherwise block every agent queued behind it. On timeout the catch below
-      // persists status='failed' + the error text; the abandoned call is not
-      // cancelled (it is not abortable), only no longer waited on.
+      // Bounded: agents now run IN PARALLEL (L07), but a hung provider call
+      // here would still block this job indefinitely without a timeout. On
+      // timeout the catch below persists status='failed' + the error text;
+      // the abandoned call is not cancelled (it is not abortable), only no
+      // longer waited on.
       const outcome = await withTimeout(reviewPullRequest({
         systemPrompt: agent.systemPrompt,
         model: agent.model,

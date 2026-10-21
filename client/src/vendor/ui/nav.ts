@@ -39,6 +39,15 @@ export const NAV: NavGroup[] = [
       { key: "eval", label: "Eval Dashboard", icon: "Gauge", href: "/eval" },
     ],
   },
+  {
+    section: "GLOBAL",
+    items: [
+      // L07 — deliberate scoped vendor exception (SPEC-15 CI Runs page; precedent: L06 entry above)
+      { key: "ci-runs", label: "CI Runs", icon: "Workflow", href: "/ci-runs" },
+      // L07 — deliberate scoped vendor exception (SPEC-14 criterion 72; precedent: L05/L05b/L06 entries above)
+      { key: "multi-agent", label: "Multi-Agent Review", icon: "Users", href: "/multi-agent" },
+    ],
+  },
 ];
 
 export const SETTINGS_ITEM: NavItemDef = {

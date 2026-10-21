@@ -1,0 +1,39 @@
+{
+  "crumb": "Multi-Agent Review",
+  "agentFallback": "Unknown agent",
+  "header": {
+    "configureRun": "Configure run",
+    "selectedAgents": "{count, plural, one {# selected agent} other {# selected agents}} · in parallel",
+    "viewSwitchLabel": "Switch between Columns and Tabs view",
+    "view": {
+      "columns": "Columns",
+      "tabs": "Tabs"
+    },
+    "costUnknown": "unknown",
+    "durationUnknown": "unknown",
+    "durationInProgress": "in progress",
+    "agentsSummary": "{count, plural, one {# agent} other {# agents}} · {duration} total · {cost}"
+  },
+  "status": {
+    "running": "running",
+    "done": "done",
+    "failed": "failed",
+    "cancelled": "cancelled"
+  },
+  "column": {
+    "viewTrace": "View trace",
+    "findingsCount": "{count, plural, one {# finding} other {# findings}}",
+    "noFindings": "no findings",
+    "unknown": "unknown"
+  },
+  "tabs": {
+    "viewTrace": "View trace",
+    "noSummary": "No summary."
+  },
+  "disagreement": {
+    "title": "Where agents disagree",
+    "onlyConflicts": "Show only conflicts",
+    "empty": "No conflicts — agents agree on every flagged location.",
+    "didNotFlag": "did not flag"
+  }
+}
