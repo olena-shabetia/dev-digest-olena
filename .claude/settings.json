@@ -1,4 +1,7 @@
 {
+  "env": {
+    "ENABLE_TOOL_SEARCH": "true"
+  },
   "permissions": {
     "allow": [
       "Bash(pnpm exec vitest *)",
@@ -66,7 +69,25 @@
       }
     ]
   },
-  "env": {
-    "ENABLE_TOOL_SEARCH": "true"
+  "enabledPlugins": {
+    "research-tools@dev-digest-ai-marketplace-stable": true,
+    "sdd-engineering@dev-digest-ai-marketplace-stable": true,
+    "engineering-paved-path@dev-digest-ai-marketplace-stable": true,
+    "architecture-review@dev-digest-ai-marketplace-stable": true
+  },
+  "extraKnownMarketplaces": {
+    "dev-digest-ai-marketplace": {
+      "source": {
+        "source": "github",
+        "repo": "olena-shabetia/olena-shabetia-dev-digest-ai-marketplace"
+      }
+    },
+    "dev-digest-ai-marketplace-stable": {
+      "source": {
+        "source": "github",
+        "repo": "olena-shabetia/olena-shabetia-dev-digest-ai-marketplace",
+        "ref": "stable"
+      }
+    }
   }
 }
